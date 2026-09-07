@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="id">
+	<head>
+		<meta charset="utf-8" />
+		<link rel="icon" type="image/png" sizes="32x32" href="%sveltekit.assets%/favicon-32.png" />
+		<link rel="apple-touch-icon" href="%sveltekit.assets%/apple-touch-icon.png" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta name="text-scale" content="scale" />
+		<meta
+			name="description"
+			content="Sistem Telemetering Terpadu PLTA — PLN Indonesia Power UBP Mrica. Monitoring hidrologi dan operasional 5 PLTA secara realtime."
+		/>
+		<title>Sistem Telemetering PLTA — UBP Mrica</title>
+		%sveltekit.head%
+	</head>
+	<body data-sveltekit-preload-data="hover">
+		<!--
+			Cat pertama sebelum JavaScript siap.
+
+			Rute `/dashboard` menunggu pemulihan sesi (`/auth/me`) selesai sebelum
+			halamannya dirender, dan tanpa penanda ini layar operator kosong putih
+			selama jeda itu. Blok ini murni HTML+CSS, dihapus oleh layout root begitu
+			aplikasi terpasang.
+		-->
+		<div
+			id="boot-shimmer"
+			role="status"
+			aria-label="Memuat aplikasi"
+			style="
+				position: fixed;
+				inset: 0;
+				background: #f7f7f8;
+				padding: 24px;
+				display: flex;
+				flex-direction: column;
+				gap: 24px;
+			"
+		>
+			<div style="display: flex; flex-direction: column; gap: 8px">
+				<div style="height: 24px; width: 176px; border-radius: 8px; background: #ededef"></div>
+				<div
+					style="
+						height: 12px;
+						width: 288px;
+						max-width: 70vw;
+						border-radius: 8px;
+						background: #ededef;
+					"
+				></div>
+			</div>
+			<div style="flex: 1; border-radius: 16px; background: #ededef"></div>
+		</div>
+
+		<div style="display: contents">%sveltekit.body%</div>
+	</body>
+</html>

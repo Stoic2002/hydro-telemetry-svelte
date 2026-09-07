@@ -1,0 +1,400 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400..800&family=JetBrains+Mono:wght@400;500&display=swap');
+@import 'tailwindcss';
+
+/*
+ * Token desain — dashboard telemetering PLTA.
+ *
+ * Mengikuti `docs/design-system.md`: permukaan netral yang naik selangkah,
+ * garis rambut berkontras rendah, radius 12px untuk kontrol dan 20px untuk
+ * penampung, satu aksen saja, teks kecil dan padat.
+ *
+ * Dua penyimpangan yang disengaja dari dokumen itu, keduanya keputusan tim:
+ *
+ * 1. Aksen tetap cyan, bukan magenta. `zone-hulu` juga cyan dan peta bendungan
+ *    sudah memakai pasangan hulu/dam/hilir; magenta akan berebut perhatian
+ *    dengan penanda zona dan status-danger di layar yang sama.
+ * 2. Hanya tema terang. Layar ini dipakai di ruang kontrol dengan pencahayaan
+ *    tetap, dan menambah tema gelap berarti mengukur ulang seluruh warna zona,
+ *    seri grafik, dan ubin radar peta.
+ *
+ * Nama token dipertahankan dari versi React (`surface-*`, `text-*`, `border-*`)
+ * supaya `system-style-design-guide.md` tetap terbaca; yang berubah nilainya.
+ */
+
+@theme {
+	/*
+	 * Manrope wajib varian variable. Bobot 485 di bawah meniru font Basel di
+	 * situs rujukan — dengan bobot statis, 485 dibulatkan ke 500 dan efeknya
+	 * hilang sama sekali.
+	 */
+	--font-sans: 'Manrope', ui-sans-serif, system-ui, -apple-system, sans-serif;
+	--font-display: 'Manrope', ui-sans-serif, system-ui, sans-serif;
+	--font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', monospace;
+
+	/* Skala bobot digeser naik: "normal" = 485, bukan 400. */
+	--font-weight-normal: 485;
+	--font-weight-medium: 550;
+	--font-weight-semibold: 650;
+	--font-weight-bold: 750;
+
+	/* Permukaan — hierarki lewat tingkat terang, bukan bayangan. */
+	--color-surface-base: #f9f9f9;
+	--color-surface-raised: #ffffff;
+	--color-surface-overlay: #f1f1f1;
+
+	/* Garis rambut — memisahkan, bukan menggambar kotak. */
+	--color-border-subtle: #e8e8e8;
+	--color-border-strong: #c7c7c7;
+
+	/*
+	 * Teks. Rasio kontras di atas #ffffff dijaga lolos WCAG AA.
+	 * `text-muted` sengaja #6e6e6e, bukan #7d7d7d milik situs rujukan: yang
+	 * terakhir hanya 4,12 : 1 — terlalu tipis untuk teks kecil yang dipakai di
+	 * puluhan tempat.
+	 */
+	--color-text-primary: #131313; /* 18,10 : 1 */
+	--color-text-strong: #2c2c2c; /* 13,60 : 1 */
+	--color-text-secondary: #454545; /*  9,17 : 1 */
+	--color-text-subtle: #5d5d5d; /*  6,58 : 1 */
+	--color-text-muted: #6e6e6e; /*  5,10 : 1 — teks paling redup yang boleh dibaca */
+	--color-text-placeholder: #9b9b9b; /*  2,90 : 1 — hanya placeholder input */
+
+	/*
+	 * Permukaan gelap — tooltip grafik dan peredam di belakang overlay.
+	 * Teks di atasnya butuh pasangannya sendiri: `text-muted` yang lolos di atas
+	 * putih justru gagal di atas permukaan ini.
+	 */
+	--color-surface-inverse: #131313;
+	--color-border-inverse: #2e2e2e;
+	--color-text-on-inverse: #cfcfcf;
+	--color-text-on-inverse-muted: #9b9b9b;
+	--color-scrim: rgb(19 19 19 / 32%);
+
+	/* Kontrol nonaktif — teks, latar, dan jalur toggle. */
+	--color-disabled: #c7c7c7;
+
+	/* Aksen — satu-satunya. */
+	--color-brand-primary: #22d3ee;
+	--color-brand-primary-strong: #0891b2;
+	--color-brand-primary-pressed: #0e7490;
+	--color-brand-tint: #ecfeff;
+	--color-brand-tint-border: #a5f3fc;
+
+	/* Status — pasangan isi (`-soft`) dan teks (`-strong`). Jangan dibalik. */
+	--color-status-success: #34d399;
+	--color-status-success-strong: #087a45;
+	--color-status-success-soft: #e6f7ef;
+	--color-status-warning: #fbbf24;
+	--color-status-warning-strong: #b4530a;
+	--color-status-warning-soft: #fdf1e3;
+	--color-status-danger: #f87171;
+	--color-status-danger-strong: #c9251a;
+	--color-status-danger-soft: #fdecea;
+	--color-status-info: #6941c6;
+	--color-status-info-soft: #f1edfc;
+
+	/* Zona hidrologi — warna tetap, dipakai peta bendungan dan penanda sumber. */
+	--color-zone-hulu: #22d3ee;
+	--color-zone-dam: #f59e0b;
+	--color-zone-hilir: #34d399;
+
+	/* Seri grafik — urutan warna untuk parameter di Tren & Grafik. */
+	--color-chart-series-1: #0891b2;
+	--color-chart-series-2: #2563eb;
+	--color-chart-series-3: #7c3aed;
+	--color-chart-series-4: #0e7490;
+	--color-chart-series-5: #d97706;
+	--color-chart-series-6: #059669;
+
+	/* Kerangka grafik — sumbu, garis bantu, garis rata-rata. */
+	--color-chart-grid: #e8e8e8;
+	--color-chart-axis: #6e6e6e;
+	--color-chart-reference: #9b9b9b;
+
+	/*
+	 * Radius. Praktiknya hanya dua yang sering dipakai: 12px untuk apa pun yang
+	 * diklik atau diketik, 20px untuk apa pun yang menampung. Chip dan badge
+	 * memakai `rounded-full`.
+	 */
+	--radius-sm: 8px;
+	--radius-md: 10px;
+	--radius-lg: 12px;
+	--radius-xl: 20px;
+	--radius-2xl: 24px;
+
+	/*
+	 * Elevasi hampir tidak ada — kartu naik lewat `surface-raised` + border.
+	 * Bayangan hanya untuk yang benar-benar melayang.
+	 */
+	--shadow-overlay: 0 4px 16px rgb(0 0 0 / 6%);
+	--shadow-panel: 0 10px 30px rgb(0 0 0 / 10%);
+	--shadow-dialog: 0 16px 48px rgb(0 0 0 / 12%);
+}
+
+/*
+ * Memuat — pola campuran, hasil keputusan tim.
+ *
+ * Dokumen desain melarang skeleton sama sekali, tetapi ia ditulis untuk aplikasi
+ * dengan daftar pendek. Layar ini memuat tabel telemetri, grafik 24 jam, dan
+ * peta yang butuh waktu; teks "Memuat…" di tengah layar kosong akan membuat
+ * layout melompat saat data tiba. Maka: skeleton hanya untuk peta, grafik, dan
+ * tabel — form, dialog, dan panel kecil memakai teks.
+ */
+@keyframes skeleton-shimmer {
+	100% {
+		transform: translateX(100%);
+	}
+}
+
+.skeleton-shimmer {
+	position: relative;
+	overflow: hidden;
+	background: #ededed;
+}
+
+.skeleton-shimmer::after {
+	position: absolute;
+	inset: 0;
+	transform: translateX(-100%);
+	background: linear-gradient(90deg, transparent, rgb(255 255 255 / 72%), transparent);
+	animation: skeleton-shimmer 1.65s ease-in-out infinite;
+	content: '';
+}
+
+/* Indikator refetch — garis tipis di atas tabel, isi tabel tetap tampil. */
+.refetch-bar {
+	position: relative;
+	overflow: hidden;
+	height: 2px;
+	background: #ededed;
+}
+
+.refetch-bar::after {
+	position: absolute;
+	inset: 0;
+	transform: translateX(-100%);
+	background: linear-gradient(90deg, transparent, #22d3ee, transparent);
+	animation: skeleton-shimmer 1.2s ease-in-out infinite;
+	content: '';
+}
+
+/* Sisa waktu sebelum toast menutup sendiri — garis rambut yang menyusut. */
+@keyframes toast-countdown {
+	from {
+		transform: scaleX(1);
+	}
+
+	to {
+		transform: scaleX(0);
+	}
+}
+
+.toast-countdown {
+	transform-origin: left;
+	animation: toast-countdown linear forwards;
+	animation-duration: var(--toast-duration, 4000ms);
+}
+
+@layer base {
+	body {
+		@apply bg-surface-base font-sans text-text-primary antialiased;
+	}
+
+	/* Angka yang berjajar tidak boleh bergeser saat nilainya berubah. */
+	table,
+	kbd {
+		font-variant-numeric: tabular-nums;
+	}
+
+	/*
+	 * Jangan pernah menghapus indikator fokus tanpa pengganti. Kontrol form
+	 * punya penandanya sendiri di `.field` — tanpa pengecualian di bawah, akan
+	 * muncul DUA cincin sekaligus.
+	 */
+	:focus-visible {
+		outline: 2px solid var(--color-brand-primary-strong);
+		outline-offset: 2px;
+	}
+
+	.field:focus,
+	.field:focus-visible {
+		outline: none;
+	}
+
+	::selection {
+		background: var(--color-brand-primary-strong);
+		color: #ffffff;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		animation-duration: 0.01ms !important;
+		transition-duration: 0.01ms !important;
+	}
+
+	.skeleton-shimmer::after,
+	.refetch-bar::after {
+		animation: none !important;
+	}
+
+	/* Garisnya tetap ada sebagai penanda tipe, hanya tidak menyusut. */
+	.toast-countdown {
+		animation: none !important;
+	}
+}
+
+@layer components {
+	/*
+	 * Kelas kontrol ditulis sekali di sini, bukan diulang sebagai rangkaian
+	 * utility di tiap komponen. Sebelum ada kelas-kelas ini, setiap layar
+	 * mengulang string seratus karakter dan mereka mulai berbeda satu sama lain.
+	 */
+	.field {
+		width: 100%;
+		border-radius: var(--radius-lg);
+		border: 1px solid var(--color-border-subtle);
+		background: var(--color-surface-raised);
+		color: var(--color-text-primary);
+		padding: 0.5rem 0.75rem;
+		font-size: 0.875rem;
+		line-height: 1.45;
+		outline: none;
+		transition:
+			border-color 0.12s,
+			box-shadow 0.12s;
+	}
+
+	.field::placeholder {
+		color: var(--color-text-placeholder);
+	}
+
+	.field:hover:not(:disabled) {
+		border-color: var(--color-border-strong);
+	}
+
+	.field:focus {
+		border-color: var(--color-brand-primary-strong);
+		/* SATU garis yang menempel di tepi, bukan cincin kedua di luarnya. */
+		box-shadow: 0 0 0 1px var(--color-brand-primary-strong);
+	}
+
+	.field-invalid {
+		border-color: var(--color-status-danger-strong);
+	}
+
+	.field-invalid:focus {
+		border-color: var(--color-status-danger-strong);
+		box-shadow: 0 0 0 1px var(--color-status-danger-strong);
+	}
+
+	.field:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+	}
+
+	.btn {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		gap: 0.5rem;
+		white-space: nowrap;
+		border-radius: var(--radius-lg);
+		border: 1px solid transparent;
+		padding: 0.5rem 1rem;
+		font-size: 0.875rem;
+		font-weight: var(--font-weight-medium);
+		cursor: pointer;
+		transition:
+			background-color 0.12s,
+			border-color 0.12s,
+			opacity 0.12s;
+	}
+
+	.btn:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+	}
+
+	.btn-sm {
+		padding: 0.375rem 0.75rem;
+		font-size: 0.8125rem;
+	}
+
+	.btn-lg {
+		padding: 0.625rem 1.125rem;
+	}
+
+	/* Tiga varian saja. Satu tombol primer per layar; sisanya ghost. */
+	.btn-primary {
+		background: var(--color-brand-primary-strong);
+		color: #ffffff;
+	}
+
+	.btn-primary:hover:not(:disabled) {
+		background: var(--color-brand-primary-pressed);
+	}
+
+	.btn-ghost {
+		border-color: var(--color-border-subtle);
+		background: var(--color-surface-raised);
+		color: var(--color-text-primary);
+	}
+
+	.btn-ghost:hover:not(:disabled) {
+		background: var(--color-surface-overlay);
+	}
+
+	.btn-danger {
+		background: var(--color-status-danger-strong);
+		color: #ffffff;
+	}
+
+	.btn-danger:hover:not(:disabled) {
+		opacity: 0.9;
+	}
+
+	/*
+	 * Hierarki teks. Judul besar hanya di kepala halaman, dengan tracking rapat;
+	 * sisanya text-sm dan text-xs.
+	 */
+	.page-title {
+		@apply font-display text-xl font-semibold tracking-[-0.02em] text-text-primary;
+	}
+
+	.page-description {
+		@apply font-sans text-sm leading-normal text-text-muted;
+	}
+
+	.section-title {
+		@apply font-sans text-lg font-semibold tracking-[-0.015em] text-text-primary;
+	}
+
+	.card-title {
+		@apply font-sans text-base font-semibold tracking-[-0.01em] text-text-primary;
+	}
+
+	.field-label {
+		@apply font-sans text-xs font-medium text-text-secondary;
+	}
+
+	.table-head-cell {
+		@apply font-sans text-xs font-medium tracking-wide text-text-muted uppercase;
+	}
+
+	/* Nilai telemetri — angka selalu tabular, satuan selalu lebih redup. */
+	.metric-value {
+		@apply font-mono font-medium text-text-primary tabular-nums;
+	}
+
+	.metric-unit {
+		@apply text-[0.8em] font-normal text-text-muted;
+	}
+
+	/* Teks memuat untuk form, dialog, dan panel kecil — pengganti skeleton. */
+	.loading-text {
+		@apply font-sans text-sm text-text-muted;
+	}
+}
