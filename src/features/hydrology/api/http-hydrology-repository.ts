@@ -55,17 +55,30 @@ function mapExcelResult(result: ApiMonthlyHydrologyExcelResult): MonthlyHydrolog
 }
 
 export const httpHydrologyRepository: HydrologyRepository = {
-	async getDaily(pltaId, date, options) {
+	async getDaily(pltaId, params, options) {
 		const endpoint = `/api/v1/dashboard/plta/${encodeURIComponent(pltaId)}/daily`;
 		const payload = await apiRequest<unknown>(endpoint, {
 			method: 'GET',
 			cache: 'no-store',
 			signal: options?.signal,
-			query: { tanggal: date }
+			query: {
+				tanggal: params?.date,
+				// Server memenangkan `dmn_mw` atas `units` bila keduanya terkirim.
+				// Yang tidak dipilih dibiarkan undefined supaya tidak ikut dikirim
+				// sebagai string kosong.
+				units: params?.units?.length ? params.units.join(',') : undefined,
+				dmn_mw: params?.dmnMw
+			}
 		});
 		const response = parseResponse(payload, apiPLTADailyDashboardSchema, endpoint);
 
-		return response.daily ? mapDailyHydrology(response.daily) : null;
+		return {
+			daily: response.daily ? mapDailyHydrology(response.daily) : null,
+			dmnUnits: (response.plta.dmn_units ?? []).map((item) => ({
+				unit: item.unit,
+				dmnMw: item.dmn_mw
+			}))
+		};
 	},
 
 	async getMonthlyPanel(pltaId, year, month, options) {
@@ -191,11 +204,13 @@ export const httpHydrologyRepository: HydrologyRepository = {
 		formData.set('jenis', input.kind);
 		formData.set('file', input.file);
 
-		const payload = await apiRequest<unknown>(endpoint, {
+		// Badan respons sengaja diabaikan. Sebelumnya di-parse dengan
+		// `apiMonthlyHydrologySchema`, yang mensyaratkan `plta_id` — mustahil
+		// dipenuhi endpoint lintas-PLTA. Akibatnya unggahan yang sukses tetap
+		// melempar galat kontrak 502 dan operator melihat toast merah.
+		await apiRequest<unknown>(endpoint, {
 			method: 'POST',
 			body: formData
 		});
-
-		return mapMonthly(parseResponse(payload, apiMonthlyHydrologySchema, endpoint));
 	}
 };

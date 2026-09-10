@@ -1,4 +1,4 @@
-import { apiRequest, createApiResponseParser } from '../../../api/http';
+import { ApiError, apiRequest, createApiResponseParser } from '../../../api/http';
 import type { ElevationUploadResult } from '../model';
 import type { UploadsRepository } from './uploads-repository';
 import { apiElevationUploadResultSchema, type ApiElevationUploadResult } from './schemas';
@@ -20,6 +20,29 @@ function mapElevationResult(result: ApiElevationUploadResult): ElevationUploadRe
 }
 
 export const httpUploadsRepository: UploadsRepository = {
+	async downloadElevationTemplate(pltaId, year, options) {
+		const endpoint = '/api/v1/elevations/template.xlsx';
+		const payload = await apiRequest<Blob>(endpoint, {
+			method: 'GET',
+			cache: 'no-store',
+			signal: options?.signal,
+			headers: {
+				Accept: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+			},
+			query: { plta_id: pltaId, year }
+		});
+
+		if (!(payload instanceof Blob)) {
+			throw new ApiError('Respons template kurva elevasi tidak valid', {
+				status: 502,
+				statusText: 'Invalid API Response',
+				url: endpoint
+			});
+		}
+
+		return payload;
+	},
+
 	async uploadElevationExcel(input) {
 		const endpoint = '/api/v1/elevations/upload-excel';
 		const formData = new FormData();

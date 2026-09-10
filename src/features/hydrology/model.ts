@@ -16,9 +16,41 @@ export interface DashboardMetric {
 	time: string | null;
 	source: DashboardMetricSource;
 	stations: DashboardStationMetric[] | null;
+	/**
+	 * Hanya dibawa metrik penyebut (`dmn_beban_penuh`), bukan seluruh metrik —
+	 * karena itu opsional. `unit` bila dihitung dari unit terpilih, `manual`
+	 * bila operator mengisi DMN sendiri.
+	 */
+	mode?: string | null;
+	/** Nomor unit yang ikut dihitung saat `mode` = `unit`. */
+	units?: number[] | null;
 }
 
 export type DashboardMetricGroup = Record<string, DashboardMetric>;
+
+export interface DmnUnit {
+	unit: number;
+	dmnMw: number;
+}
+
+/**
+ * Penyebut DMN untuk Service Hour Full Load dan metrik "thd target".
+ *
+ * Keduanya saling meniadakan — `dmnMw` menang di server bila diisi. Operator
+ * biasanya cukup memilih unit; `dmnMw` untuk kasus DMN nyata tidak sama dengan
+ * penjumlahan unit, mis. derating atau hasil uji kinerja.
+ */
+export interface DailyHydrologyParams {
+	date?: string;
+	units?: number[];
+	dmnMw?: number;
+}
+
+export interface DailyHydrologyPanel {
+	daily: DailyHydrology | null;
+	/** Dari objek `plta`, tetap ada walau `daily` kosong. */
+	dmnUnits: DmnUnit[];
+}
 
 export interface DailyHydrology {
 	date: string;

@@ -1,5 +1,7 @@
 import { createMutation, createQuery, useQueryClient } from '@tanstack/svelte-query';
+import { invalidateUploadAudit } from '../../audit/api/queries';
 import type {
+	DailyHydrologyParams,
 	MonthlyHydrologyImageKind,
 	UpsertMonthlyHydrologyInput,
 	UploadMonthlyHydrologyImageInput
@@ -11,8 +13,18 @@ const HYDROLOGY_STALE_TIME = 60_000;
 export const hydrologyQueryKeys = {
 	all: ['hydrology'] as const,
 	dashboardRoot: (pltaId: string) => [...hydrologyQueryKeys.all, 'dashboard', pltaId] as const,
-	daily: (pltaId: string, date?: string) =>
-		[...hydrologyQueryKeys.dashboardRoot(pltaId), 'daily', date ?? 'today'] as const,
+	/**
+	 * Penyebut DMN ikut jadi bagian kunci: mengganti unit terpilih mengubah
+	 * beberapa metrik turunan, jadi hasilnya bukan data yang sama.
+	 */
+	daily: (pltaId: string, params: DailyHydrologyParams = {}) =>
+		[
+			...hydrologyQueryKeys.dashboardRoot(pltaId),
+			'daily',
+			params.date ?? 'today',
+			params.units?.length ? params.units.join(',') : 'all-units',
+			params.dmnMw ?? 'auto-dmn'
+		] as const,
 	monthlyPanel: (pltaId: string, year: number, month: number) =>
 		[...hydrologyQueryKeys.dashboardRoot(pltaId), 'monthly', year, month] as const,
 	monthly: (pltaId: string, year: number) =>
@@ -23,15 +35,18 @@ export const hydrologyQueryKeys = {
 		[...hydrologyQueryKeys.all, 'monthly-image', year, month, kind] as const
 };
 
-export function createDailyHydrologyQuery(pltaId: () => string, date: () => string | undefined) {
+export function createDailyHydrologyQuery(
+	pltaId: () => string,
+	params: () => DailyHydrologyParams = () => ({})
+) {
 	return createQuery(() => {
 		const id = pltaId();
-		const day = date();
+		const value = params();
 
 		return {
-			queryKey: hydrologyQueryKeys.daily(id, day),
+			queryKey: hydrologyQueryKeys.daily(id, value),
 			queryFn: ({ signal }: { signal: AbortSignal }) =>
-				hydrologyRepository.getDaily(id, day, { signal }),
+				hydrologyRepository.getDaily(id, value, { signal }),
 			enabled: Boolean(id),
 			staleTime: HYDROLOGY_STALE_TIME,
 			refetchOnWindowFocus: false
@@ -109,6 +124,7 @@ export function createUploadMonthlyHydrologyExcelMutation() {
 		mutationFn: (file: File) => hydrologyRepository.uploadMonthlyExcel(file),
 		onSuccess: async () => {
 			await queryClient.invalidateQueries({ queryKey: hydrologyQueryKeys.all });
+			await invalidateUploadAudit(queryClient);
 		}
 	}));
 }
@@ -132,6 +148,7 @@ export function createUpsertMonthlyHydrologyMutation() {
 			await queryClient.invalidateQueries({
 				queryKey: hydrologyQueryKeys.dashboardRoot(record.pltaId)
 			});
+			await invalidateUploadAudit(queryClient);
 		}
 	}));
 }
@@ -149,6 +166,7 @@ export function createUploadMonthlyHydrologyImageMutation() {
 			hydrologyRepository.uploadMonthlyImage(input),
 		onSuccess: async () => {
 			await queryClient.invalidateQueries({ queryKey: hydrologyQueryKeys.all });
+			await invalidateUploadAudit(queryClient);
 		}
 	}));
 }

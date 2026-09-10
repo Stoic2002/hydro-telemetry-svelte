@@ -1,4 +1,5 @@
 <script lang="ts">
+	import type { Snippet } from 'svelte';
 	import { HYDROLOGY_ZONES, getDamImagery, type HydrologyZone, type Plant } from '$features/plta';
 	import DamHydrologyMap from '$features/plta/components/DamHydrologyMap.svelte';
 	import type { DailyTelemetryUploadTarget } from '$features/telemetry-upload';
@@ -13,10 +14,19 @@
 		damSections: MetricSection[];
 		downstreamSections: MetricSection[];
 		onUpload: (target: DailyTelemetryUploadTarget) => void;
+		/** Kontrol tambahan pada zona tertentu; zona lain tidak terpengaruh. */
+		zoneControls?: Partial<Record<HydrologyZone, Snippet>>;
 	}
 
-	let { plant, plantName, upstreamSections, damSections, downstreamSections, onUpload }: Props =
-		$props();
+	let {
+		plant,
+		plantName,
+		upstreamSections,
+		damSections,
+		downstreamSections,
+		onUpload,
+		zoneControls
+	}: Props = $props();
 
 	let activeZone = $state<HydrologyZone | null>(null);
 	let failedImageUrl = $state<string | null>(null);
@@ -61,6 +71,7 @@
 			isHighlighted={activeZone === zone}
 			onHighlightChange={(isHighlighted) => changeHighlight(zone, isHighlighted)}
 			sections={sectionsByZone[zone]}
+			zoneControl={zoneControls?.[zone]}
 			{onUpload}
 		/>
 	{/each}

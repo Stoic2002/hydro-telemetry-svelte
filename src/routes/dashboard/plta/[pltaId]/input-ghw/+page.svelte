@@ -10,10 +10,13 @@
 	import UploadHistoryPanel from '$features/audit/components/UploadHistoryPanel.svelte';
 	import { getActivePLTA } from '$features/plta';
 	import PlantSwitcher from '$features/plta/components/PlantSwitcher.svelte';
-	import { createUploadElevationExcelMutation } from '$features/uploads';
+	import {
+		createDownloadElevationTemplateMutation,
+		createUploadElevationExcelMutation
+	} from '$features/uploads';
+	import { downloadBlob } from '$shared/lib/download';
 	import { notificationStore } from '$shared/lib/notification.svelte';
 
-	const TEMPLATE_URL = '/templates/template-upload-plta.xlsx';
 	const MAX_FILE_SIZE = 5 * 1024 * 1024;
 	const CURRENT_YEAR = new Date().getFullYear();
 	const YEAR_OPTIONS = Array.from(
@@ -30,6 +33,7 @@
 	const pltaId = $derived(activePLTA.pltaId);
 	const displayName = $derived(activePLTA.displayName);
 	const elevationMutation = createUploadElevationExcelMutation();
+	const templateMutation = createDownloadElevationTemplateMutation();
 
 	let selectedFile = $state<File | null>(null);
 	let selectionError = $state<string | null>(null);
@@ -53,6 +57,20 @@
 			return 'Ukuran file melebihi batas backend 5 MB.';
 		}
 		return null;
+	}
+
+	/**
+	 * Template diambil dari server, bukan berkas statis: isinya sudah dipra-isi
+	 * titik kurva yang tersimpan untuk PLTA dan tahun yang dipilih, sehingga
+	 * operator mengoreksi alih-alih mengetik ulang seluruh kurva.
+	 */
+	async function downloadTemplate() {
+		try {
+			const blob = await templateMutation.mutateAsync({ pltaId, year: Number(year) });
+			downloadBlob(blob, `template-eva-${displayName.toLowerCase()}-${year}.xlsx`);
+		} catch (error) {
+			notificationStore.addToast({ type: 'error', message: errorMessage(error) });
+		}
 	}
 
 	function errorMessage(error: unknown): string {
@@ -265,18 +283,22 @@
 
 				<p class="border-t border-border-subtle pt-2.5 text-xs leading-relaxed text-text-muted">
 					Kolom wajib: <strong class="font-medium text-text-secondary">Elevasi</strong>,
-					<strong class="font-medium text-text-secondary">Volume</strong>. Kolom Area bersifat
-					opsional.
+					<strong class="font-medium text-text-secondary">Volume</strong>, dan
+					<strong class="font-medium text-text-secondary">Area</strong>.
 				</p>
 
-				<a
-					href={TEMPLATE_URL}
-					download="Template_Upload_PLTA_Standar.xlsx"
+				<button
+					type="button"
+					onclick={() => void downloadTemplate()}
+					disabled={templateMutation.isPending || isUploading}
 					class="btn btn-ghost btn-sm h-9"
 				>
 					<IconDownload class="size-3.5" />
-					Unduh Template
-				</a>
+					{templateMutation.isPending ? 'Menyiapkan…' : 'Unduh Template'}
+				</button>
+				<p class="text-xs leading-relaxed text-text-muted">
+					Template terisi kurva {displayName} tahun {year} yang tersimpan.
+				</p>
 			</aside>
 		</div>
 	</section>

@@ -7,6 +7,12 @@
 	import { createUpsertMonthlyHydrologyMutation } from '../api/queries';
 	import { getHydrologyErrorMessage } from '../error';
 	import type { MonthlyHydrology } from '../model';
+	import {
+		buildMonthlyHydrologyPayload,
+		createEmptyMonthlyForm,
+		isEmptyMonthlyHydrologyPayload,
+		type MonthlyHydrologyFormValues
+	} from '../monthly-form';
 
 	interface Props {
 		isOpen: boolean;
@@ -23,29 +29,7 @@
 
 	const upsertMutation = createUpsertMonthlyHydrologyMutation();
 
-	function toFormNumber(value: number | null | undefined): string {
-		return value === null || value === undefined ? '' : String(value);
-	}
-
-	function toOptionalNumber(value: string): number | undefined {
-		const normalizedValue = value.trim();
-		return normalizedValue ? Number(normalizedValue) : undefined;
-	}
-
-	/**
-	 * Form ini tidak memakai skema Zod: seluruh field opsional dan server
-	 * melakukan upsert parsial, jadi tidak ada aturan bentuk yang bisa divalidasi
-	 * di klien selain "jangan kirim yang kosong semua".
-	 */
-	let values = $state({
-		hydrologyPrediction: '',
-		hydrologyActual: '',
-		predictedProductionMwh: '',
-		targetProductionMwh: '',
-		previousAchievementMwh: '',
-		predictedPreviousAchievementMwh: '',
-		targetPreviousAchievementMwh: ''
-	});
+	let values = $state<MonthlyHydrologyFormValues>(createEmptyMonthlyForm());
 
 	// Panel dibuka ulang untuk periode berbeda; isian mengikuti data periode itu.
 	$effect(() => {
@@ -54,11 +38,11 @@
 		values = {
 			hydrologyPrediction: record?.hydrologyPrediction ?? '',
 			hydrologyActual: record?.hydrologyActual ?? '',
-			predictedProductionMwh: toFormNumber(record?.predictedProductionMwh),
-			targetProductionMwh: toFormNumber(record?.targetProductionMwh),
-			previousAchievementMwh: toFormNumber(record?.previousAchievementMwh),
-			predictedPreviousAchievementMwh: toFormNumber(record?.predictedPreviousAchievementMwh),
-			targetPreviousAchievementMwh: toFormNumber(record?.targetPreviousAchievementMwh)
+			predictedProductionMwh: record?.predictedProductionMwh ?? null,
+			targetProductionMwh: record?.targetProductionMwh ?? null,
+			previousAchievementMwh: record?.previousAchievementMwh ?? null,
+			predictedPreviousAchievementMwh: record?.predictedPreviousAchievementMwh ?? null,
+			targetPreviousAchievementMwh: record?.targetPreviousAchievementMwh ?? null
 		};
 	});
 
@@ -67,19 +51,9 @@
 	async function submitHydrology(event: SubmitEvent) {
 		event.preventDefault();
 
-		const payload = {
-			hydrologyPrediction: values.hydrologyPrediction.trim() || undefined,
-			hydrologyActual: values.hydrologyActual.trim() || undefined,
-			predictedProductionMwh: toOptionalNumber(values.predictedProductionMwh),
-			targetProductionMwh: toOptionalNumber(values.targetProductionMwh),
-			previousAchievementMwh: toOptionalNumber(values.previousAchievementMwh),
-			predictedPreviousAchievementMwh: toOptionalNumber(values.predictedPreviousAchievementMwh),
-			targetPreviousAchievementMwh: toOptionalNumber(values.targetPreviousAchievementMwh)
-		};
+		const payload = buildMonthlyHydrologyPayload(values);
 
-		// Upsert parsial: kiriman tanpa satu pun nilai akan menimpa apa pun dengan
-		// tidak ada, jadi ditolak di sini sebelum menyentuh server.
-		if (Object.values(payload).every((value) => value === undefined)) {
+		if (isEmptyMonthlyHydrologyPayload(payload)) {
 			notificationStore.addToast({
 				type: 'error',
 				message: 'Isi minimal satu data hidrologi sebelum menyimpan'

@@ -17,6 +17,7 @@ export type {
 	DailyHydrology,
 	DashboardMetric,
 	DashboardMetricGroup,
+	DmnUnit,
 	MonthlyHydrology,
 	MonthlyHydrologyExcelResult,
 	MonthlyHydrologyExcelRowError,

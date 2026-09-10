@@ -1,4 +1,5 @@
 <script lang="ts">
+	import type { Snippet } from 'svelte';
 	import IconCaretDown from '~icons/ph/caret-down';
 	import IconCaretUp from '~icons/ph/caret-up';
 	import { HYDROLOGY_ZONE_PRESENTATION, type HydrologyZone } from '$features/plta';
@@ -12,6 +13,14 @@
 		onHighlightChange?: (isHighlighted: boolean) => void;
 		sections: MetricSection[];
 		onUpload?: (target: DailyTelemetryUploadTarget) => void;
+		/**
+		 * Kontrol milik zona ini, mis. pemilih penyebut DMN di Hulu. Dirender
+		 * sebagai pita tepat di bawah header, bukan di antara baris metrik: daftar
+		 * barisnya generik untuk ketiga zona, jadi menyisipkan kontrol di sana
+		 * berarti mengistimewakan satu kunci metrik. Header sendiri terlalu sempit
+		 * — ketiga kartu berbagi satu baris tiga kolom.
+		 */
+		zoneControl?: Snippet;
 		/** Diikat pemanggil supaya kartu bisa difokuskan saat zonanya dipilih di peta. */
 		element?: HTMLElement | null;
 	}
@@ -22,6 +31,7 @@
 		onHighlightChange,
 		sections,
 		onUpload,
+		zoneControl,
 		element = $bindable(null)
 	}: Props = $props();
 
@@ -82,6 +92,12 @@
 		</div>
 		<span class="shrink-0 text-xs text-text-muted">{rowCount} parameter</span>
 	</div>
+
+	{#if zoneControl}
+		<div class={`border-b px-4 py-2.5 ${presentation.borderClassName}`}>
+			{@render zoneControl()}
+		</div>
+	{/if}
 
 	{#each visibleSections as section (section.title)}
 		<section class="flex-1">

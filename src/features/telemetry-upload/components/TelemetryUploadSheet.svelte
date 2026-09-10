@@ -14,7 +14,8 @@
 		createUploadTelemetryPointsMutation
 	} from '../api/queries';
 	import { getTelemetryUploadErrorMessage } from '../error';
-	import type { DailyTelemetryUploadTarget, TelemetryUploadPoint } from '../model';
+	import type { DailyTelemetryUploadTarget } from '../model';
+	import { MAX_TELEMETRY_POINTS, buildTelemetryPoints, type TelemetryPointRow } from '../points';
 
 	interface Props {
 		isOpen: boolean;
@@ -28,20 +29,17 @@
 	let { isOpen, pltaId, plantName, defaultDate, target, onClose }: Props = $props();
 
 	const MAX_EXCEL_FILE_SIZE = 5 * 1024 * 1024;
-	const MAX_POINTS = 20_000;
+	const MAX_POINTS = MAX_TELEMETRY_POINTS;
 
-	interface PointRow {
+	interface PointRow extends TelemetryPointRow {
 		id: number;
-		date: string;
-		time: string;
-		value: string;
 	}
 
 	let pointRowId = 0;
 
 	function createPointRow(date: string): PointRow {
 		pointRowId += 1;
-		return { id: pointRowId, date, time: '00:00', value: '' };
+		return { id: pointRowId, date, time: '00:00', value: null };
 	}
 
 	const uploadPointsMutation = createUploadTelemetryPointsMutation();
@@ -74,36 +72,8 @@
 		target.tags.map((tag) => ({ value: tag.station, label: tag.station || 'Default' }))
 	);
 
-	/**
-	 * Mengubah baris jadi payload, atau `null` bila ada yang belum lengkap.
-	 * Timestamp duplikat ditolak di sini: server melakukan upsert, jadi dua baris
-	 * dengan waktu sama akan saling menimpa diam-diam dan operator mengira
-	 * keduanya tersimpan.
-	 */
-	function buildPoints(currentRows: PointRow[]): TelemetryUploadPoint[] | null {
-		if (currentRows.length === 0 || currentRows.length > MAX_POINTS) return null;
-
-		const points: TelemetryUploadPoint[] = [];
-		const seenTimestamps: Record<string, true> = {};
-
-		for (const row of currentRows) {
-			const rawValue = row.value.trim();
-			if (!row.date || !row.time || !rawValue) return null;
-
-			const value = Number(rawValue);
-			if (!Number.isFinite(value)) return null;
-
-			const time = `${row.date}T${row.time}:00`;
-			if (seenTimestamps[time]) return null;
-			seenTimestamps[time] = true;
-			points.push({ time, value });
-		}
-
-		return points;
-	}
-
 	async function submitManual() {
-		const points = buildPoints(rows);
+		const points = buildTelemetryPoints(rows);
 		if (!points) {
 			notificationStore.addToast({
 				type: 'error',

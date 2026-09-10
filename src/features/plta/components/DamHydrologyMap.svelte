@@ -1,10 +1,10 @@
 <script lang="ts">
 	import IconExternalLink from '~icons/ph/arrow-square-out';
 	import {
-		DAM_IMAGERY_VIEWBOX,
 		HYDROLOGY_ZONES,
 		HYDROLOGY_ZONE_PRESENTATION,
 		projectDamAnchor,
+		resolveDamZoneField,
 		type DamImagery,
 		type HydrologyZone
 	} from '../dam-imagery';
@@ -26,15 +26,25 @@
 	};
 
 	/**
-	 * Radius arsiran tiap zona dalam satuan viewBox. Bendungan dibuat paling kecil
-	 * karena bangunannya memang satu titik, sedangkan hulu (genangan waduk) dan
-	 * hilir (alur sungai) mencakup area yang jauh lebih luas.
+	 * Arah arsiran dibedakan per zona, bukan 45° untuk semuanya. Di tempat dua
+	 * zona bersinggungan, arah garis yang berbeda memisahkannya bahkan sebelum
+	 * warnanya terbaca.
 	 */
-	const ZONE_FIELD_RADIUS: Record<HydrologyZone, { rx: number; ry: number }> = {
-		upstream: { rx: 300, ry: 225 },
-		dam: { rx: 175, ry: 140 },
-		downstream: { rx: 265, ry: 205 }
+	const ZONE_HATCH_ANGLE: Record<HydrologyZone, number> = {
+		upstream: 30,
+		dam: 105,
+		downstream: 150
 	};
+
+	/**
+	 * Arsiran digambar pada intensitas keadaan tersorot, lalu diredam lewat
+	 * `opacity` grup. Satu pengali menjaga tint dan garis arsiran bergerak
+	 * bersama — kalau dipisah, keduanya cepat lepas sinkron saat disetel ulang.
+	 */
+	function fieldOpacity(isActive: boolean, isMuted: boolean): number {
+		if (isActive) return 1;
+		return isMuted ? 0.18 : 0.64;
+	}
 
 	const MARKER_FILL: Record<HydrologyZone, string> = {
 		upstream: 'fill-brand-primary',
@@ -48,8 +58,35 @@
 		downstream: 'fill-emerald-950'
 	};
 
+	const frame = $derived(imagery.frame);
+
 	function projectAnchor(zone: HydrologyZone) {
-		return projectDamAnchor(imagery.anchors[zone]);
+		return projectDamAnchor(imagery.anchors[zone], frame);
+	}
+
+	function zoneField(zone: HydrologyZone) {
+		return resolveDamZoneField(zone, imagery.anchors[zone], frame);
+	}
+
+	/**
+	 * Batas zona sebagai daftar titik, dipakai dua kali: sebagai mask arsiran
+	 * dan sebagai garis tepi. Elips diubah jadi poligon di sini supaya kedua
+	 * bentuk zona ditangani satu jalur yang sama.
+	 */
+	function zoneOutline(zone: HydrologyZone): string {
+		const shape = zoneField(zone);
+		if (shape.kind === 'polygon') return shape.points;
+
+		const radians = (shape.angle * Math.PI) / 180;
+		const cos = Math.cos(radians);
+		const sin = Math.sin(radians);
+
+		return Array.from({ length: 72 }, (_, index) => {
+			const t = (2 * Math.PI * index) / 72;
+			const ex = shape.rx * Math.cos(t);
+			const ey = shape.ry * Math.sin(t);
+			return `${shape.cx + ex * cos - ey * sin},${shape.cy + ex * sin + ey * cos}`;
+		}).join(' ');
 	}
 
 	const flowPoints = $derived(
@@ -61,10 +98,11 @@
 </script>
 
 <figure
-	class="relative aspect-[8/5] max-h-[480px] min-h-[320px] w-full overflow-hidden bg-[#0f172a]"
+	class="relative max-h-[480px] min-h-[220px] w-full overflow-hidden bg-[#0f172a]"
+	style={`aspect-ratio: ${frame.width} / ${frame.height}`}
 >
 	<svg
-		viewBox={`0 0 ${DAM_IMAGERY_VIEWBOX.width} ${DAM_IMAGERY_VIEWBOX.height}`}
+		viewBox={`0 0 ${frame.width} ${frame.height}`}
 		preserveAspectRatio="xMidYMid slice"
 		role="group"
 		aria-label={`Pemetaan hidrologi ${imagery.damName}`}
@@ -73,9 +111,23 @@
 		<title>Pemetaan titik hulu, bendungan, dan hilir pada {imagery.damName}</title>
 
 		<defs>
+			<!--
+				Garis alir diberi mata panah: tiga titik yang terhubung hanya
+				menyatakan urutan, bukan ke arah mana air bergerak.
+			-->
+			<marker
+				id="flow-arrow"
+				viewBox="0 0 10 10"
+				refX="8"
+				refY="5"
+				markerWidth="6"
+				markerHeight="6"
+				orient="auto-start-reverse"
+			>
+				<path d="M 0 0 L 10 5 L 0 10 z" fill="#ffffff" fill-opacity="0.85" />
+			</marker>
 			{#each HYDROLOGY_ZONES as zone (zone)}
 				{@const accentColor = HYDROLOGY_ZONE_PRESENTATION[zone].accentColor}
-				{@const anchor = projectAnchor(zone)}
 				<!--
 					Arsiran diagonal: pola garis terbaca di atas foto tanpa menutupi
 					detail permukaannya seperti blok warna solid.
@@ -83,29 +135,14 @@
 				<pattern
 					id={`hatch-${zone}`}
 					patternUnits="userSpaceOnUse"
-					width="10"
-					height="10"
-					patternTransform="rotate(45)"
+					width="14"
+					height="14"
+					patternTransform={`rotate(${ZONE_HATCH_ANGLE[zone]})`}
 				>
-					<line x1="0" y1="0" x2="0" y2="10" stroke={accentColor} stroke-width="3" />
+					<line x1="0" y1="0" x2="0" y2="14" stroke={accentColor} stroke-width="2" />
 				</pattern>
-				<!--
-					Tepi arsiran dilembutkan supaya tidak terbaca sebagai batas wilayah
-					yang presisi — batas zona memang tidak setegas itu.
-				-->
-				<radialGradient id={`fade-${zone}`}>
-					<stop offset="0%" stop-color="#ffffff" stop-opacity="1" />
-					<stop offset="55%" stop-color="#ffffff" stop-opacity="0.85" />
-					<stop offset="100%" stop-color="#ffffff" stop-opacity="0" />
-				</radialGradient>
 				<mask id={`field-${zone}`}>
-					<ellipse
-						cx={anchor.x}
-						cy={anchor.y}
-						rx={ZONE_FIELD_RADIUS[zone].rx}
-						ry={ZONE_FIELD_RADIUS[zone].ry}
-						fill={`url(#fade-${zone})`}
-					/>
+					<polygon points={zoneOutline(zone)} fill="#ffffff" />
 				</mask>
 			{/each}
 		</defs>
@@ -114,16 +151,16 @@
 			href={imagery.imageUrl}
 			x="0"
 			y="0"
-			width={DAM_IMAGERY_VIEWBOX.width}
-			height={DAM_IMAGERY_VIEWBOX.height}
+			width={frame.width}
+			height={frame.height}
 			preserveAspectRatio="xMidYMid slice"
 			onerror={onImageError}
 		/>
 		<rect
-			width={DAM_IMAGERY_VIEWBOX.width}
-			height={DAM_IMAGERY_VIEWBOX.height}
+			width={frame.width}
+			height={frame.height}
 			fill="#020617"
-			opacity="0.08"
+			opacity="0.06"
 			pointer-events="none"
 		/>
 
@@ -131,15 +168,45 @@
 		{#each HYDROLOGY_ZONES as zone (zone)}
 			{@const isActive = activeZone === zone}
 			{@const isMuted = activeZone !== null && !isActive}
-			<rect
-				width={DAM_IMAGERY_VIEWBOX.width}
-				height={DAM_IMAGERY_VIEWBOX.height}
-				fill={`url(#hatch-${zone})`}
-				mask={`url(#field-${zone})`}
-				opacity={isActive ? 0.5 : isMuted ? 0.07 : 0.22}
+			<g
+				opacity={fieldOpacity(isActive, isMuted)}
 				pointer-events="none"
 				class="transition-opacity duration-200"
-			/>
+			>
+				<!--
+					Tint tipis di bawah arsiran: garis saja terlalu renggang untuk
+					terbaca sebagai satu area pada citra yang ramai seperti ini.
+				-->
+				<rect
+					width={frame.width}
+					height={frame.height}
+					fill={HYDROLOGY_ZONE_PRESENTATION[zone].accentColor}
+					mask={`url(#field-${zone})`}
+					opacity="0.23"
+				/>
+				<rect
+					width={frame.width}
+					height={frame.height}
+					fill={`url(#hatch-${zone})`}
+					mask={`url(#field-${zone})`}
+					opacity="0.63"
+				/>
+				<!--
+					Batas zona digambar sebagai garis putus-putus, bukan hanya
+					dibiarkan memudar. Tanpa tepi yang tegas, arsiran di atas citra
+					seramai ini terbaca sebagai noda cahaya, bukan sebagai wilayah.
+				-->
+				<polygon
+					points={zoneOutline(zone)}
+					fill="none"
+					stroke={HYDROLOGY_ZONE_PRESENTATION[zone].accentColor}
+					stroke-width="3"
+					stroke-opacity="0.75"
+					stroke-dasharray="16 12"
+					stroke-linecap="round"
+					vector-effect="non-scaling-stroke"
+				/>
+			</g>
 		{/each}
 
 		<!--
@@ -151,9 +218,10 @@
 			fill="none"
 			stroke="#ffffff"
 			stroke-width="3"
-			stroke-opacity="0.5"
+			stroke-opacity="0.6"
 			stroke-dasharray="14 10"
 			stroke-linecap="round"
+			marker-end="url(#flow-arrow)"
 			pointer-events="none"
 			vector-effect="non-scaling-stroke"
 		/>
@@ -165,7 +233,7 @@
 			{@const isMuted = activeZone !== null && !isActive}
 			{@const radius = isActive ? 15 : 13}
 			{@const chipWidth = 20 + presentation.title.length * 11}
-			{@const flip = anchor.x > DAM_IMAGERY_VIEWBOX.width * 0.7}
+			{@const flip = anchor.x > frame.width * 0.7}
 			{@const chipOffset = flip ? -(radius + 8 + chipWidth) : radius + 8}
 
 			<g

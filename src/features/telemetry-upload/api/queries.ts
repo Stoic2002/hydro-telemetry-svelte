@@ -1,4 +1,5 @@
 import { createMutation, useQueryClient } from '@tanstack/svelte-query';
+import { invalidateUploadAudit } from '../../audit/api/queries';
 import { hydrologyQueryKeys } from '../../hydrology/api/queries';
 import type { UploadTelemetryExcelInput, UploadTelemetryPointsInput } from '../model';
 import { telemetryUploadRepository } from './repository';
@@ -12,6 +13,7 @@ function refreshHydrologyDashboard(queryClient: ReturnType<typeof useQueryClient
 		await queryClient.invalidateQueries({
 			queryKey: hydrologyQueryKeys.dashboardRoot(pltaId)
 		});
+		await invalidateUploadAudit(queryClient);
 	};
 }
 

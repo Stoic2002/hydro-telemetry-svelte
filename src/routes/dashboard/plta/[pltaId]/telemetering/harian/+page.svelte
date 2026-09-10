@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
+	import { page } from '$app/state';
 	import IconRefresh from '~icons/ph/arrow-clockwise';
 	import IconWarning from '~icons/ph/warning';
 
@@ -11,6 +13,7 @@
 	import PlantSwitcher from '$features/plta/components/PlantSwitcher.svelte';
 	import type { DailyTelemetryUploadTarget } from '$features/telemetry-upload';
 	import TelemetryUploadSheet from '$features/telemetry-upload/components/TelemetryUploadSheet.svelte';
+	import DmnUnitPicker from './DmnUnitPicker.svelte';
 	import HydrologySpatialLayout from '../HydrologySpatialLayout.svelte';
 	import {
 		buildUploadTarget,
@@ -34,9 +37,29 @@
 
 	let dailyUploadTarget = $state<DailyTelemetryUploadTarget | null>(null);
 
+	/**
+	 * Penyebut DMN disimpan di query string, bukan state komponen: operator
+	 * sering membagikan tautan ke kondisi tertentu, dan tombol Kembali harus
+	 * mengembalikan pilihan sebelumnya — sama seperti filter di Tren & Grafik.
+	 */
+	const selectedUnits = $derived.by(() => {
+		const raw = page.url.searchParams.get('units');
+		if (!raw) return [];
+
+		return raw
+			.split(',')
+			.map((value: string) => Number(value.trim()))
+			.filter((value: number) => Number.isInteger(value) && value > 0);
+	});
+
+	const manualDmn = $derived.by(() => {
+		const raw = Number(page.url.searchParams.get('dmn'));
+		return Number.isFinite(raw) && raw > 0 ? raw : undefined;
+	});
+
 	const dailyQuery = createDailyHydrologyQuery(
 		() => pltaId,
-		() => undefined
+		() => ({ units: selectedUnits, dmnMw: manualDmn })
 	);
 
 	const uploadTagsQuery = createPLTATagsQuery(
@@ -57,7 +80,28 @@
 		bootstrapLatest: false
 	}));
 
-	const daily = $derived(dailyQuery.data ?? null);
+	const daily = $derived(dailyQuery.data?.daily ?? null);
+	const dmnUnits = $derived(dailyQuery.data?.dmnUnits ?? []);
+
+	async function applyDmnFilter(units: number[], dmnMw: number | undefined) {
+		// Salinan sekali pakai untuk menyusun URL berikutnya; dibuang setelah
+		// `goto`, jadi tidak perlu `SvelteURLSearchParams`.
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity
+		const params = new URLSearchParams(page.url.searchParams);
+
+		if (units.length > 0) params.set('units', units.join(','));
+		else params.delete('units');
+
+		if (dmnMw === undefined) params.delete('dmn');
+		else params.set('dmn', String(dmnMw));
+
+		const query = params.toString();
+		await goto(query ? `?${query}` : '?', {
+			replaceState: true,
+			keepFocus: true,
+			noScroll: true
+		});
+	}
 	const isDailyLoading = $derived(dailyQuery.isLoading);
 	const uploadTags = $derived(
 		uploadTagsQuery.isPlaceholderData ? undefined : uploadTagsQuery.data?.items
@@ -292,12 +336,28 @@
 		</Banner>
 	{/if}
 
+	<!--
+		Pemilih penyebut DMN menempel pada zona Hulu, bukan di kartu tersendiri di
+		atas: seluruh metrik yang dipengaruhinya — DMN Beban Penuh, Service Hour
+		Full Load, dan keluarga "thd target" — ada di zona itu.
+	-->
+	{#snippet dmnPicker()}
+		<DmnUnitPicker
+			units={dmnUnits}
+			{selectedUnits}
+			{manualDmn}
+			isBusy={dailyQuery.isFetching}
+			onChange={(units, dmn) => void applyDmnFilter(units, dmn)}
+		/>
+	{/snippet}
+
 	<HydrologySpatialLayout
 		{plant}
 		plantName={displayName}
 		{upstreamSections}
 		{damSections}
 		{downstreamSections}
+		zoneControls={{ upstream: dmnPicker }}
 		onUpload={(target) => (dailyUploadTarget = target)}
 	/>
 </div>

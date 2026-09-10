@@ -201,16 +201,19 @@ favicon, GeoJSON peta, template Excel, dan foto bendungan.
 **Gambar bendungan** (`static/dam/<nama>.jpg`, dirujuk
 `features/plta/dam-imagery.ts`) punya syarat tambahan:
 
-- rasio **16:10**, sama dengan `DAM_IMAGERY_VIEWBOX` dan `aspect-*` pada
-  `<figure>` di `DamHydrologyMap.svelte` — kalau rasionya beda, penanda
-  hulu/bendungan/hilir meleset dari titik yang dimaksud;
-- lebar sekitar **1600px**;
+- rasionya **milik masing-masing bendungan**, ditulis di field `frame` pada
+  `getDamImagery()`. `<figure>` mengambil `aspect-ratio`-nya dari situ, jadi
+  bingkai dan viewBox tidak bisa lepas sinkron. Berkas yang rasionya tidak sama
+  dengan `frame`-nya akan terpotong dan penandanya meleset;
+- lebar sekitar **1600px**. Memutar citra untuk meluruskan arah aliran memangkas
+  sudut-sudut kosong dan bisa membuang lebih dari separuh bingkai, jadi
+  pertimbangkan itu sebelum memutar;
 - JPG atau WebP terkompresi, **di bawah ~300 KB**. Foto drone mentah beberapa MB
   mengembalikan persis masalah lambat yang justru sedang dihilangkan dengan
   meninggalkan citra satelit on demand;
 - orientasi sudah benar saat disimpan. Tidak ada lagi rotasi di kode — kalau
-  berkasnya diputar, seluruh anchor-nya harus ikut dibalik (`100 - nilai` pada
-  kedua sumbu);
+  berkasnya diputar, anchor **dan** sudut `field` tiap zona harus dihitung ulang
+  terhadap bingkai yang baru;
 - **tidak ada overlay keterangan di atas citra.** Kotak nama bendungan dan kredit
   sumber pernah ada lalu dihapus atas permintaan tim. Isi berkas yang sekarang
   masih citra Esri World Imagery yang diambil sekali, jadi selama belum diganti

@@ -1,5 +1,6 @@
 import type {
-	DailyHydrology,
+	DailyHydrologyPanel,
+	DailyHydrologyParams,
 	MonthlyHydrology,
 	MonthlyHydrologyExcelResult,
 	MonthlyHydrologyImageKind,
@@ -12,12 +13,17 @@ export interface HydrologyRequestOptions {
 }
 
 export interface HydrologyRepository {
-	/** Panel harian satu PLTA. `date` kosong berarti hari ini menurut WIB. */
+	/**
+	 * Panel harian satu PLTA. `date` kosong berarti hari ini menurut WIB.
+	 *
+	 * Mengembalikan `dmnUnits` juga karena daftar unit datang di objek `plta`
+	 * pada respons yang sama — pemilih penyebut tidak perlu panggilan kedua.
+	 */
 	getDaily(
 		pltaId: string,
-		date?: string,
+		params?: DailyHydrologyParams,
 		options?: HydrologyRequestOptions
-	): Promise<DailyHydrology | null>;
+	): Promise<DailyHydrologyPanel>;
 	/** Panel satu bulan. Bulan yang belum diisi tetap balik dengan `id` null. */
 	getMonthlyPanel(
 		pltaId: string,
@@ -50,5 +56,10 @@ export interface HydrologyRepository {
 	/** Impor satu berkas untuk seluruh PLTA sekaligus. Bersifat atomik. */
 	uploadMonthlyExcel(file: File): Promise<MonthlyHydrologyExcelResult>;
 	upsertMonthly(input: UpsertMonthlyHydrologyInput): Promise<MonthlyHydrology>;
-	uploadMonthlyImage(input: UploadMonthlyHydrologyImageInput): Promise<MonthlyHydrology>;
+	/**
+	 * Satu gambar berlaku untuk seluruh PLTA, jadi responsnya tidak berisi record
+	 * bulanan satu PLTA — tidak ada `plta_id` tunggal yang bisa dikembalikan.
+	 * Karena itu badan responsnya tidak dibaca sama sekali.
+	 */
+	uploadMonthlyImage(input: UploadMonthlyHydrologyImageInput): Promise<void>;
 }

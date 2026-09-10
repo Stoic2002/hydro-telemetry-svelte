@@ -118,8 +118,13 @@ Hal-hal yang sudah pernah menggigit dan tidak akan terlihat dari membaca kode:
   luar jaringan dan menunggu JPG 1600x1000 di-render di sana — lambat lewat LAN
   dan tunnel, dan gagal total kalau internet putus. Sekarang citra yang sama
   diambil **sekali** lalu disimpan. Orientasi ditentukan saat menyimpan berkas,
-  bukan di kode — kalau sebuah berkas diputar, seluruh anchor-nya harus ikut
-  dibalik (`100 - nilai` pada kedua sumbu). Tidak ada overlay keterangan di atas
+  bukan di kode — kalau sebuah berkas diputar, anchor dan bentuk `field` tiap
+  zona harus dihitung ulang terhadap bingkainya. Rasio bingkai juga **per
+  bendungan** (field `frame`), bukan konstanta. Arsiran zona punya dua bentuk:
+  `ellipse` (pendekatan kasar) dan `outline` (batas sesungguhnya). Soedirman
+  memakai `outline` hasil telusur dari citranya sendiri — air diklasifikasi per
+  warna lalu konturnya disederhanakan — sehingga arsiran berhenti tepat di garis
+  pantai waduk. Wonogiri masih `ellipse`. Tidak ada overlay keterangan di atas
   citra: kotak nama bendungan + kredit sumber sudah dihapus atas permintaan tim
   karena dinilai mengganggu, jadi **isinya masih citra Esri tapi kreditnya tidak
   ditampilkan** — mengganti berkasnya dengan foto milik PLN menyelesaikan itu.

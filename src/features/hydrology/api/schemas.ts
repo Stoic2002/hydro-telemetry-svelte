@@ -16,7 +16,15 @@ const apiDashboardMetricSchema = z.object({
 	label: z.string(),
 	time: nullableStringSchema,
 	source: z.enum(['measured', 'derived', 'plan', 'constant']),
-	stations: z.array(apiDashboardStationMetricSchema).nullable().optional().default(null)
+	stations: z.array(apiDashboardStationMetricSchema).nullable().optional().default(null),
+	/**
+	 * Hanya terisi pada `dmn_beban_penuh`: dari mana penyebutnya berasal —
+	 * `unit` bila dihitung dari unit terpilih, `manual` bila operator mengisi
+	 * DMN sendiri.
+	 */
+	mode: nullableStringSchema,
+	/** Nomor unit yang ikut dihitung saat `mode` = `unit`. */
+	units: z.array(z.number().int()).nullable().optional().default(null)
 });
 
 const apiDashboardMetricGroupSchema = z.record(z.string(), apiDashboardMetricSchema);
@@ -47,11 +55,18 @@ export const apiMonthlyHydrologySchema = z.object({
 	prosentase_pencapaian: nullableNumberSchema
 });
 
+const apiDmnUnitSchema = z.object({
+	unit: z.number().int(),
+	dmn_mw: z.number()
+});
+
 const apiDashboardPLTASchema = z.object({
 	id: z.string().uuid(),
 	code: z.string(),
 	name: z.string(),
-	constants: z.record(z.string(), z.unknown()).nullable().optional().default(null)
+	constants: z.record(z.string(), z.unknown()).nullable().optional().default(null),
+	/** DMN per unit pembangkit — dasar pemilih penyebut SHFL. */
+	dmn_units: z.array(apiDmnUnitSchema).nullable().optional().default([])
 });
 
 /** `GET /dashboard/plta/{id}/daily` — panel harian saja. */
