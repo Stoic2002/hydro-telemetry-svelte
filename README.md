@@ -61,12 +61,12 @@ bun run build:staging # -> dist-staging/
 
 ## 3. Environment
 
-| Variabel                  | Wajib | Keterangan                                                                                                                                              |
-| ------------------------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `VITE_API_BASE_URL`       | ya    | **Host saja**, tanpa `/api` atau `/api/v1` — setiap endpoint repository sudah memuat prefix itu. Isi `/` bila backend diproksikan pada origin yang sama |
-| `VITE_ERROR_REPORT_URL`   | tidak | Kolektor error di jaringan lokal. Kosong berarti laporan hanya disimpan di memori browser                                                               |
-| `VITE_RAINVIEWER_API_URL` | tidak | Sumber radar presipitasi peta Overview. Kosongkan pada jaringan tertutup untuk mematikan overlay sekaligus menghentikan request yang pasti gagal        |
-| `VITE_DEV_ALLOWED_HOSTS`  | tidak | Dev server saja. Host tambahan yang boleh mengakses `bun run dev`, dipisah koma. Diperlukan saat dev server dibuka lewat tunnel                         |
+| Variabel                  | Wajib | Keterangan                                                                                                                                                                                    |
+| ------------------------- | ----- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `VITE_API_BASE_URL`       | ya    | **Host saja**, tanpa `/api` atau `/api/v1` — setiap endpoint repository sudah memuat prefix itu. Isi `/` bila backend diproksikan pada origin yang sama (lihat [Proxy API](#proxy-api---api)) |
+| `VITE_ERROR_REPORT_URL`   | tidak | Kolektor error di jaringan lokal. Kosong berarti laporan hanya disimpan di memori browser                                                                                                     |
+| `VITE_RAINVIEWER_API_URL` | tidak | Sumber radar presipitasi peta Overview. Kosongkan pada jaringan tertutup untuk mematikan overlay sekaligus menghentikan request yang pasti gagal                                              |
+| `VITE_DEV_ALLOWED_HOSTS`  | tidak | Dev server saja. Host tambahan yang boleh mengakses `bun run dev`, dipisah koma. Diperlukan saat dev server dibuka lewat tunnel                                                               |
 
 Nama variabel sengaja **tidak** dipindahkan ke konvensi `PUBLIC_` milik
 SvelteKit: `import.meta.env.VITE_*` tetap bekerja lewat Vite, dan mengubahnya
@@ -124,6 +124,35 @@ Server statisnya sendiri ditulis sengaja, tidak memakai `vite preview` seperti
 versi React: SvelteKit mengabaikan `--outDir` dan menyajikan hasil build
 terakhir apa pun itu, sehingga service staging bisa menyajikan bundle production
 tanpa satu pun pesan error.
+
+### Proxy API (`--api`)
+
+Bila `VITE_API_BASE_URL` berisi URL absolut, **browser pengguna** yang
+menghubungi backend. Cara itu gagal begitu alamat backend hanya terjangkau dari
+sebagian jaringan: IP Tailscale `100.x` bisa dipakai lewat VPN, tetapi tidak
+dari WiFi kantor.
+
+Karena itu staging meneruskan `/api/*`, termasuk WebSocket monitoring, lewat
+server statisnya sendiri:
+
+| Tempat         | Nilai                          |
+| -------------- | ------------------------------ |
+| `.env.staging` | `VITE_API_BASE_URL=/`          |
+| unit systemd   | `--api http://127.0.0.1:18000` |
+
+Browser cukup bisa menjangkau port frontend, dan CORS tidak terlibat karena API
+berada pada origin yang sama. Kedua nilai harus diubah bersamaan. Tanpa `--api`,
+server membalas 404 untuk `/api/*`, dan `deploy.sh` menghentikan rilis bila proxy
+tidak menjawab. Production belum memakai proxy; untuk mengaktifkannya lakukan hal
+yang sama dengan `--api http://127.0.0.1:8000`.
+
+Unit di `/etc/systemd/system/` adalah salinan, dan `deploy.sh` hanya me-restart
+service. Setelah berkas unit di repo berubah, salin ulang lebih dulu:
+
+```bash
+sudo cp deploy/hydro-telemetry-frontend-staging.service /etc/systemd/system/
+sudo systemctl daemon-reload
+```
 
 ---
 

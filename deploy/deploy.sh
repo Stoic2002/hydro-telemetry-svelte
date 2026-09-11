@@ -155,6 +155,19 @@ systemctl is-active --quiet "$SERVICE" \
 curl -fsS -o /dev/null "http://localhost:$PORT/" \
   || die "port $PORT tidak merespons. Lihat: sudo journalctl -u $SERVICE -n 50"
 
+# Dengan VITE_API_BASE_URL=/ seluruh request API bergantung pada `--api` di unit
+# systemd. Unit yang berjalan adalah salinan di /etc/systemd/system; lupa
+# menyalinnya ulang membuat halaman tampil normal tetapi login gagal.
+if grep -q '^VITE_API_BASE_URL=/[[:space:]]*$' "$ENV_FILE"; then
+  api_status="$(curl -s -o /dev/null -w '%{http_code}' "http://localhost:$PORT/api/v1/auth/me")"
+  case "$api_status" in
+    401|403) ok "proxy /api menjangkau backend" ;;
+    404) die "proxy /api tidak aktif. Salin ulang unit: sudo cp deploy/$SERVICE.service /etc/systemd/system/ && sudo systemctl daemon-reload && sudo systemctl restart $SERVICE" ;;
+    502) die "proxy /api aktif tetapi backend tidak terjangkau. Lihat: sudo journalctl -u $SERVICE -n 50" ;;
+    *) warn "proxy /api membalas HTTP $api_status untuk /api/v1/auth/me tanpa token (diharapkan 401/403)" ;;
+  esac
+fi
+
 [[ "$ENVIRONMENT" == "staging" ]] && echo "$CURRENT_SHA" > "$STATE_DIR/staging-sha"
 
 # --- selesai ---------------------------------------------------------------

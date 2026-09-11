@@ -92,6 +92,20 @@ Hal-hal yang sudah pernah menggigit dan tidak akan terlihat dari membaca kode:
   (tunnel trycloudflare / IP LAN seperti `192.168.105.99:8000`). Kalau host baru
   perlu diakses dev server, tambahkan ke **`VITE_DEV_ALLOWED_HOSTS`** di
   `.env.local` — bukan ke `vite.config.ts` seperti dulu.
+- **Staging memakai proxy, bukan URL absolut**: `.env.staging` berisi
+  `VITE_API_BASE_URL=/` dan service-nya menjalankan
+  `static-server.ts --api http://127.0.0.1:18000`. Server punya dua alamat: LAN
+  `192.168.105.99` dan Tailscale `100.94.60.11`. Dulu bundle menunjuk IP
+  Tailscale, sehingga pengguna VPN bisa login tetapi pengguna WiFi kantor
+  (`10.8.51.x`) tidak. Production (`.env.production`) masih menunjuk
+  `100.94.60.11:8000`.
+- **ufw di server menolak semua koneksi masuk secara bawaan.** Port frontend
+  harus dibuka untuk subnet pengguna, dan WiFi kantor ada di `10.8.51.0/24`,
+  bukan `192.168.105.0/24`. Lewat VPN port yang tertutup pun tetap bisa dibuka
+  (Tailscale memasang aturan iptables sendiri), jadi "bisa lewat VPN" tidak
+  membuktikan port-nya terbuka. `curl` dari server itu sendiri juga tidak
+  membuktikan apa-apa karena lewat loopback. Blokir terlihat di
+  `sudo journalctl -k | grep "DPT=<port>"` beserta IP asalnya.
 - Swagger backend ada di `<base>/docs`. Kalau user bilang "ada update dari
   backend", cek Swagger dan bandingkan query param / request body / response
   dengan schema Zod.

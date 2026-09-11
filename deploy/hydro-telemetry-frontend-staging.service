@@ -18,7 +18,15 @@ WorkingDirectory=/var/www/frontend-telemetering/hydro-telemetry-svelte
 # Alamat backend sudah ter-bundle saat build, jadi yang membedakan staging dari
 # production adalah direktori outputnya — dan di sini direktori itu disebut
 # eksplisit, bukan disimpulkan dari build terakhir.
-ExecStart=/home/telemetring/.bun/bin/bun deploy/static-server.ts --dir dist-staging --port 4174
+#
+# `--api` meneruskan /api/* dan WebSocket monitoring ke backend staging di mesin
+# yang sama. Pasangannya VITE_API_BASE_URL=/ di .env.staging. Dengan URL absolut,
+# browser pengguna menghubungi backend sendiri, dan IP Tailscale backend tidak
+# dapat dijangkau dari WiFi kantor.
+#
+# Setelah mengubah berkas ini, salin ulang ke /etc/systemd/system/ lalu
+# `sudo systemctl daemon-reload` — deploy.sh hanya me-restart service.
+ExecStart=/home/telemetring/.bun/bin/bun deploy/static-server.ts --dir dist-staging --port 4174 --api http://127.0.0.1:18000
 
 Restart=always
 RestartSec=5
