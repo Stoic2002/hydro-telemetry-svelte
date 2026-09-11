@@ -20,7 +20,15 @@ WorkingDirectory=/var/www/frontend-telemetering/hydro-telemetry-svelte
 # Direktori disebut eksplisit. Berbeda dari versi React, SvelteKit tidak
 # menyediakan `vite preview --outDir`; tanpa server sendiri, service ini bisa
 # menyajikan bundle staging tanpa satu pun pesan error.
-ExecStart=/home/telemetring/.bun/bin/bun deploy/static-server.ts --dir dist --port 4173
+#
+# `--api` meneruskan /api/* dan WebSocket monitoring ke backend production di
+# mesin yang sama. Pasangannya VITE_API_BASE_URL=/ di .env.production. Dengan URL
+# absolut, browser pengguna menghubungi backend sendiri, dan IP Tailscale backend
+# tidak dapat dijangkau dari WiFi kantor.
+#
+# Setelah mengubah berkas ini, salin ulang ke /etc/systemd/system/ lalu
+# `sudo systemctl daemon-reload` — deploy.sh hanya me-restart service.
+ExecStart=/home/telemetring/.bun/bin/bun deploy/static-server.ts --dir dist --port 4173 --api http://127.0.0.1:8000
 
 Restart=always
 RestartSec=5

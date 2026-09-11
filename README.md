@@ -132,25 +132,24 @@ menghubungi backend. Cara itu gagal begitu alamat backend hanya terjangkau dari
 sebagian jaringan: IP Tailscale `100.x` bisa dipakai lewat VPN, tetapi tidak
 dari WiFi kantor.
 
-Karena itu staging meneruskan `/api/*`, termasuk WebSocket monitoring, lewat
-server statisnya sendiri:
+Karena itu kedua environment meneruskan `/api/*`, termasuk WebSocket monitoring,
+lewat server statisnya sendiri:
 
-| Tempat         | Nilai                          |
-| -------------- | ------------------------------ |
-| `.env.staging` | `VITE_API_BASE_URL=/`          |
-| unit systemd   | `--api http://127.0.0.1:18000` |
+| Environment | Berkas env        | Isi berkas env        | Unit systemd                   |
+| ----------- | ----------------- | --------------------- | ------------------------------ |
+| Staging     | `.env.staging`    | `VITE_API_BASE_URL=/` | `--api http://127.0.0.1:18000` |
+| Production  | `.env.production` | `VITE_API_BASE_URL=/` | `--api http://127.0.0.1:8000`  |
 
 Browser cukup bisa menjangkau port frontend, dan CORS tidak terlibat karena API
-berada pada origin yang sama. Kedua nilai harus diubah bersamaan. Tanpa `--api`,
-server membalas 404 untuk `/api/*`, dan `deploy.sh` menghentikan rilis bila proxy
-tidak menjawab. Production belum memakai proxy; untuk mengaktifkannya lakukan hal
-yang sama dengan `--api http://127.0.0.1:8000`.
+berada pada origin yang sama. Berkas env dan unit harus diubah bersamaan. Tanpa
+`--api`, server membalas 404 untuk `/api/*`, dan `deploy.sh` menghentikan rilis
+bila proxy tidak menjawab.
 
 Unit di `/etc/systemd/system/` adalah salinan, dan `deploy.sh` hanya me-restart
 service. Setelah berkas unit di repo berubah, salin ulang lebih dulu:
 
 ```bash
-sudo cp deploy/hydro-telemetry-frontend-staging.service /etc/systemd/system/
+sudo cp deploy/hydro-telemetry-frontend-staging.service deploy/hydro-telemetry-frontend.service /etc/systemd/system/
 sudo systemctl daemon-reload
 ```
 
