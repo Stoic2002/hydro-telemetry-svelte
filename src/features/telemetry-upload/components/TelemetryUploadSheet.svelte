@@ -5,8 +5,8 @@
 	import IconTrash from '~icons/ph/trash';
 	import IconUpload from '~icons/ph/upload-simple';
 
-	import Button from '$components/atoms/Button.svelte';
-	import Select from '$components/atoms/Select.svelte';
+	import Button from '$components/controls/Button.svelte';
+	import Select from '$components/controls/Select.svelte';
 	import Sheet from '$components/ui/Sheet.svelte';
 	import { notificationStore } from '$shared/lib/notification.svelte';
 	import {

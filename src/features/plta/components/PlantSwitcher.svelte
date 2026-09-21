@@ -3,8 +3,8 @@
 	import { page as currentPage } from '$app/state';
 	import IconBuilding from '~icons/ph/buildings';
 	import IconRefresh from '~icons/ph/arrow-clockwise';
-	import Select from '$components/atoms/Select.svelte';
-	import Skeleton from '$components/atoms/Skeleton.svelte';
+	import Select from '$components/controls/Select.svelte';
+	import Skeleton from '$components/controls/Skeleton.svelte';
 	import { getActivePLTAId } from '../active-plta-context';
 	import { createPlantCatalogQuery } from '../api/queries';
 	import { getPlantDisplayName } from '../presentation';

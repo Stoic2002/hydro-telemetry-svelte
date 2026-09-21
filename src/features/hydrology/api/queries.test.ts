@@ -64,3 +64,28 @@ describe('hydrologyQueryKeys', () => {
 		);
 	});
 });
+
+/**
+ * Excel harian menulis nilai lintas banyak PLTA dan banyak parameter sekaligus,
+ * jadi panel harian mana pun bisa berubah. Kunci ringkasan armada sengaja ikut
+ * bersarang di bawah akar hidrologi supaya satu invalidasi menyegarkan semuanya
+ * — kalau suatu saat dipindah keluar, angka armada akan tertinggal basi setelah
+ * unggahan tanpa ada uji lain yang gagal.
+ */
+describe('cakupan invalidasi setelah unggahan', () => {
+	it('menyegarkan panel harian, ringkasan armada, dan daftar bulanan sekaligus', () => {
+		const root = hydrologyQueryKeys.all;
+
+		expect(isCoveredBy(hydrologyQueryKeys.daily(PLTA_ID), root)).toBe(true);
+		expect(isCoveredBy(hydrologyQueryKeys.monthlyOverview(2026, undefined), root)).toBe(true);
+		expect(isCoveredBy(hydrologyQueryKeys.monthly(PLTA_ID, 2026), root)).toBe(true);
+	});
+
+	it('memisahkan ringkasan per periode', () => {
+		// Sepanjang tahun dan satu bulan adalah angka berbeda; keduanya tidak boleh
+		// berbagi satu entri cache.
+		expect(hydrologyQueryKeys.monthlyOverview(2026, undefined)).not.toEqual(
+			hydrologyQueryKeys.monthlyOverview(2026, 9)
+		);
+	});
+});

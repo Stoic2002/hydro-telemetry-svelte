@@ -16,7 +16,12 @@ import { queryClient } from '$core/query-client';
  * yang sudah ada — persis perilaku versi React, yang baru merender turunan
  * setelah datanya tersedia.
  */
-export const load = async ({ params }): Promise<{ activePLTA: ActivePLTA }> => {
+export const load = async ({ params, parent }): Promise<{ activePLTA: ActivePLTA }> => {
+	// Guard sesi di layout dashboard harus selesai lebih dulu. Tanpa ini request
+	// detail PLTA berlomba dengan pemulihan sesi saat halaman di-refresh, dan
+	// pengguna yang sesinya habis melihat galat 503 alih-alih halaman login.
+	await parent();
+
 	const { pltaId } = params;
 
 	// Bentuk id tidak valid berarti tautan rusak, bukan kegagalan server.

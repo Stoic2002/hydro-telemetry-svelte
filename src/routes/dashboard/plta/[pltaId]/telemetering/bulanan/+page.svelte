@@ -4,18 +4,18 @@
 	import IconRefresh from '~icons/ph/arrow-clockwise';
 	import IconUpload from '~icons/ph/upload-simple';
 
-	import Button from '$components/atoms/Button.svelte';
-	import Select from '$components/atoms/Select.svelte';
+	import Button from '$components/controls/Button.svelte';
+	import Select from '$components/controls/Select.svelte';
 	import Banner from '$components/ui/Banner.svelte';
 	import PageHeader from '$components/ui/PageHeader.svelte';
-	import { authStore, canUploadMonthlyHydrology } from '$features/auth';
+	import { authStore, canEditHydrologyData, canUploadMonthlyHydrology } from '$features/auth';
 	import {
 		createMonthlyHydrologyImageQuery,
 		createMonthlyHydrologyPanelQuery,
 		getHydrologyErrorMessage
 	} from '$features/hydrology';
 	import MonthlyHydrologySheet from '$features/hydrology/components/MonthlyHydrologySheet.svelte';
-	import { TELEMETERING_UPLOAD_PATH, getActivePLTA } from '$features/plta';
+	import { UPLOAD_PATH, getActivePLTA, getUploadPath } from '$features/plta';
 	import PlantSwitcher from '$features/plta/components/PlantSwitcher.svelte';
 	import { createObjectUrl } from '$shared/lib/object-url.svelte';
 	import ForecastDetail from '../ForecastDetail.svelte';
@@ -45,6 +45,8 @@
 
 	const monthLabel = $derived(MONTHS[Number(month) - 1]);
 	const canUploadImage = $derived(canUploadMonthlyHydrology(authStore.user));
+	// Viewer hanya membaca ringkasan; tombol dan form isiannya tidak dirender.
+	const canEditData = $derived(canEditHydrologyData(authStore.user));
 
 	const panelQuery = createMonthlyHydrologyPanelQuery(
 		() => pltaId,
@@ -130,17 +132,19 @@
 		<section>
 			<div class="flex items-center justify-between gap-3">
 				<h2 class="card-title">Ringkasan {monthLabel} {year}</h2>
-				<Button
-					type="button"
-					size="sm"
-					variant="ghost"
-					disabled={panelQuery.isLoading}
-					onclick={() => (isMonthlySheetOpen = true)}
-					class="shrink-0 whitespace-nowrap text-brand-primary-strong"
-				>
-					{#snippet leftIcon()}<IconPencil class="size-3.5" />{/snippet}
-					{hasMonthlyRecord ? 'Edit data' : 'Input data'}
-				</Button>
+				{#if canEditData}
+					<Button
+						type="button"
+						size="sm"
+						variant="ghost"
+						disabled={panelQuery.isLoading}
+						onclick={() => (isMonthlySheetOpen = true)}
+						class="shrink-0 whitespace-nowrap text-brand-primary-strong"
+					>
+						{#snippet leftIcon()}<IconPencil class="size-3.5" />{/snippet}
+						{hasMonthlyRecord ? 'Edit data' : 'Input data'}
+					</Button>
+				{/if}
 			</div>
 
 			<div class="mt-2.5">
@@ -153,7 +157,7 @@
 
 			{#if canUploadImage}
 				<a
-					href={TELEMETERING_UPLOAD_PATH}
+					href={UPLOAD_PATH}
 					class="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-brand-primary-strong transition-colors hover:text-brand-primary-pressed"
 				>
 					<IconUpload class="size-3.5" />
@@ -188,7 +192,7 @@
 			<p class="mt-2 text-xs text-text-muted">
 				Gambar sama untuk seluruh PLTA.{#if canUploadImage}
 					<a
-						href={TELEMETERING_UPLOAD_PATH}
+						href={getUploadPath('prakiraan')}
 						class="font-medium text-brand-primary-strong hover:text-brand-primary-pressed"
 					>
 						Unggah dari menu Upload</a
@@ -207,7 +211,7 @@
 	</div>
 </div>
 
-{#if isMonthlySheetOpen}
+{#if canEditData && isMonthlySheetOpen}
 	<MonthlyHydrologySheet
 		isOpen
 		{pltaId}

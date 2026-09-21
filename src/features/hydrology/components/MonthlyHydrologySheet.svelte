@@ -1,7 +1,7 @@
 <script lang="ts">
 	import IconSave from '~icons/ph/floppy-disk';
-	import Button from '$components/atoms/Button.svelte';
-	import Input from '$components/atoms/Input.svelte';
+	import Button from '$components/controls/Button.svelte';
+	import Input from '$components/controls/Input.svelte';
 	import Sheet from '$components/ui/Sheet.svelte';
 	import { notificationStore } from '$shared/lib/notification.svelte';
 	import { createUpsertMonthlyHydrologyMutation } from '../api/queries';

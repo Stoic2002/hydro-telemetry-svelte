@@ -2,6 +2,8 @@ import { createMutation, createQuery, useQueryClient } from '@tanstack/svelte-qu
 import { invalidateUploadAudit } from '../../audit/api/queries';
 import type {
 	DailyHydrologyParams,
+	DailyHydrologyReportScope,
+	HydrologyReportScope,
 	MonthlyHydrologyImageKind,
 	UpsertMonthlyHydrologyInput,
 	UploadMonthlyHydrologyImageInput
@@ -32,7 +34,11 @@ export const hydrologyQueryKeys = {
 	// Tidak bersarang di bawah pltaId: satu gambar dipakai seluruh PLTA, jadi
 	// berpindah PLTA tidak boleh memicu pengambilan ulang gambar yang sama.
 	monthlyImage: (year: number, month: number, kind: MonthlyHydrologyImageKind) =>
-		[...hydrologyQueryKeys.all, 'monthly-image', year, month, kind] as const
+		[...hydrologyQueryKeys.all, 'monthly-image', year, month, kind] as const,
+	// Di bawah `all`: impor Excel dan isian bulanan menginvalidasi `all`, jadi
+	// ringkasan armada ikut segar tanpa wiring tambahan.
+	monthlyOverview: (year: number, month: number | undefined) =>
+		[...hydrologyQueryKeys.all, 'monthly-overview', year, month ?? 'all-months'] as const
 };
 
 export function createDailyHydrologyQuery(
@@ -113,6 +119,22 @@ export function createMonthlyHydrologyImageQuery(
 	});
 }
 
+export function createMonthlyHydrologyOverviewQuery(
+	period: () => { year: number; month: number | undefined }
+) {
+	return createQuery(() => {
+		const { year, month } = period();
+
+		return {
+			queryKey: hydrologyQueryKeys.monthlyOverview(year, month),
+			queryFn: ({ signal }: { signal: AbortSignal }) =>
+				hydrologyRepository.getMonthlyOverview(year, month, { signal }),
+			staleTime: HYDROLOGY_STALE_TIME,
+			refetchOnWindowFocus: false
+		};
+	});
+}
+
 /**
  * Satu berkas menyentuh seluruh PLTA, jadi tidak ada kunci yang cukup sempit
  * untuk diinvalidasi — semua cache hidrologi dianggap basi setelah impor.
@@ -136,6 +158,41 @@ export function createDownloadMonthlyTemplateMutation() {
 	}));
 }
 
+export function createDownloadDailyTemplateMutation() {
+	return createMutation(() => ({
+		mutationFn: ({ from, to }: { from: string; to?: string }) =>
+			hydrologyRepository.downloadDailyTemplate(from, to)
+	}));
+}
+
+/**
+ * Satu berkas menulis banyak parameter lintas banyak PLTA — panel harian mana
+ * pun bisa berubah, jadi seluruh cache hidrologi dianggap basi.
+ */
+export function createUploadDailyHydrologyExcelMutation() {
+	const queryClient = useQueryClient();
+
+	return createMutation(() => ({
+		mutationFn: (file: File) => hydrologyRepository.uploadDailyExcel(file),
+		onSuccess: async () => {
+			await queryClient.invalidateQueries({ queryKey: hydrologyQueryKeys.all });
+			await invalidateUploadAudit(queryClient);
+		}
+	}));
+}
+
+export function createDownloadMonthlyReportMutation() {
+	return createMutation(() => ({
+		mutationFn: (scope: HydrologyReportScope) => hydrologyRepository.downloadMonthlyReport(scope)
+	}));
+}
+
+export function createDownloadDailyReportMutation() {
+	return createMutation(() => ({
+		mutationFn: (scope: DailyHydrologyReportScope) => hydrologyRepository.downloadDailyReport(scope)
+	}));
+}
+
 export function createUpsertMonthlyHydrologyMutation() {
 	const queryClient = useQueryClient();
 
@@ -148,6 +205,31 @@ export function createUpsertMonthlyHydrologyMutation() {
 			await queryClient.invalidateQueries({
 				queryKey: hydrologyQueryKeys.dashboardRoot(record.pltaId)
 			});
+			await invalidateUploadAudit(queryClient);
+		}
+	}));
+}
+
+/**
+ * Penghapusan juga berlaku untuk seluruh PLTA. Cache gambar periode itu dibuang,
+ * bukan diinvalidasi: memuat ulang hanya akan berakhir 404.
+ */
+export function createDeleteMonthlyHydrologyImageMutation() {
+	const queryClient = useQueryClient();
+
+	return createMutation(() => ({
+		mutationFn: ({
+			year,
+			month,
+			kind
+		}: {
+			year: number;
+			month: number;
+			kind: MonthlyHydrologyImageKind;
+		}) => hydrologyRepository.deleteMonthlyImage(year, month, kind),
+		onSuccess: async (_, { year, month, kind }) => {
+			queryClient.removeQueries({ queryKey: hydrologyQueryKeys.monthlyImage(year, month, kind) });
+			await queryClient.invalidateQueries({ queryKey: hydrologyQueryKeys.all });
 			await invalidateUploadAudit(queryClient);
 		}
 	}));

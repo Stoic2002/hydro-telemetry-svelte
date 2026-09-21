@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { User, UserRole } from './model';
-import { canAccessDataTools, canManageUsers, canUploadMonthlyHydrology } from './permissions';
+import {
+	canAccessDataTools,
+	canEditHydrologyData,
+	canManageUsers,
+	canUploadMonthlyHydrology
+} from './permissions';
 
 function userWithRole(role: UserRole): User {
 	return {
@@ -34,6 +39,13 @@ describe('permissions', () => {
 		expect(canUploadMonthlyHydrology(userWithRole('Super Admin'))).toBe(true);
 		expect(canUploadMonthlyHydrology(userWithRole('Operator PLTA'))).toBe(true);
 		expect(canUploadMonthlyHydrology(userWithRole('Viewer'))).toBe(false);
+	});
+
+	it('hanya membuka isian hidrologi harian dan bulanan untuk non-Viewer', () => {
+		expect(canEditHydrologyData(userWithRole('Super Admin'))).toBe(true);
+		expect(canEditHydrologyData(userWithRole('Operator PLTA'))).toBe(true);
+		expect(canEditHydrologyData(userWithRole('Viewer'))).toBe(false);
+		expect(canEditHydrologyData(null)).toBe(false);
 	});
 
 	it('menolak akses saat profil sesi belum tersedia', () => {

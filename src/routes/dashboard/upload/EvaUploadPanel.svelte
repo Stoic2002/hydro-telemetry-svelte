@@ -5,11 +5,9 @@
 	import IconUploadCloud from '~icons/ph/cloud-arrow-up';
 	import IconWarning from '~icons/ph/warning';
 
-	import Select from '$components/atoms/Select.svelte';
-	import PageHeader from '$components/ui/PageHeader.svelte';
+	import Select from '$components/controls/Select.svelte';
 	import UploadHistoryPanel from '$features/audit/components/UploadHistoryPanel.svelte';
-	import { getActivePLTA } from '$features/plta';
-	import PlantSwitcher from '$features/plta/components/PlantSwitcher.svelte';
+	import { getPlantDisplayName, type Plant } from '$features/plta';
 	import {
 		createDownloadElevationTemplateMutation,
 		createUploadElevationExcelMutation
@@ -24,14 +22,30 @@
 		(_, index) => CURRENT_YEAR + 1 - index
 	).map((value) => ({ value: String(value), label: String(value) }));
 
-	// Context menyimpan accessor, jadi pembacaannya harus lewat `$derived`.
-	// Berpindah PLTA hanya mengubah param `[pltaId]` — route id-nya tetap sama,
-	// jadi SvelteKit tidak me-remount halaman ini dan blok <script> tidak
-	// dijalankan ulang. Destructure sekali di sini akan membekukan nilainya pada
-	// PLTA yang pertama kali dibuka.
-	const activePLTA = $derived(getActivePLTA());
-	const pltaId = $derived(activePLTA.pltaId);
-	const displayName = $derived(activePLTA.displayName);
+	interface Props {
+		/** PLTA yang kurvanya diunggah. Dipilih di halaman dan disimpan di URL. */
+		plant: Plant;
+		plants: Plant[];
+		onPlantChange: (pltaId: string) => void;
+	}
+
+	/**
+	 * Unggah kurva elevasi–volume (EVA). Satu-satunya tab Upload yang ter-scope
+	 * satu PLTA: Excel bulanan dan prakiraan hujan berlaku untuk seluruh PLTA,
+	 * sedangkan kurva EVA milik satu waduk. Karena itu pemilih PLTA tinggal di
+	 * dalam panel ini, bukan di header halaman — cakupannya tidak ikut terbaca
+	 * berlaku untuk tab lain.
+	 */
+	let { plant, plants, onPlantChange }: Props = $props();
+
+	const pltaId = $derived(plant.id);
+	const displayName = $derived(getPlantDisplayName(plant));
+	const plantOptions = $derived(
+		plants.map((item) => ({
+			value: item.id,
+			label: `${getPlantDisplayName(item)} · ${item.code}${item.isActive ? '' : ' (Tidak aktif)'}`
+		}))
+	);
 	const elevationMutation = createUploadElevationExcelMutation();
 	const templateMutation = createDownloadElevationTemplateMutation();
 
@@ -43,6 +57,16 @@
 	let fileInput = $state<HTMLInputElement | null>(null);
 
 	const isUploading = $derived(elevationMutation.isPending);
+
+	/**
+	 * Berkas yang sudah dipilih milik PLTA sebelumnya. Tanpa ini, operator yang
+	 * berganti PLTA setelah memilih berkas akan mengunggahnya ke PLTA yang salah.
+	 */
+	let lastPltaId: string | undefined = undefined;
+	$effect(() => {
+		if (lastPltaId !== undefined && lastPltaId !== pltaId) clearSelection();
+		lastPltaId = pltaId;
+	});
 
 	/**
 	 * Berkas Excel tidak diparsing di browser — ini keputusan tim. Yang diperiksa
@@ -117,18 +141,13 @@
 	}
 </script>
 
-<div class="flex flex-1 flex-col gap-6">
-	<PageHeader
-		title="Input GHW"
-		description={`Unggah data elevasi dan volume waduk untuk memperbarui kurva GHW PLTA ${displayName}`}
-	>
-		{#snippet actions()}
-			<PlantSwitcher page="input-ghw" />
-		{/snippet}
-	</PageHeader>
-
+<div class="flex flex-col gap-6">
 	<section class="w-full">
-		<h2 class="section-title">Elevasi &amp; Volume Waduk</h2>
+		<p class="text-xs text-text-muted">
+			Kurva elevasi dan volume waduk berlaku untuk <strong class="font-medium text-text-secondary"
+				>satu PLTA</strong
+			>. Pilih PLTA-nya di panel kanan sebelum mengunggah.
+		</p>
 
 		<div class="mt-3.5 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_268px]">
 			<div class="flex flex-col gap-5">
@@ -262,6 +281,15 @@
 			</div>
 
 			<aside class="flex flex-col gap-3.5 rounded-xl bg-surface-overlay p-4">
+				<Select
+					label="PLTA"
+					value={pltaId}
+					disabled={isUploading}
+					onValueChange={(value) => {
+						if (value && value !== pltaId) onPlantChange(value);
+					}}
+					options={plantOptions}
+				/>
 				<Select
 					label="Tahun data"
 					bind:value={year}

@@ -34,7 +34,7 @@ export interface Plant {
 	constants: Record<string, unknown>;
 }
 
-export type PlantTagProtocol = 'opcua' | 'modbus' | 'sql' | 'rest' | 'upload';
+export type PlantTagProtocol = 'opcua' | 'modbus' | 'sql' | 'rest' | 'upload' | 'derived';
 
 export interface PlantTag {
 	id: string;

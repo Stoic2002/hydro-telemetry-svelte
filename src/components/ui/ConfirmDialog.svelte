@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
 	import { AlertDialog } from 'bits-ui';
-	import Button from '../atoms/Button.svelte';
+	import Button from '../controls/Button.svelte';
 
 	type ConfirmDialogVariant = 'danger' | 'warning' | 'primary';
 

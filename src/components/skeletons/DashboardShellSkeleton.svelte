@@ -1,5 +1,5 @@
 <script lang="ts">
-	import Skeleton from '../atoms/Skeleton.svelte';
+	import Skeleton from '../controls/Skeleton.svelte';
 	import DashboardPageSkeleton from './DashboardPageSkeleton.svelte';
 	import { getDashboardSkeletonVariant } from './dashboardSkeletonVariant';
 

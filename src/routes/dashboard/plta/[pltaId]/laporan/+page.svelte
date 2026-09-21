@@ -3,9 +3,9 @@
 	import IconPlus from '~icons/ph/plus';
 	import IconSearch from '~icons/ph/magnifying-glass';
 
-	import Badge, { type BadgeTone } from '$components/atoms/Badge.svelte';
-	import Button from '$components/atoms/Button.svelte';
-	import Select from '$components/atoms/Select.svelte';
+	import Badge, { type BadgeTone } from '$components/controls/Badge.svelte';
+	import Button from '$components/controls/Button.svelte';
+	import Select from '$components/controls/Select.svelte';
 	import ResourceTableSkeleton from '$components/skeletons/ResourceTableSkeleton.svelte';
 	import EmptyState from '$components/ui/EmptyState.svelte';
 	import ErrorState from '$components/ui/ErrorState.svelte';

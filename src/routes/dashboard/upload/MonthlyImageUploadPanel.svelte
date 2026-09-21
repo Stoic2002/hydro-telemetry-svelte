@@ -1,8 +1,10 @@
 <script lang="ts">
 	import IconCloudRain from '~icons/ph/cloud-rain';
+	import IconTrash from '~icons/ph/trash';
 	import IconUpload from '~icons/ph/upload-simple';
-	import Button from '$components/atoms/Button.svelte';
+	import Button from '$components/controls/Button.svelte';
 	import UploadHistoryPanel from '$features/audit/components/UploadHistoryPanel.svelte';
+	import HydrologyImageDeleteSheet from '$features/hydrology/components/HydrologyImageDeleteSheet.svelte';
 	import HydrologyImageUploadSheet from '$features/hydrology/components/HydrologyImageUploadSheet.svelte';
 	import type { MonthlyHydrologyImageKind } from '$features/hydrology';
 
@@ -24,13 +26,15 @@
 	];
 
 	let uploadKind = $state<MonthlyHydrologyImageKind | null>(null);
+	let deleteKind = $state<MonthlyHydrologyImageKind | null>(null);
 </script>
 
 <div class="flex flex-col gap-6">
 	<section>
 		<p class="text-xs text-text-muted">
 			Gambar berlaku untuk seluruh PLTA. Mengunggah ulang periode dan jenis yang sama akan
-			menggantikan gambar sebelumnya.
+			menggantikan gambar sebelumnya. Hapus hanya bila gambar salah terunggah dan penggantinya belum
+			ada.
 		</p>
 
 		<div class="mt-3 grid gap-3 sm:grid-cols-2">
@@ -49,16 +53,29 @@
 							<p class="truncate text-xs text-text-muted">{item.description}</p>
 						</div>
 					</div>
-					<Button
-						type="button"
-						size="sm"
-						variant="ghost"
-						onclick={() => (uploadKind = item.kind)}
-						class="shrink-0 whitespace-nowrap text-brand-primary-strong"
-					>
-						{#snippet leftIcon()}<IconUpload class="size-3" />{/snippet}
-						Unggah
-					</Button>
+					<div class="flex shrink-0 items-center gap-1">
+						<Button
+							type="button"
+							size="sm"
+							variant="ghost"
+							onclick={() => (uploadKind = item.kind)}
+							class="whitespace-nowrap text-brand-primary-strong"
+						>
+							{#snippet leftIcon()}<IconUpload class="size-3" />{/snippet}
+							Unggah
+						</Button>
+						<Button
+							type="button"
+							size="sm"
+							variant="ghost"
+							onclick={() => (deleteKind = item.kind)}
+							aria-label={`Hapus gambar ${item.title}`}
+							class="whitespace-nowrap text-status-danger-strong"
+						>
+							{#snippet leftIcon()}<IconTrash class="size-3" />{/snippet}
+							Hapus
+						</Button>
+					</div>
 				</article>
 			{/each}
 		</div>
@@ -74,4 +91,8 @@
 
 {#if uploadKind}
 	<HydrologyImageUploadSheet isOpen kind={uploadKind} onClose={() => (uploadKind = null)} />
+{/if}
+
+{#if deleteKind}
+	<HydrologyImageDeleteSheet isOpen kind={deleteKind} onClose={() => (deleteKind = null)} />
 {/if}

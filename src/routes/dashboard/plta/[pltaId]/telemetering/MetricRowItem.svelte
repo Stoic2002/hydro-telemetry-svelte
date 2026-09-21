@@ -1,6 +1,6 @@
 <script lang="ts">
 	import IconCaretDown from '~icons/ph/caret-down';
-	import SourceMarker from '$components/atoms/SourceMarker.svelte';
+	import SourceMarker from '$components/controls/SourceMarker.svelte';
 	import type { DailyTelemetryUploadTarget } from '$features/telemetry-upload';
 	import type { MetricRow } from './presentation';
 

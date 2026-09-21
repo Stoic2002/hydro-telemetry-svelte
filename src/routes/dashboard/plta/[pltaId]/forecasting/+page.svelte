@@ -3,8 +3,8 @@
 	import { Area, Axis, Chart, Highlight, Spline, Svg, Tooltip } from 'layerchart';
 	import IconCalendar from '~icons/ph/calendar-blank';
 
-	import Badge from '$components/atoms/Badge.svelte';
-	import SegmentedControl from '$components/atoms/SegmentedControl.svelte';
+	import Badge from '$components/controls/Badge.svelte';
+	import SegmentedControl from '$components/controls/SegmentedControl.svelte';
 	import Banner from '$components/ui/Banner.svelte';
 	import ErrorState from '$components/ui/ErrorState.svelte';
 	import PageHeader from '$components/ui/PageHeader.svelte';
@@ -294,7 +294,13 @@
 							<Highlight points lines />
 						</Svg>
 
-						<Tooltip.Root>
+						<!--
+							Varian bawaan layerchart berlatar putih 90% + blur dan mengandalkan token
+							`--color-surface-*` miliknya sendiri yang tidak ada di project ini, jadi
+							tooltip tampak tembus pandang dan teks terangnya tidak terbaca. Latar
+							disetel sendiri dengan token permukaan gelap yang tidak tembus.
+						-->
+						<Tooltip.Root variant="none" classes={{ container: 'chart-tooltip' }}>
 							{#snippet children({ data })}
 								{@const datum = data as ForecastChartDatum}
 								<div class="min-w-48">

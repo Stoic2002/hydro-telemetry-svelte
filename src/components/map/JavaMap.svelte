@@ -3,7 +3,7 @@
 	import type { FeatureCollection, Geometry, GeoJsonProperties, LineString } from 'geojson';
 	import IconCloudRain from '~icons/ph/cloud-rain';
 
-	import Badge from '$components/atoms/Badge.svelte';
+	import Badge from '$components/controls/Badge.svelte';
 	import MapSkeleton from '$components/skeletons/MapSkeleton.svelte';
 	import {
 		createPlantCatalogQuery,

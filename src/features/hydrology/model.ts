@@ -9,8 +9,16 @@ export interface DashboardStationMetric {
 	time: string | null;
 }
 
+/** Tujuan isian manual sebuah metrik. `null` bila baris itu tidak bisa diisi. */
+export interface DashboardMetricInput {
+	parameter: string;
+	station: string;
+}
+
 export interface DashboardMetric {
 	value: NullableMetric;
+	/** Diisi server; `null` berarti baris ini tidak punya jalur isian manual. */
+	input: DashboardMetricInput | null;
 	unit: string | null;
 	label: string;
 	time: string | null;
@@ -79,6 +87,70 @@ export interface MonthlyHydrology {
 }
 
 export type MonthlyHydrologyImageKind = 'sifat_hujan' | 'curah_hujan';
+
+export interface OverviewAverage {
+	value: number | null;
+	/** Jumlah baris yang ikut dihitung — rata-rata atas sedikit baris bukan angka armada. */
+	count: number;
+}
+
+/**
+ * Ringkasan hidrologi bulanan SELURUH PLTA untuk satu periode.
+ *
+ * Dua persentase sengaja disimpan terpisah: `aggregateAchievementPercent`
+ * (total prediksi ÷ total target) adalah angka armada sesungguhnya, sedangkan
+ * `averageAchievementPercent` memberi bobot sama pada PLTA 1 MW dan 179 MW.
+ */
+export interface MonthlyHydrologyOverview {
+	year: number;
+	/** `null` = sepanjang tahun. */
+	month: number | null;
+	rowCount: number;
+	plantCount: number;
+	averageAchievementPercent: OverviewAverage;
+	aggregateAchievementPercent: number | null;
+	totalPredictedAchievementMwh: number;
+	totalTargetAchievementMwh: number;
+	achievedCount: number;
+	notAchievedCount: number;
+	/** Baris yang prediksi/targetnya belum diisi. Bukan "tidak tercapai". */
+	unassessedCount: number;
+	averages: {
+		predictedProductionMwh: OverviewAverage;
+		targetProductionMwh: OverviewAverage;
+		previousAchievementMwh: OverviewAverage;
+		predictedPreviousAchievementMwh: OverviewAverage;
+		targetPreviousAchievementMwh: OverviewAverage;
+	};
+}
+
+/** Hasil unggah Excel harian seluruh PLTA. */
+export interface DailyHydrologyExcelResult {
+	processedRows: number;
+	/** Jumlah nilai (PLTA × tanggal × parameter) yang tersimpan. */
+	writtenPoints: number;
+	pltaCodes: string[];
+	/** Tanggal-tanggal yang tersentuh, `YYYY-MM-DD`. */
+	periods: string[];
+}
+
+/** Panel laporan harian. `dam` = BENDUNGAN di layar. */
+export type DailyReportPanel = 'hulu' | 'dam' | 'hilir';
+
+/**
+ * Cakupan laporan Excel hidrologi. `month` kosong = setahun penuh, `pltaId`
+ * kosong = seluruh PLTA.
+ */
+export interface HydrologyReportScope {
+	year: number;
+	month?: number;
+	pltaId?: string;
+}
+
+export interface DailyHydrologyReportScope extends HydrologyReportScope {
+	/** Kosong = ketiga panel, masing-masing satu lembar. */
+	panel?: DailyReportPanel;
+}
 
 export interface UpsertMonthlyHydrologyInput {
 	pltaId: string;

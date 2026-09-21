@@ -1,6 +1,9 @@
 import { z } from 'zod';
 
-const plantTagProtocolSchema = z.enum(['opcua', 'modbus', 'sql', 'rest', 'upload']);
+// `derived`: nilai dihitung server dari tag lain (mis. `total_outflow` Wonogiri). Satu
+// protokol yang tidak dikenal menolak SELURUH daftar tag PLTA itu, bukan hanya
+// tag-nya — pernah membuat Tren & Grafik Wonogiri kosong.
+const plantTagProtocolSchema = z.enum(['opcua', 'modbus', 'sql', 'rest', 'upload', 'derived']);
 
 export const apiRiverBasinSchema = z.object({
 	code: z.string().min(1),

@@ -216,10 +216,15 @@ export function buildUploadTarget(
 	tags: PlantTag[],
 	parameter: MonitoringParameter,
 	label: string,
-	unit: string
+	unit: string,
+	station?: string
 ): DailyTelemetryUploadTarget | undefined {
 	const matchingTags = tags.filter(
-		(tag) => tag.parameter === parameter && tag.protocol === 'upload' && tag.enabled
+		(tag) =>
+			tag.parameter === parameter &&
+			tag.protocol === 'upload' &&
+			tag.enabled &&
+			(station === undefined || tag.station.toUpperCase() === station.toUpperCase())
 	);
 
 	if (matchingTags.length === 0) return undefined;
@@ -230,6 +235,127 @@ export function buildUploadTarget(
 		unit,
 		tags: matchingTags
 	};
+}
+
+/**
+ * Cadangan pemetaan baris panel harian → parameter unggahnya.
+ *
+ * Sumber utamanya sekarang field `input` pada tiap metrik, yang dikirim server.
+ * Tabel ini hanya dipakai untuk baris yang `input`-nya masih `null` padahal
+ * PLTA-nya punya tag, yaitu dua kasus yang belum ditangani backend:
+ *
+ * 1. Rencana turbin di PLTA yang tagnya TIDAK dipecah per unit — tag
+ *    `plan_outflow_turbine` tanpa station, sementara barisnya per unit.
+ * 2. Realisasi spillway (`outflow_spillway`) yang di sebagian PLTA diisi manual.
+ *
+ * Tanpa cadangan ini, tombol "Input data" di baris-baris itu hilang. Hapus
+ * tabelnya begitu backend mengisi `input` untuk kedua kasus tersebut.
+ */
+interface MetricUploadBinding {
+	parameter: MonitoringParameter;
+	/** Station tag yang dituju. Kosong = seluruh station parameter itu. */
+	station?: string;
+	/**
+	 * Bila PLTA ini TIDAK memecah tag parameter itu per station, pakai tag
+	 * tunggalnya. Hanya untuk turbin: sebagian PLTA mencatat rencana turbin per
+	 * unit (`T1`, `T2`, …), sebagian lagi satu tag tanpa station.
+	 *
+	 * Pemecahan per station sengaja dihormati: di PLTA yang hanya punya T1–T3,
+	 * baris Unit 4 harus tetap hanya-baca, bukan mengarah ke tag unit lain.
+	 */
+	fallbackToAnyStation?: boolean;
+}
+
+function turbineUnit(unit: number): MetricUploadBinding {
+	return { parameter: 'plan_outflow_turbine', station: `T${unit}`, fallbackToAnyStation: true };
+}
+
+export const METRIC_UPLOAD_BINDINGS: Record<string, MetricUploadBinding> = {
+	// Hulu
+	target_tma: { parameter: 'plan_water_level' },
+	batas_tma_limpas: { parameter: 'const_tma_limpas' },
+	batas_tma_mol: { parameter: 'const_tma_mol' },
+
+	// Bendungan — rencana
+	rencana_debit_turbin_unit_1: turbineUnit(1),
+	rencana_debit_turbin_unit_2: turbineUnit(2),
+	rencana_debit_turbin_unit_3: turbineUnit(3),
+	rencana_debit_turbin_unit_4: turbineUnit(4),
+	rencana_debit_spillway: { parameter: 'plan_outflow_spillway' },
+	rencana_debit_hjv: { parameter: 'plan_outflow_hjv' },
+	rencana_debit_irigasi: { parameter: 'plan_outflow_irigasi' },
+	rencana_debit_irigasi_kanan: { parameter: 'plan_outflow_irigasi', station: 'KANAN' },
+	rencana_debit_irigasi_kiri: { parameter: 'plan_outflow_irigasi', station: 'KIRI' },
+	rencana_debit_ddc: { parameter: 'plan_outflow_ddc' },
+	rencana_debit_buangan_sampah: { parameter: 'plan_outflow_trash' },
+	rencana_debit_intake_pdam: { parameter: 'plan_outflow_pdam' },
+	rencana_debit_pintu_air: { parameter: 'plan_outflow_sluice' },
+	rencana_debit_pintu_pembilas: { parameter: 'plan_outflow_flushing' },
+
+	// Bendungan — realisasi yang di sebagian PLTA dicatat manual, bukan sensor
+	debit_spillway: { parameter: 'outflow_spillway' },
+	debit_hjv: { parameter: 'outflow_hjv' },
+	debit_irigasi: { parameter: 'outflow_irigasi' },
+	debit_irigasi_kanan: { parameter: 'outflow_irigasi', station: 'KANAN' },
+	debit_irigasi_kiri: { parameter: 'outflow_irigasi', station: 'KIRI' },
+	debit_ddc: { parameter: 'outflow_ddc' },
+	debit_buangan_sampah: { parameter: 'outflow_trash' },
+	debit_intake_pdam: { parameter: 'outflow_pdam' },
+	debit_pintu_air: { parameter: 'outflow_sluice' },
+	debit_pintu_pembilas: { parameter: 'outflow_flushing' },
+
+	// Hilir
+	tma_tailrace: { parameter: 'const_tma_tailrace' },
+	batas_tma_hilir_maks: { parameter: 'const_tma_hilir_maks' },
+	swc_acuan: { parameter: 'const_swc' }
+};
+
+/**
+ * Target unggah untuk setiap baris panel yang bisa diisi manual di PLTA ini.
+ *
+ * Urutannya: `metric.input` dari server lebih dulu, lalu `METRIC_UPLOAD_BINDINGS`
+ * sebagai cadangan. Label dan satuan diambil dari metriknya sendiri, jadi judul
+ * form selalu sama dengan nama baris yang diklik operator.
+ */
+export function resolveMetricUploadTargets(
+	groups: (DashboardMetricGroup | undefined)[],
+	tags: PlantTag[]
+): Record<string, DailyTelemetryUploadTarget | undefined> {
+	const targets: Record<string, DailyTelemetryUploadTarget | undefined> = {};
+
+	for (const group of groups) {
+		for (const [key, metric] of Object.entries(group ?? {})) {
+			const label = metric.label || key;
+			const unit = metric.unit ?? '';
+
+			// Server sudah menyebut tujuannya: pakai apa adanya, termasuk station.
+			if (metric.input) {
+				targets[key] = buildUploadTarget(
+					tags,
+					metric.input.parameter as MonitoringParameter,
+					label,
+					unit,
+					metric.input.station || undefined
+				);
+				if (targets[key]) continue;
+			}
+
+			const binding = METRIC_UPLOAD_BINDINGS[key];
+			if (!binding) continue;
+
+			const isSplitPerStation = tags.some(
+				(tag) => tag.parameter === binding.parameter && tag.enabled && tag.station !== ''
+			);
+
+			targets[key] =
+				buildUploadTarget(tags, binding.parameter, label, unit, binding.station) ??
+				(binding.fallbackToAnyStation && !isSplitPerStation
+					? buildUploadTarget(tags, binding.parameter, label, unit)
+					: undefined);
+		}
+	}
+
+	return targets;
 }
 
 function monthlyMetricRow(

@@ -2,8 +2,8 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 
-	import SegmentedControl from '$components/atoms/SegmentedControl.svelte';
-	import Select from '$components/atoms/Select.svelte';
+	import SegmentedControl from '$components/controls/SegmentedControl.svelte';
+	import Select from '$components/controls/Select.svelte';
 	import EmptyState from '$components/ui/EmptyState.svelte';
 	import PageHeader from '$components/ui/PageHeader.svelte';
 	import { createPLTATagsQuery, getActivePLTA } from '$features/plta';

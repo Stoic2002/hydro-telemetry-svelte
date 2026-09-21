@@ -5,7 +5,7 @@
 	import IconSearch from '~icons/ph/magnifying-glass';
 	import IconTrash from '~icons/ph/trash';
 
-	import Button from '$components/atoms/Button.svelte';
+	import Button from '$components/controls/Button.svelte';
 	import UserTableSkeleton from '$components/skeletons/UserTableSkeleton.svelte';
 	import ConfirmDialog from '$components/ui/ConfirmDialog.svelte';
 	import EmptyState from '$components/ui/EmptyState.svelte';

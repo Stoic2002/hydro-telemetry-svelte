@@ -1,8 +1,8 @@
 <script lang="ts">
 	import IconSearch from '~icons/ph/magnifying-glass';
-	import Badge from '$components/atoms/Badge.svelte';
-	import Input from '$components/atoms/Input.svelte';
-	import Select from '$components/atoms/Select.svelte';
+	import Badge from '$components/controls/Badge.svelte';
+	import Input from '$components/controls/Input.svelte';
+	import Select from '$components/controls/Select.svelte';
 	import EmptyState from '$components/ui/EmptyState.svelte';
 	import TablePagination from '$components/ui/TablePagination.svelte';
 	import { formatDayMonthYearTimeWIB } from '$shared/lib/date';

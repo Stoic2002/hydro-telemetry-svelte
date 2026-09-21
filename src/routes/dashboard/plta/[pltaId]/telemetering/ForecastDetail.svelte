@@ -1,5 +1,5 @@
 <script lang="ts">
-	import SourceMarker from '$components/atoms/SourceMarker.svelte';
+	import SourceMarker from '$components/controls/SourceMarker.svelte';
 	import type { MetricRow, MetricSource } from './presentation';
 
 	/**

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import Skeleton from '../atoms/Skeleton.svelte';
+	import Skeleton from '../controls/Skeleton.svelte';
 
 	let { columns, rows = 10 }: { columns: number; rows?: number } = $props();
 

@@ -229,7 +229,13 @@
 							<Highlight points lines />
 						</Svg>
 
-						<Tooltip.Root>
+						<!--
+							Varian bawaan layerchart berlatar putih 90% + blur dan mengandalkan token
+							`--color-surface-*` miliknya sendiri yang tidak ada di project ini, jadi
+							tooltip tampak tembus pandang dan teks terangnya tidak terbaca. Latar
+							disetel sendiri dengan token permukaan gelap yang tidak tembus.
+						-->
+						<Tooltip.Root variant="none" classes={{ container: 'chart-tooltip' }}>
 							{#snippet children({ data })}
 								{@const datum = data as TrendChartDatum}
 								<div class="min-w-44">

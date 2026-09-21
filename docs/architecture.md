@@ -78,8 +78,15 @@ routes/dashboard/plta/[pltaId]/+layout.ts   validasi id + memuat PLTA aktif
 routes/dashboard/plta/[pltaId]/<halaman>/+page.ts   guard peran bila perlu
 ```
 
-Karena `load` root menuntaskan sesi lebih dulu, seluruh guard di bawahnya bisa
-sinkron — tidak ada lagi kondisi "status auth belum diketahui".
+**`load` induk dan anak berjalan paralel**, kecuali anak memanggil
+`await parent()`. `load` root yang menunggu sesi karena itu TIDAK menjamin sesi
+sudah pulih saat guard di bawahnya dijalankan. Dulu guard ditulis sinkron dengan
+anggapan sebaliknya, dan akibatnya setiap refresh browser berakhir di Overview:
+guard membaca `isAuthenticated = false` sebelum `/auth/me` selesai, mengalihkan
+ke `/login`, lalu `/login` — yang saat itu sesinya sudah pulih — mengalihkan ke
+`/dashboard`. Sekarang setiap guard memanggil `await authStore.initialize()`
+sendiri (idempoten, berbagi satu promise), dan `load` yang memanggil API
+memanggil `await parent()` lebih dulu.
 
 PLTA aktif hasil `load` dibagikan ke seluruh halaman di bawahnya lewat context,
 dan yang disimpan adalah **accessor**, bukan nilai jadi. Berpindah PLTA hanya
@@ -167,8 +174,10 @@ HTTP repository pada feature terkait.
 
 ### `src/components`
 
-Komponen presentasional lintas fitur. `atoms` berisi primitive UI; `ui` berisi
-komponen berperilaku lebih lengkap seperti dialog dan sheet.
+Komponen presentasional lintas fitur. `controls` berisi kontrol dasar — tombol,
+field, toggle, badge, penanda; `ui` berisi komponen berperilaku lebih lengkap
+seperti dialog dan sheet. (Dulu `controls` bernama `atoms`, istilah Atomic
+Design; diganti karena tidak menjelaskan isinya.)
 
 Perilaku overlay — kunci fokus, kunci scroll, Escape, pengembalian fokus ke
 pemicu — datang dari **bits-ui**, bukan ditulis tangan. `shared/lib/useFocusTrap`

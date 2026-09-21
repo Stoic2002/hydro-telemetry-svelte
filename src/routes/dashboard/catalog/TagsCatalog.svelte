@@ -2,8 +2,8 @@
 	import IconBuilding from '~icons/ph/buildings';
 	import IconDatabase from '~icons/ph/database';
 	import IconTag from '~icons/ph/tag';
-	import Badge from '$components/atoms/Badge.svelte';
-	import Select from '$components/atoms/Select.svelte';
+	import Badge from '$components/controls/Badge.svelte';
+	import Select from '$components/controls/Select.svelte';
 	import {
 		createPLTATagsQuery,
 		createPlantCatalogQuery,

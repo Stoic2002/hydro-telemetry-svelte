@@ -22,36 +22,48 @@ import { queryClient } from './query-client';
  * mengalihkan, jadi halaman terlindungi bisa berkedip sekejap. Di sini
  * pengalihan terjadi sebelum ada yang dirender sama sekali.
  *
- * Status sesi sudah dipastikan tersedia oleh `load` layout root, jadi seluruh
- * pemeriksaan di bawah bisa sinkron.
+ * Setiap guard menunggu pemulihan sesi sendiri, BUKAN mengandalkan `load`
+ * layout root yang sudah menunggunya. SvelteKit menjalankan `load` induk dan
+ * anak secara paralel kecuali anak memanggil `await parent()`. Dulu guard di
+ * sini sinkron, jadi saat halaman di-refresh ia membaca `isAuthenticated`
+ * sebelum `/auth/me` selesai: `/dashboard/trends` dialihkan ke `/login`, lalu
+ * `/login` — yang saat itu sesinya sudah pulih — mengalihkan ke `/dashboard`,
+ * dan berakhir di Overview. `initialize()` idempoten dan mengembalikan promise
+ * yang sama selama pemulihan berjalan, jadi memanggilnya di setiap guard tidak
+ * menambah request.
  */
 
-export function requireAuthenticated(): void {
+export async function requireAuthenticated(): Promise<void> {
+	await authStore.initialize();
 	if (!authStore.isAuthenticated) {
 		redirect(307, '/login');
 	}
 }
 
-export function requireGuest(): void {
+export async function requireGuest(): Promise<void> {
+	await authStore.initialize();
 	if (authStore.isAuthenticated) {
 		redirect(307, '/dashboard');
 	}
 }
 
-/** Input GHW dan Katalog Data: seluruh role kecuali Viewer. */
-export function requireDataTools(): void {
+/** Katalog Data: seluruh role kecuali Viewer. */
+export async function requireDataTools(): Promise<void> {
+	await requireAuthenticated();
 	if (!canAccessDataTools(authStore.user)) {
 		redirect(307, '/dashboard/overview');
 	}
 }
 
-export function requireUserManagement(): void {
+export async function requireUserManagement(): Promise<void> {
+	await requireAuthenticated();
 	if (!canManageUsers(authStore.user)) {
 		redirect(307, '/dashboard/overview');
 	}
 }
 
-export function requireMonthlyUpload(): void {
+export async function requireMonthlyUpload(): Promise<void> {
+	await requireAuthenticated();
 	if (!canUploadMonthlyHydrology(authStore.user)) {
 		redirect(307, '/dashboard/overview');
 	}
@@ -65,6 +77,9 @@ export async function redirectToDefaultPLTA(
 	page: PLTADashboardPage,
 	search: string
 ): Promise<never> {
+	// Katalog butuh token; tanpa ini request-nya berlomba dengan pemulihan sesi.
+	await requireAuthenticated();
+
 	const plants = await ensurePlantCatalog(queryClient);
 	const defaultPlant = pickDefaultPlant(plants);
 

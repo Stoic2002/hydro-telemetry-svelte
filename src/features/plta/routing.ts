@@ -6,16 +6,34 @@ export type PLTADashboardPage =
 	| 'forecasting'
 	| 'trends'
 	| 'laporan'
-	| 'input-ghw'
 	| 'user-management'
 	| 'account';
 
 /**
- * Unggah ringkasan bulanan berlaku untuk SELURUH PLTA sekaligus, jadi rutenya
- * sengaja tidak memuat `pltaId`. Menaruhnya di bawah `/dashboard/plta/:id`
- * akan menyiratkan cakupan satu PLTA yang tidak pernah dipakai halamannya.
+ * Menu Upload. Excel bulanan dan prakiraan hujan berlaku untuk SELURUH PLTA,
+ * jadi rutenya sengaja tidak memuat `pltaId`. Kurva EVA memang milik satu PLTA,
+ * tapi PLTA-nya dibawa lewat `?plta=` — bukan path — supaya ketiga jenis unggahan
+ * tetap berada di satu halaman dan tab yang sama.
  */
-export const TELEMETERING_UPLOAD_PATH = '/dashboard/telemetering/upload';
+export const UPLOAD_PATH = '/dashboard/upload';
+
+/**
+ * Rekap Hidrologi: ringkasan dan laporan SELURUH PLTA, jadi — seperti Upload —
+ * rutenya tidak memuat `pltaId` walau menunya berada di bawah Telemetering.
+ */
+export const HYDROLOGY_RECAP_PATH = '/dashboard/telemetering/rekap';
+
+export type UploadTab = 'excel' | 'harian' | 'prakiraan' | 'eva';
+
+export function getUploadPath(tab: UploadTab): string {
+	return `${UPLOAD_PATH}?tab=${tab}`;
+}
+
+/** Tanpa `pltaId`, halaman memilih PLTA bawaan. */
+export function getEvaUploadPath(pltaId?: string): string {
+	const base = getUploadPath('eva');
+	return pltaId ? `${base}&plta=${encodeURIComponent(pltaId)}` : base;
+}
 
 export function isValidPLTAId(pltaId: string | undefined): pltaId is string {
 	return Boolean(

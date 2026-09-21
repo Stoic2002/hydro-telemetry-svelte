@@ -57,6 +57,11 @@ Hal-hal yang sudah pernah menggigit dan tidak akan terlihat dari membaca kode:
   kali: `EditUserSheet` dan `TelemetryUploadSheet` hanya menangkap nilai awal
   prop, sehingga membuka panel untuk target berbeda menampilkan isian lama.
   Perbaikannya `$effect` yang menyetel ulang, bukan mematikan peringatannya.
+- **`load` induk dan anak berjalan paralel.** `load` root yang menunggu
+  `/auth/me` tidak membuat guard di bawahnya ikut menunggu. Guard yang membaca
+  `authStore` harus `await authStore.initialize()` sendiri, dan `load` yang
+  memanggil API harus `await parent()`. Pernah membuat setiap refresh browser
+  terlempar ke Overview.
 - **`jsdom` di-pin ke `26.1.0`.** Versi 30 mensyaratkan Node ≥ 22; mesin dev
   memakai Node 20 dan seluruh test DOM gagal dengan
   `webidl.util.markAsUncloneable is not a function`.
@@ -82,9 +87,13 @@ Hal-hal yang sudah pernah menggigit dan tidak akan terlihat dari membaca kode:
 - **Wilayah Sungai (WS) 1 : N PLTA. Satu PLTA hanya punya satu `ws_id`.**
   Ini pernah salah dimodelkan sebagai many-to-many.
 - Role: `admin`, `operator`, `viewer`. Role `viewer` tidak boleh melihat menu
-  Input GHW dan Katalog Monitoring.
-- Menu: Overview (peta Jawa Tengah), Telemetering, Tren & Grafik, Laporan,
-  Input GHW, Forecasting, User Management.
+  Upload dan Katalog Data, dan **tidak bisa mengubah data** di Hidrologi Harian
+  maupun Bulanan: tombol "Input data"/"Edit data" beserta form isiannya tidak
+  dirender (`canEditHydrologyData`). Halamannya sendiri tetap terbuka untuk
+  dibaca.
+- Menu: Overview (peta Jawa Tengah), Telemetering, Forecasting, Tren & Grafik,
+  Laporan, Upload, Katalog Data, User Management, dan Panduan (di dasar sidebar,
+  untuk semua role).
 
 ## Backend & integrasi
 
@@ -156,8 +165,46 @@ Hal-hal yang sudah pernah menggigit dan tidak akan terlihat dari membaca kode:
 - **User Management**: limit paginasi 10 item.
 - **Overview**: peta Jawa Tengah dengan batas kabupaten/kota, garis aliran
   sungai, dan overlay presipitasi realtime (memakai layanan tier gratis).
-- **Upload bulanan**: satu berkas mengisi seluruh PLTA, jadi rutenya sengaja
-  tidak memuat `pltaId`. Tidak ada pratinjau — server tidak menyediakan mode uji
+- **Upload** (`/dashboard/upload`) adalah menu sendiri, bukan lagi sub-menu
+  Telemetering, dengan empat tab lewat `?tab=`: **Excel Bulanan**, **Excel Harian**
+  (`/hydrology/daily/template.xlsx` + `/hydrology/daily/excel`), **Prakiraan
+  Hujan**, dan **Input EVA** (dulu menu "Input GHW"). Tiga tab pertama berlaku
+  untuk seluruh PLTA, jadi rutenya sengaja tidak memuat `pltaId`. Input EVA
+  milik satu PLTA; PLTA-nya dipilih di dalam panel tab itu dan dibawa lewat
+  `?plta=`. URL lama (`/dashboard/telemetering/upload`,
+  `/dashboard/plta/<id>/input-ghw`) dialihkan ke sini.
+- **Tombol "Input data" di Hidrologi Harian** mengikuti field `input`
+  (`{parameter, station}`) yang dikirim server pada tiap metrik panel harian —
+  server hanya mengisinya bila PLTA itu benar-benar punya tag `upload`-nya.
+  `METRIC_UPLOAD_BINDINGS` di `telemetering/presentation.ts` tinggal **cadangan**
+  untuk dua baris yang `input`-nya masih `null` per 21 Sep 2026: rencana turbin
+  di PLTA yang tagnya tanpa station, dan realisasi spillway. Cadangan tidak
+  berlaku bila tag parameter itu dipecah per station — baris Unit 4 di PLTA yang
+  hanya punya T1–T3 harus tetap hanya-baca. Hapus tabelnya begitu backend
+  mengisi `input` untuk kedua kasus itu.
+- **Rekap Hidrologi** (`/dashboard/telemetering/rekap`): submenu ketiga
+  Telemetering, satu-satunya yang mencakup SELURUH PLTA — tanpa `pltaId` di
+  rute, tanpa PlantSwitcher. Periode (`?tahun=`, `?bulan=` atau
+  `bulan=semua`) dan cakupan PLTA (`?plta=`) disimpan di URL. Isinya unduhan
+  laporan Excel bulanan (`/hydrology/monthly/report.xlsx`) dan harian
+  (`/hydrology/daily/report.xlsx`, bisa per panel), serta — menyusul —
+  ringkasan armada dari `/hydrology/monthly/overview`. Nama "Overview" tidak
+  dipakai karena sudah menjadi nama menu peta.
+- **Hapus gambar prakiraan hujan** ada di Upload › Prakiraan Hujan, lewat
+  pratinjau gambar lalu `ConfirmDialog`. Berlaku untuk seluruh PLTA dan tidak
+  bisa dibatalkan; backend mencatatnya di jejak audit.
+- **Panduan** (`/dashboard/panduan`): isi ditulis sebagai data di
+  `routes/dashboard/panduan/guide.ts`, bukan markup, dan disaring per role
+  dengan aturan yang sama seperti menu (`canAccessDataTools`, `canManageUsers`)
+  — Viewer tidak melihat bab Upload, Katalog Data, User Management, maupun
+  langkah input data. Tanpa screenshot supaya tidak basi; sebagai gantinya bagian
+  tertentu punya **contoh tampilan** (`GuideExample.svelte`) yang merender
+  komponen asli dengan data contoh di dalam wadah `inert`, jadi ikut berubah
+  bila komponennya berubah.
+  **Nama tombol dan label di sana ditulis persis seperti di layar; kalau label
+  sebuah halaman diubah, kalimat panduannya ikut diubah.** Penekanan
+  `**tebal**` dirender tanpa `{@html}`.
+- **Upload Excel bulanan**: satu berkas mengisi seluruh PLTA. Tidak ada pratinjau — server tidak menyediakan mode uji
   coba, dan satu baris bermasalah menolak seluruh berkas.
 
 ## Status penulisan ulang

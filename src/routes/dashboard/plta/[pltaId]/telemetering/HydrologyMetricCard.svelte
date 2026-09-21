@@ -73,7 +73,7 @@
 		if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
 		onHighlightChange?.(false);
 	}}
-	class={`flex h-full flex-col transition-colors duration-200 outline-none ${
+	class={`flex flex-col transition-colors duration-200 outline-none ${
 		isHighlighted
 			? `ring-2 ring-inset ${presentation.highlightSurfaceClassName} ${presentation.highlightRingClassName}`
 			: ''
@@ -100,7 +100,7 @@
 	{/if}
 
 	{#each visibleSections as section (section.title)}
-		<section class="flex-1">
+		<section>
 			{#if visibleSections.length > 1}
 				<div class="table-head-cell px-4 py-2">{section.title}</div>
 			{/if}

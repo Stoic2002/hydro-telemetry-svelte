@@ -7,9 +7,10 @@
 	import IconTrendingUp from '~icons/ph/trend-up';
 	import IconChart from '~icons/ph/chart-bar';
 	import IconFileText from '~icons/ph/file-text';
-	import IconEdit from '~icons/ph/pencil-simple-line';
+	import IconUpload from '~icons/ph/cloud-arrow-up';
 	import IconDatabase from '~icons/ph/database';
 	import IconUsers from '~icons/ph/users';
+	import IconGuide from '~icons/ph/book-open-text';
 	import IconLogout from '~icons/ph/sign-out';
 	import IconCaretLeft from '~icons/ph/caret-left';
 	import IconCaretRight from '~icons/ph/caret-right';
@@ -17,7 +18,8 @@
 	import IconX from '~icons/ph/x';
 
 	import {
-		TELEMETERING_UPLOAD_PATH,
+		HYDROLOGY_RECAP_PATH,
+		UPLOAD_PATH,
 		createPlantCatalogQuery,
 		getPLTADashboardPath,
 		getUnscopedDashboardPath,
@@ -53,6 +55,21 @@
 	const showUserManagement = $derived(canManageUsers(user));
 	const showMonthlyUpload = $derived(canUploadMonthlyHydrology(user));
 	const isTelemeteringActive = $derived(page.url.pathname.includes('/telemetering'));
+
+	/**
+	 * Skeleton hanya untuk perpindahan ke halaman LAIN.
+	 *
+	 * Mengubah filter memakai `goto` juga menyalakan `navigating`, dan dulu itu
+	 * menukar isi `<main>` dengan skeleton — yang berarti halamannya di-mount
+	 * ulang dan seluruh state lokalnya hilang. Gejalanya: memilih unit DMN di
+	 * Hidrologi Harian membuat kartu zona yang sudah dibuka kembali ringkas.
+	 * Berpindah PLTA pun tidak lagi menukar layar: rute-nya sama, hanya
+	 * parameternya berubah, dan tiap query sudah menangani keadaan memuatnya
+	 * sendiri.
+	 */
+	const isLeavingPage = $derived(
+		Boolean(navigating.to) && navigating.to?.route.id !== page.route.id
+	);
 
 	const selectedPLTAId = $derived.by(() => {
 		const routePLTAId = page.params.pltaId;
@@ -160,10 +177,16 @@
 			<NavGroup
 				label="Telemetering"
 				{collapsed}
-				href={dashboardPath('telemetering/bulanan')}
+				href={HYDROLOGY_RECAP_PATH}
 				isActive={isTelemeteringActive}
 			>
 				{#snippet icon()}<IconActivity class="size-[18px]" />{/snippet}
+				<NavSubItem
+					inFlyout={collapsed}
+					onNavigate={closeMobileSidebar}
+					href={HYDROLOGY_RECAP_PATH}
+					label="Rekap Hidrologi"
+				/>
 				<NavSubItem
 					inFlyout={collapsed}
 					onNavigate={closeMobileSidebar}
@@ -176,14 +199,6 @@
 					href={dashboardPath('telemetering/harian')}
 					label="Hidrologi Harian"
 				/>
-				{#if showMonthlyUpload}
-					<NavSubItem
-						inFlyout={collapsed}
-						onNavigate={closeMobileSidebar}
-						href={TELEMETERING_UPLOAD_PATH}
-						label="Upload"
-					/>
-				{/if}
 			</NavGroup>
 
 			<NavItem
@@ -202,10 +217,14 @@
 				{#snippet icon()}<IconFileText class="size-[18px]" />{/snippet}
 			</NavItem>
 
-			{#if showDataTools}
-				<NavItem href={dashboardPath('input-ghw')} {collapsed} label="Input GHW">
-					{#snippet icon()}<IconEdit class="size-[18px]" />{/snippet}
+			{#if showMonthlyUpload}
+				<!-- Excel bulanan, prakiraan hujan, dan kurva EVA per PLTA dalam satu menu. -->
+				<NavItem href={UPLOAD_PATH} {collapsed} label="Upload">
+					{#snippet icon()}<IconUpload class="size-[18px]" />{/snippet}
 				</NavItem>
+			{/if}
+
+			{#if showDataTools}
 				<NavItem href="/dashboard/catalog" end {collapsed} label="Katalog Data">
 					{#snippet icon()}<IconDatabase class="size-[18px]" />{/snippet}
 				</NavItem>
@@ -216,6 +235,13 @@
 					{#snippet icon()}<IconUsers class="size-[18px]" />{/snippet}
 				</NavItem>
 			{/if}
+
+			<!-- Didorong ke dasar nav: rujukan, bukan layar kerja harian. -->
+			<div class="mt-auto pt-3">
+				<NavItem href="/dashboard/panduan" end {collapsed} label="Panduan">
+					{#snippet icon()}<IconGuide class="size-[18px]" />{/snippet}
+				</NavItem>
+			</div>
 		</nav>
 
 		<div
@@ -288,7 +314,7 @@
 		</header>
 
 		<main class="mx-auto w-full max-w-[1440px] min-w-0 flex-1 p-3 sm:p-4 lg:p-6">
-			{#if navigating.to}
+			{#if isLeavingPage && navigating.to}
 				<!--
 					Padanan `<Suspense>` di versi React. Tujuan navigasi sudah diketahui
 					sebelum datanya sampai, jadi bentuk shimmer bisa langsung sesuai

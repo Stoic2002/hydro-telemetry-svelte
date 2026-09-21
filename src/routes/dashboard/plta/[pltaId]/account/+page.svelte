@@ -6,8 +6,8 @@
 	import IconUser from '~icons/ph/user-circle';
 
 	import { ApiError } from '$api/http';
-	import Button from '$components/atoms/Button.svelte';
-	import Input from '$components/atoms/Input.svelte';
+	import Button from '$components/controls/Button.svelte';
+	import Input from '$components/controls/Input.svelte';
 	import ErrorState from '$components/ui/ErrorState.svelte';
 	import PageHeader from '$components/ui/PageHeader.svelte';
 	import {

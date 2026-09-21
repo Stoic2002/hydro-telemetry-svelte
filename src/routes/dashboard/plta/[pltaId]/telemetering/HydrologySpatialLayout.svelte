@@ -13,7 +13,8 @@
 		upstreamSections: MetricSection[];
 		damSections: MetricSection[];
 		downstreamSections: MetricSection[];
-		onUpload: (target: DailyTelemetryUploadTarget) => void;
+		/** Tanpa ini tombol "Input data" tidak dirender — dipakai untuk Viewer. */
+		onUpload?: (target: DailyTelemetryUploadTarget) => void;
 		/** Kontrol tambahan pada zona tertentu; zona lain tidak terpengaruh. */
 		zoneControls?: Partial<Record<HydrologyZone, Snippet>>;
 	}
@@ -84,8 +85,13 @@
 		urutan aliran. Inilah yang membuat fitur ini aman dirilis sebelum berkas
 		fotonya ada di `static/dam/`.
 	-->
+	<!--
+		`items-start`: tiap kartu setinggi jumlah parameternya sendiri. Tanpa itu
+		grid meregangkan ketiganya setinggi kartu terpanjang, sehingga zona dengan
+		10 parameter menyisakan ruang kosong sepanjang zona dengan 41 parameter.
+	-->
 	<div
-		class="grid divide-y divide-border-subtle overflow-hidden rounded-xl border border-border-subtle bg-surface-raised lg:grid-cols-3 lg:divide-x lg:divide-y-0"
+		class="grid items-start divide-y divide-border-subtle overflow-hidden rounded-xl border border-border-subtle bg-surface-raised lg:grid-cols-3 lg:divide-x lg:divide-y-0"
 	>
 		{@render zoneCards()}
 	</div>
@@ -102,7 +108,7 @@
 			onZoneSelect={selectZone}
 		/>
 		<div
-			class="grid divide-y divide-border-subtle border-t border-border-subtle lg:grid-cols-3 lg:divide-x lg:divide-y-0"
+			class="grid items-start divide-y divide-border-subtle border-t border-border-subtle lg:grid-cols-3 lg:divide-x lg:divide-y-0"
 		>
 			{@render zoneCards()}
 		</div>

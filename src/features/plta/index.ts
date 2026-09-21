@@ -13,11 +13,14 @@ export { HYDROLOGY_ZONES, HYDROLOGY_ZONE_PRESENTATION, getDamImagery } from './d
 export { getPLTAErrorMessage } from './error';
 export { getPlantDisplayName } from './presentation';
 export {
-	TELEMETERING_UPLOAD_PATH,
+	HYDROLOGY_RECAP_PATH,
+	UPLOAD_PATH,
+	getEvaUploadPath,
 	getPLTADashboardPath,
 	getUnscopedDashboardPath,
+	getUploadPath,
 	isValidPLTAId
 } from './routing';
 export type { HydrologyZone } from './dam-imagery';
 export type { Plant, PlantTag, PlantTagListParams, PlantTagProtocol } from './model';
-export type { PLTADashboardPage } from './routing';
+export type { PLTADashboardPage, UploadTab } from './routing';

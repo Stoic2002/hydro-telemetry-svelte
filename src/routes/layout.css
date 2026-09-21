@@ -397,4 +397,9 @@
 	.loading-text {
 		@apply font-sans text-sm text-text-muted;
 	}
+
+	/* Tooltip grafik layerchart (`variant="none"`): permukaan gelap, tidak tembus. */
+	.chart-tooltip {
+		@apply rounded-lg border border-border-inverse bg-surface-inverse px-3 py-2.5 shadow-panel;
+	}
 }

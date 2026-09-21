@@ -4,9 +4,10 @@
 	import IconRefresh from '~icons/ph/arrow-clockwise';
 	import IconWarning from '~icons/ph/warning';
 
-	import SourceMarker from '$components/atoms/SourceMarker.svelte';
+	import SourceMarker from '$components/controls/SourceMarker.svelte';
 	import Banner from '$components/ui/Banner.svelte';
 	import PageHeader from '$components/ui/PageHeader.svelte';
+	import { authStore, canEditHydrologyData } from '$features/auth';
 	import { createDailyHydrologyQuery, getHydrologyErrorMessage } from '$features/hydrology';
 	import { createMonitoringStream, createPLTALatestQuery } from '$features/monitoring';
 	import { createPLTATagsQuery, getActivePLTA } from '$features/plta';
@@ -16,12 +17,12 @@
 	import DmnUnitPicker from './DmnUnitPicker.svelte';
 	import HydrologySpatialLayout from '../HydrologySpatialLayout.svelte';
 	import {
-		buildUploadTarget,
 		currentWibDate,
 		dashboardMetricRows,
 		formatHydrologyDate,
 		latestMonitoringParameter,
 		monitoringSource,
+		resolveMetricUploadTargets,
 		type MetricSection
 	} from '../presentation';
 
@@ -31,6 +32,9 @@
 	// dijalankan ulang. Destructure sekali di sini akan membekukan nilainya pada
 	// PLTA yang pertama kali dibuka.
 	const activePLTA = $derived(getActivePLTA());
+
+	// Viewer hanya membaca; tombol "Input data" dan form isiannya tidak dirender.
+	const canEditData = $derived(canEditHydrologyData(authStore.user));
 	const plant = $derived(activePLTA.plant);
 	const displayName = $derived(activePLTA.displayName);
 	const pltaId = $derived(activePLTA.pltaId);
@@ -107,50 +111,11 @@
 		uploadTagsQuery.isPlaceholderData ? undefined : uploadTagsQuery.data?.items
 	);
 
-	const uploadTargets = $derived.by(() => {
-		const tags = uploadTags ?? [];
-
-		return {
-			targetTma: buildUploadTarget(
-				tags,
-				'plan_water_level',
-				'Target tinggi muka air waduk (TMA)',
-				'mdpl'
-			),
-			plannedTurbineDischarge: buildUploadTarget(
-				tags,
-				'plan_outflow_turbine',
-				'Rencana debit turbin',
-				'm³/detik'
-			),
-			plannedSpillwayDischarge: buildUploadTarget(
-				tags,
-				'plan_outflow_spillway',
-				'Rencana debit spillway',
-				'm³/detik'
-			),
-			plannedHjvDischarge: buildUploadTarget(
-				tags,
-				'plan_outflow_hjv',
-				'Rencana debit HJV',
-				'm³/detik'
-			),
-			spillwayDischarge: buildUploadTarget(tags, 'outflow_spillway', 'Debit spillway', 'm³/detik'),
-			hjvDischarge: buildUploadTarget(tags, 'outflow_hjv', 'Debit HJV', 'm³/detik'),
-			// Konstanta PLTA: nilainya jarang berubah, tetapi ketika berubah operator
-			// harus bisa mengisinya sendiri tanpa menunggu konfigurasi server.
-			tmaLimpas: buildUploadTarget(tags, 'const_tma_limpas', 'Batas TMA limpas', 'mdpl'),
-			tmaMol: buildUploadTarget(tags, 'const_tma_mol', 'Batas TMA MOL', 'mdpl'),
-			tmaTailrace: buildUploadTarget(tags, 'const_tma_tailrace', 'TMA tailrace', 'mdpl'),
-			tmaHilirMaks: buildUploadTarget(
-				tags,
-				'const_tma_hilir_maks',
-				'Batas maksimal TMA hilir',
-				'mdpl'
-			),
-			swcAcuan: buildUploadTarget(tags, 'const_swc', 'SWC acuan (papan nama)', 'm³/kWh')
-		};
-	});
+	// Satu tabel pemetaan untuk seluruh panel (`METRIC_UPLOAD_BINDINGS`): tombol
+	// "Input data" muncul di setiap baris yang PLTA ini punya tag unggahnya.
+	const metricUploadTargets = $derived(
+		resolveMetricUploadTargets([daily?.upstream, daily?.dam, daily?.downstream], uploadTags ?? [])
+	);
 
 	// Legenda hanya menampilkan penanda yang benar-benar dipakai di layar.
 	const hasConstantUploadTags = $derived(
@@ -194,11 +159,7 @@
 			rows: dashboardMetricRows(
 				daily?.upstream,
 				isDailyLoading,
-				{
-					target_tma: uploadTargets.targetTma,
-					batas_tma_limpas: uploadTargets.tmaLimpas,
-					batas_tma_mol: uploadTargets.tmaMol
-				},
+				metricUploadTargets,
 				{ tma_waduk: reservoirOverride },
 				['target_tma', 'tma_waduk', 'inflow', 'curah_hujan', 'volume_waduk']
 			)
@@ -211,16 +172,7 @@
 			rows: dashboardMetricRows(
 				daily?.dam,
 				isDailyLoading,
-				{
-					rencana_debit_turbin_unit_1: uploadTargets.plannedTurbineDischarge,
-					rencana_debit_turbin_unit_2: uploadTargets.plannedTurbineDischarge,
-					rencana_debit_turbin_unit_3: uploadTargets.plannedTurbineDischarge,
-					rencana_debit_turbin_unit_4: uploadTargets.plannedTurbineDischarge,
-					rencana_debit_spillway: uploadTargets.plannedSpillwayDischarge,
-					rencana_debit_hjv: uploadTargets.plannedHjvDischarge,
-					debit_spillway: uploadTargets.spillwayDischarge,
-					debit_hjv: uploadTargets.hjvDischarge
-				},
+				metricUploadTargets,
 				{ debit_turbin_total: turbineDischargeOverride },
 				['debit_turbin_total', 'debit_spillway', 'debit_irigasi', 'debit_ddc', 'delta_head']
 			)
@@ -233,11 +185,7 @@
 			rows: dashboardMetricRows(
 				daily?.downstream,
 				isDailyLoading,
-				{
-					tma_tailrace: uploadTargets.tmaTailrace,
-					batas_tma_hilir_maks: uploadTargets.tmaHilirMaks,
-					swc_acuan: uploadTargets.swcAcuan
-				},
+				metricUploadTargets,
 				{ tma_tailrace: tailraceOverride },
 				['tma_tailrace', 'head', 'swc_unit_1', 'turbidity_hilir', 'ph_hilir']
 			)
@@ -358,11 +306,11 @@
 		{damSections}
 		{downstreamSections}
 		zoneControls={{ upstream: dmnPicker }}
-		onUpload={(target) => (dailyUploadTarget = target)}
+		onUpload={canEditData ? (target) => (dailyUploadTarget = target) : undefined}
 	/>
 </div>
 
-{#if dailyUploadTarget}
+{#if canEditData && dailyUploadTarget}
 	<TelemetryUploadSheet
 		isOpen
 		{pltaId}

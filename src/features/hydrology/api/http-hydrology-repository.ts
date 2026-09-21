@@ -1,5 +1,11 @@
 import { ApiError, apiRequest, createApiResponseParser } from '../../../api/http';
-import type { DailyHydrology, MonthlyHydrology, MonthlyHydrologyExcelResult } from '../model';
+import type {
+	DailyHydrology,
+	MonthlyHydrology,
+	MonthlyHydrologyExcelResult,
+	MonthlyHydrologyOverview,
+	DailyHydrologyExcelResult
+} from '../model';
 import type { HydrologyRepository } from './hydrology-repository';
 import {
 	apiMonthlyHydrologyExcelResultSchema,
@@ -9,7 +15,10 @@ import {
 	apiPLTAMonthlyDashboardSchema,
 	type ApiDailyHydrology,
 	type ApiMonthlyHydrology,
-	type ApiMonthlyHydrologyExcelResult
+	type ApiMonthlyHydrologyExcelResult,
+	apiDailyHydrologyExcelResultSchema,
+	apiMonthlyHydrologyOverviewSchema,
+	type ApiMonthlyHydrologyOverview
 } from './schemas';
 
 const parseResponse = createApiResponseParser('Respons server tidak sesuai kontrak data hidrologi');
@@ -52,6 +61,63 @@ function mapExcelResult(result: ApiMonthlyHydrologyExcelResult): MonthlyHydrolog
 		pltaCodes: result.plta ?? [],
 		periods: result.periode ?? []
 	};
+}
+
+function mapOverview(overview: ApiMonthlyHydrologyOverview): MonthlyHydrologyOverview {
+	const average = (item: { rata2: number | null; n: number }) => ({
+		value: item.rata2,
+		count: item.n
+	});
+
+	return {
+		year: overview.tahun,
+		month: overview.bulan,
+		rowCount: overview.jumlah_baris,
+		plantCount: overview.jumlah_plta,
+		averageAchievementPercent: {
+			value: overview.prosentase_pencapaian_rata2,
+			count: overview.prosentase_pencapaian_rata2_n
+		},
+		aggregateAchievementPercent: overview.prosentase_pencapaian_agregat,
+		totalPredictedAchievementMwh: overview.total_prediksi_pencapaian_sd_prev_mwh,
+		totalTargetAchievementMwh: overview.total_target_pencapaian_sd_prev_mwh,
+		achievedCount: overview.jumlah_tercapai,
+		notAchievedCount: overview.jumlah_tidak_tercapai,
+		unassessedCount: overview.jumlah_belum_dinilai,
+		averages: {
+			predictedProductionMwh: average(overview.rerata.prediksi_produksi_mwh),
+			targetProductionMwh: average(overview.rerata.target_produksi_mwh),
+			previousAchievementMwh: average(overview.rerata.pencapaian_sd_prev_mwh),
+			predictedPreviousAchievementMwh: average(overview.rerata.prediksi_pencapaian_sd_prev_mwh),
+			targetPreviousAchievementMwh: average(overview.rerata.target_pencapaian_sd_prev_mwh)
+		}
+	};
+}
+
+const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+
+/** Endpoint laporan butuh token, jadi diunduh sebagai blob — bukan `<a href>` polos. */
+async function downloadXlsx(
+	endpoint: string,
+	query: Record<string, string | number | undefined>,
+	invalidMessage: string
+): Promise<Blob> {
+	const payload = await apiRequest<Blob>(endpoint, {
+		method: 'GET',
+		cache: 'no-store',
+		headers: { Accept: XLSX_MIME },
+		query
+	});
+
+	if (!(payload instanceof Blob)) {
+		throw new ApiError(invalidMessage, {
+			status: 502,
+			statusText: 'Invalid API Response',
+			url: endpoint
+		});
+	}
+
+	return payload;
 }
 
 export const httpHydrologyRepository: HydrologyRepository = {
@@ -160,6 +226,62 @@ export const httpHydrologyRepository: HydrologyRepository = {
 		return payload;
 	},
 
+	async getMonthlyOverview(year, month, options) {
+		const endpoint = '/api/v1/hydrology/monthly/overview';
+		const payload = await apiRequest<unknown>(endpoint, {
+			method: 'GET',
+			cache: 'no-store',
+			signal: options?.signal,
+			query: { tahun: year, bulan: month }
+		});
+
+		return mapOverview(parseResponse(payload, apiMonthlyHydrologyOverviewSchema, endpoint));
+	},
+
+	downloadDailyTemplate(from, to) {
+		return downloadXlsx(
+			'/api/v1/hydrology/daily/template.xlsx',
+			{ tanggal: from, sampai: to },
+			'Respons template hidrologi harian tidak valid'
+		);
+	},
+
+	async uploadDailyExcel(file): Promise<DailyHydrologyExcelResult> {
+		const endpoint = '/api/v1/hydrology/daily/excel';
+		const formData = new FormData();
+		formData.set('file', file);
+
+		const payload = await apiRequest<unknown>(endpoint, {
+			method: 'POST',
+			cache: 'no-store',
+			body: formData
+		});
+		const result = parseResponse(payload, apiDailyHydrologyExcelResultSchema, endpoint);
+
+		return {
+			processedRows: result.baris_diproses,
+			writtenPoints: result.titik_ditulis,
+			pltaCodes: result.plta ?? [],
+			periods: result.periode ?? []
+		};
+	},
+
+	downloadMonthlyReport(scope) {
+		return downloadXlsx(
+			'/api/v1/hydrology/monthly/report.xlsx',
+			{ tahun: scope.year, bulan: scope.month, plta_id: scope.pltaId },
+			'Respons laporan hidrologi bulanan tidak valid'
+		);
+	},
+
+	downloadDailyReport(scope) {
+		return downloadXlsx(
+			'/api/v1/hydrology/daily/report.xlsx',
+			{ tahun: scope.year, bulan: scope.month, panel: scope.panel, plta_id: scope.pltaId },
+			'Respons laporan hidrologi harian tidak valid'
+		);
+	},
+
 	async uploadMonthlyExcel(file) {
 		const endpoint = '/api/v1/hydrology/monthly/excel';
 		const formData = new FormData();
@@ -194,6 +316,15 @@ export const httpHydrologyRepository: HydrologyRepository = {
 		});
 
 		return mapMonthly(parseResponse(payload, apiMonthlyHydrologySchema, endpoint));
+	},
+
+	async deleteMonthlyImage(year, month, kind) {
+		// Respons `{tahun, bulan, jenis, deleted, paths}` tidak dipakai: yang
+		// perlu diketahui layar hanya berhasil atau tidak.
+		await apiRequest<unknown>('/api/v1/hydrology/monthly/image', {
+			method: 'DELETE',
+			query: { tahun: year, bulan: month, jenis: kind }
+		});
 	},
 
 	async uploadMonthlyImage(input) {

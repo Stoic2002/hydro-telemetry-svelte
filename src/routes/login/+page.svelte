@@ -5,7 +5,7 @@
 	import IconLock from '~icons/ph/lock-simple';
 	import IconEye from '~icons/ph/eye';
 	import IconEyeSlash from '~icons/ph/eye-slash';
-	import Button from '$components/atoms/Button.svelte';
+	import Button from '$components/controls/Button.svelte';
 	import Banner from '$components/ui/Banner.svelte';
 	import { Form } from '$shared/lib/form.svelte';
 	import { authStore } from '$features/auth';

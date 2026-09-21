@@ -1,5 +1,5 @@
 <script lang="ts">
-	import Skeleton from '$components/atoms/Skeleton.svelte';
+	import Skeleton from '$components/controls/Skeleton.svelte';
 	import {
 		createPlantCatalogQuery,
 		createRiverBasinsQuery,

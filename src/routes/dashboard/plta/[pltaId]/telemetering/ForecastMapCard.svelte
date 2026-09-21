@@ -3,7 +3,7 @@
 	import IconImageBroken from '~icons/ph/image-broken';
 	import IconMagnifyingGlassPlus from '~icons/ph/magnifying-glass-plus';
 	import IconX from '~icons/ph/x';
-	import Skeleton from '$components/atoms/Skeleton.svelte';
+	import Skeleton from '$components/controls/Skeleton.svelte';
 
 	interface Props {
 		title: string;

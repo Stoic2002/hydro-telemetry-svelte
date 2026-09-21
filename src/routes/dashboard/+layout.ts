@@ -1,5 +1,3 @@
 import { requireAuthenticated } from '$core/guards';
 
-export const load = () => {
-	requireAuthenticated();
-};
+export const load = () => requireAuthenticated();

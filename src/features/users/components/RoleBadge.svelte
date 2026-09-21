@@ -1,5 +1,5 @@
 <script lang="ts">
-	import Badge, { type BadgeTone } from '$components/atoms/Badge.svelte';
+	import Badge, { type BadgeTone } from '$components/controls/Badge.svelte';
 	import type { UserRole } from '$features/auth';
 
 	let { role }: { role: UserRole } = $props();

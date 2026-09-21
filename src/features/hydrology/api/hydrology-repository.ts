@@ -1,5 +1,9 @@
 import type {
 	DailyHydrologyPanel,
+	DailyHydrologyExcelResult,
+	DailyHydrologyReportScope,
+	HydrologyReportScope,
+	MonthlyHydrologyOverview,
 	DailyHydrologyParams,
 	MonthlyHydrology,
 	MonthlyHydrologyExcelResult,
@@ -53,6 +57,28 @@ export interface HydrologyRepository {
 		month: number,
 		options?: HydrologyRequestOptions
 	): Promise<Blob>;
+	/** Ringkasan seluruh PLTA. `month` kosong = sepanjang tahun. */
+	getMonthlyOverview(
+		year: number,
+		month: number | undefined,
+		options?: HydrologyRequestOptions
+	): Promise<MonthlyHydrologyOverview>;
+	/**
+	 * Laporan Excel hidrologi bulanan: lembar DATA per (PLTA, bulan) dan lembar
+	 * RINGKASAN rata-rata armada. Angkanya dihitung server dengan kode yang sama
+	 * dengan ringkasan armada di layar.
+	 */
+	downloadMonthlyReport(scope: HydrologyReportScope): Promise<Blob>;
+	/** Laporan Excel hidrologi harian, satu lembar per panel Hulu/Bendungan/Hilir. */
+	downloadDailyReport(scope: DailyHydrologyReportScope): Promise<Blob>;
+	/**
+	 * Template harian: satu baris per (PLTA, tanggal), kolom diturunkan dari tag
+	 * berprotokol `upload`, nilai tersimpan sudah dipra-isi. `to` kosong = hanya
+	 * `from`; rentang maksimal 92 hari.
+	 */
+	downloadDailyTemplate(from: string, to?: string): Promise<Blob>;
+	/** Impor nilai harian manual seluruh PLTA. Atomik, sel kosong dilewati. */
+	uploadDailyExcel(file: File): Promise<DailyHydrologyExcelResult>;
 	/** Impor satu berkas untuk seluruh PLTA sekaligus. Bersifat atomik. */
 	uploadMonthlyExcel(file: File): Promise<MonthlyHydrologyExcelResult>;
 	upsertMonthly(input: UpsertMonthlyHydrologyInput): Promise<MonthlyHydrology>;
@@ -62,4 +88,10 @@ export interface HydrologyRepository {
 	 * Karena itu badan responsnya tidak dibaca sama sekali.
 	 */
 	uploadMonthlyImage(input: UploadMonthlyHydrologyImageInput): Promise<void>;
+	/**
+	 * Menghapus satu gambar `(tahun, bulan, jenis)` untuk SELURUH PLTA — untuk
+	 * gambar salah unggah yang penggantinya belum tersedia. Tidak dapat
+	 * dibatalkan; server mencatatnya di jejak audit. `404` bila memang belum ada.
+	 */
+	deleteMonthlyImage(year: number, month: number, kind: MonthlyHydrologyImageKind): Promise<void>;
 }

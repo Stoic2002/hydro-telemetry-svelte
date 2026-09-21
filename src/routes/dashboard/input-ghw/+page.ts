@@ -1,4 +1,7 @@
-import { redirectToDefaultPLTA } from '$core/guards';
+import { redirect } from '@sveltejs/kit';
+import { getEvaUploadPath } from '$features/plta';
 
-/** Tautan lama tanpa `pltaId`. Dipertahankan supaya bookmark operator tidak mati. */
-export const load = ({ url }) => redirectToDefaultPLTA('input-ghw', url.search);
+/** Input GHW sekarang tab "Input EVA" di menu Upload. */
+export const load = () => {
+	redirect(307, getEvaUploadPath());
+};

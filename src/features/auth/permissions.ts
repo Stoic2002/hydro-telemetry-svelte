@@ -15,9 +15,19 @@ export function canManageUsers(user: User | null): boolean {
 	return user?.role === 'Super Admin' || user?.role === 'Admin UBP';
 }
 
-/** Input GHW dan Katalog Data: seluruh role kecuali Viewer. */
+/** Upload (termasuk Input EVA) dan Katalog Data: seluruh role kecuali Viewer. */
 export function canAccessDataTools(user: User | null): boolean {
 	return user !== null && user.role !== 'Viewer';
+}
+
+/**
+ * Mengisi dan mengubah data Hidrologi Harian dan Bulanan (tombol "Input data" /
+ * "Edit data"). Viewer hanya membaca. Diberi nama sendiri karena dipakai di
+ * halaman baca yang sama dengan Viewer — bukan menu tersendiri seperti Upload —
+ * sehingga yang disaring adalah tombolnya, bukan rutenya.
+ */
+export function canEditHydrologyData(user: User | null): boolean {
+	return canAccessDataTools(user);
 }
 
 /**

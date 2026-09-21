@@ -79,6 +79,172 @@ describe('uploadMonthlyImage', () => {
 	});
 });
 
+describe('deleteMonthlyImage', () => {
+	beforeEach(() => {
+		apiRequestMock.mockReset();
+	});
+
+	it('mengirim DELETE dengan periode dan jenis sebagai query', async () => {
+		apiRequestMock.mockResolvedValue({
+			tahun: 2026,
+			bulan: 9,
+			jenis: 'sifat_hujan',
+			deleted: true,
+			paths: []
+		});
+
+		await expect(
+			httpHydrologyRepository.deleteMonthlyImage(2026, 9, 'sifat_hujan')
+		).resolves.toBeUndefined();
+
+		const [endpoint, options] = apiRequestMock.mock.calls[0];
+		expect(endpoint).toBe('/api/v1/hydrology/monthly/image');
+		expect(options?.method).toBe('DELETE');
+		expect(options?.query).toEqual({ tahun: 2026, bulan: 9, jenis: 'sifat_hujan' });
+	});
+});
+
+describe('getMonthlyOverview', () => {
+	beforeEach(() => {
+		apiRequestMock.mockReset();
+	});
+
+	// Respons asli server untuk `?tahun=2026` (sepanjang tahun), 18 Sep 2026.
+	const YEAR_OVERVIEW = {
+		tahun: 2026,
+		bulan: null,
+		periode: '2026',
+		jumlah_baris: 14,
+		jumlah_plta: 13,
+		prosentase_pencapaian_rata2: 104.94,
+		prosentase_pencapaian_rata2_n: 14,
+		prosentase_pencapaian_agregat: 92.24,
+		total_prediksi_pencapaian_sd_prev_mwh: 41849.09,
+		total_target_pencapaian_sd_prev_mwh: 45371.46,
+		jumlah_tercapai: 4,
+		jumlah_tidak_tercapai: 10,
+		jumlah_belum_dinilai: 0,
+		rerata: {
+			prediksi_produksi_mwh: { rata2: 329.05, n: 14 },
+			target_produksi_mwh: { rata2: 330.1, n: 14 },
+			pencapaian_sd_prev_mwh: { rata2: 3007.67, n: 14 },
+			prediksi_pencapaian_sd_prev_mwh: { rata2: 2989.22, n: 14 },
+			target_pencapaian_sd_prev_mwh: { rata2: 3240.82, n: 14 }
+		}
+	};
+
+	it('memetakan ringkasan armada dan meminta sepanjang tahun tanpa `bulan`', async () => {
+		apiRequestMock.mockResolvedValue(YEAR_OVERVIEW);
+
+		const overview = await httpHydrologyRepository.getMonthlyOverview(2026, undefined);
+
+		expect(apiRequestMock.mock.calls[0][1]?.query).toEqual({ tahun: 2026, bulan: undefined });
+		expect(overview.aggregateAchievementPercent).toBe(92.24);
+		expect(overview.averageAchievementPercent).toEqual({ value: 104.94, count: 14 });
+		expect(overview.plantCount).toBe(13);
+		expect(overview.averages.targetProductionMwh).toEqual({ value: 330.1, count: 14 });
+	});
+
+	it('menerima periode tanpa data: persentase null dan hitungan nol', async () => {
+		apiRequestMock.mockResolvedValue({
+			...YEAR_OVERVIEW,
+			bulan: 9,
+			periode: '2026-09',
+			jumlah_baris: 0,
+			jumlah_plta: 0,
+			prosentase_pencapaian_rata2: null,
+			prosentase_pencapaian_rata2_n: 0,
+			prosentase_pencapaian_agregat: null
+		});
+
+		const overview = await httpHydrologyRepository.getMonthlyOverview(2026, 9);
+
+		expect(overview.rowCount).toBe(0);
+		expect(overview.aggregateAchievementPercent).toBeNull();
+	});
+});
+
+describe('laporan Excel hidrologi', () => {
+	beforeEach(() => {
+		apiRequestMock.mockReset();
+	});
+
+	it('meminta laporan bulanan dengan cakupan yang dipilih', async () => {
+		apiRequestMock.mockResolvedValue(new Blob(['xlsx']));
+
+		await httpHydrologyRepository.downloadMonthlyReport({ year: 2026, month: 9 });
+
+		const [endpoint, options] = apiRequestMock.mock.calls[0];
+		expect(endpoint).toBe('/api/v1/hydrology/monthly/report.xlsx');
+		// `plta_id` kosong = seluruh PLTA; tidak boleh terkirim sebagai string kosong.
+		expect(options?.query).toEqual({ tahun: 2026, bulan: 9, plta_id: undefined });
+	});
+
+	it('meminta laporan harian per panel dan per PLTA', async () => {
+		apiRequestMock.mockResolvedValue(new Blob(['xlsx']));
+
+		await httpHydrologyRepository.downloadDailyReport({
+			year: 2026,
+			panel: 'hulu',
+			pltaId: PLTA_ID
+		});
+
+		const [endpoint, options] = apiRequestMock.mock.calls[0];
+		expect(endpoint).toBe('/api/v1/hydrology/daily/report.xlsx');
+		expect(options?.query).toEqual({
+			tahun: 2026,
+			bulan: undefined,
+			panel: 'hulu',
+			plta_id: PLTA_ID
+		});
+	});
+
+	it('menolak respons yang bukan berkas', async () => {
+		apiRequestMock.mockResolvedValue({ detail: 'bukan berkas' });
+
+		await expect(httpHydrologyRepository.downloadMonthlyReport({ year: 2026 })).rejects.toThrow(
+			'Respons laporan hidrologi bulanan tidak valid'
+		);
+	});
+});
+
+describe('Excel harian seluruh PLTA', () => {
+	beforeEach(() => {
+		apiRequestMock.mockReset();
+	});
+
+	it('meminta template untuk rentang tanggal', async () => {
+		apiRequestMock.mockResolvedValue(new Blob(['xlsx']));
+
+		await httpHydrologyRepository.downloadDailyTemplate('2026-09-01', '2026-09-30');
+
+		const [endpoint, options] = apiRequestMock.mock.calls[0];
+		expect(endpoint).toBe('/api/v1/hydrology/daily/template.xlsx');
+		expect(options?.query).toEqual({ tanggal: '2026-09-01', sampai: '2026-09-30' });
+	});
+
+	it('memetakan hasil unggah', async () => {
+		apiRequestMock.mockResolvedValue({
+			baris_diproses: 390,
+			titik_ditulis: 2140,
+			plta: ['PLTA-SDJ', 'PLTA-WNG'],
+			periode: ['2026-09-01', '2026-09-30']
+		});
+
+		const result = await httpHydrologyRepository.uploadDailyExcel(
+			new File([new Uint8Array([1])], 'harian.xlsx')
+		);
+
+		expect(apiRequestMock.mock.calls[0][0]).toBe('/api/v1/hydrology/daily/excel');
+		expect(result).toEqual({
+			processedRows: 390,
+			writtenPoints: 2140,
+			pltaCodes: ['PLTA-SDJ', 'PLTA-WNG'],
+			periods: ['2026-09-01', '2026-09-30']
+		});
+	});
+});
+
 describe('upsertMonthly', () => {
 	beforeEach(() => {
 		apiRequestMock.mockReset();

@@ -1,9 +1,9 @@
 <script lang="ts">
 	import IconSave from '~icons/ph/floppy-disk';
-	import Button from '$components/atoms/Button.svelte';
-	import Input from '$components/atoms/Input.svelte';
-	import Select from '$components/atoms/Select.svelte';
-	import StatusToggle from '$components/atoms/StatusToggle.svelte';
+	import Button from '$components/controls/Button.svelte';
+	import Input from '$components/controls/Input.svelte';
+	import Select from '$components/controls/Select.svelte';
+	import StatusToggle from '$components/controls/StatusToggle.svelte';
 	import Sheet from '$components/ui/Sheet.svelte';
 	import { Form } from '$shared/lib/form.svelte';
 	import { notificationStore } from '$shared/lib/notification.svelte';

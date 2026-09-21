@@ -1,5 +1,5 @@
 <script lang="ts">
-	import Button from '../atoms/Button.svelte';
+	import Button from '../controls/Button.svelte';
 
 	interface Props {
 		title: string;
