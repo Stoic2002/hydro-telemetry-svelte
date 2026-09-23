@@ -14,13 +14,8 @@
 	import { formatMetric } from '$shared/utils/number';
 	import { getLabelCoordinate } from './label-placement';
 	import { horizontalShiftForWidth, pixelShiftToLongitude } from './projection';
-	import { createMapLayersQuery, createRainRadarFrameQuery, type RiverProperties } from './queries';
-	import {
-		CENTRAL_JAVA_RADAR_TILES,
-		RAIN_VIEWER_TILE_HOST,
-		tileXToLongitude,
-		tileYToLatitude
-	} from './radar-tiles';
+	import { CLOUD_TIERS } from './cloud-mask';
+	import { createCloudImageryQuery, createMapLayersQuery, type RiverProperties } from './queries';
 
 	interface Props {
 		onPLTAClick: (pltaId: string) => void;
@@ -56,13 +51,13 @@
 
 	const plantsQuery = createPlantCatalogQuery();
 	const mapLayersQuery = createMapLayersQuery();
-	const radarQuery = createRainRadarFrameQuery(() => showPrecipitation);
+	const cloudQuery = createCloudImageryQuery(() => showPrecipitation);
 
 	let hoveredId = $state<string | null>(null);
 	/** Dipisahkan dari hover agar cincin fokus hanya tampil untuk keyboard. */
 	let focusedId = $state<string | null>(null);
 	/**
-	 * Sakelar radar dikendalikan operator setelah peta tampil, tetapi nilai
+	 * Sakelar citra awan dikendalikan operator setelah peta tampil, tetapi nilai
 	 * awalnya mengikuti prop. `$derived` yang bisa ditulis ulang memberi keduanya:
 	 * ia disetel ulang saat prop berubah, dan tetap boleh diubah dari sakelar.
 	 */
@@ -71,19 +66,16 @@
 	let mapContainer = $state<HTMLDivElement | null>(null);
 	let mapSize = $state<{ width: number; height: number }>({ ...MAP_VIEWBOX });
 
-	const instanceId = $props.id();
-	const clipPathId = `central-java-map-${instanceId}`;
-
 	const plantList = $derived(plantsQuery.data ?? []);
 	const mapLayers = $derived(mapLayersQuery.data ?? null);
-	const radarFrame = $derived(radarQuery.data ?? null);
+	const cloudImagery = $derived(cloudQuery.data ?? null);
 
-	const radarStatus = $derived(
-		radarQuery.isPending
-			? radarQuery.fetchStatus === 'idle'
+	const cloudStatus = $derived(
+		cloudQuery.isPending
+			? cloudQuery.fetchStatus === 'idle'
 				? 'idle'
 				: 'loading'
-			: radarQuery.isError
+			: cloudQuery.isError
 				? 'error'
 				: 'ready'
 	);
@@ -120,7 +112,7 @@
 		const [baseLongitude, baseLatitude] = config.center ?? DEFAULT_PROJECTION.center;
 
 		// Digeser ke kiri sejauh setengah lebar panel melayang di kanan, supaya
-		// daratan tidak tertutup sakelar radar dan legenda.
+		// daratan tidak tertutup sakelar citra awan dan legenda.
 		const centerLongitude =
 			baseLongitude + pixelShiftToLongitude(horizontalShiftForWidth(mapSize.width), effectiveScale);
 
@@ -176,9 +168,25 @@
 		hoveredId ? (plantList.find((plant) => plant.id === hoveredId) ?? null) : null
 	);
 
-	const isRadarVisible = $derived(
-		showPrecipitation && isPrecipitationVisible && radarStatus === 'ready' && radarFrame !== null
+	const isCloudLayerVisible = $derived(
+		showPrecipitation && isPrecipitationVisible && cloudStatus === 'ready' && cloudImagery !== null
 	);
+
+	/** Sudut gambar awan di proyeksi peta; keduanya Mercator, jadi cukup dua titik. */
+	const cloudImageBox = $derived.by(() => {
+		if (!cloudImagery) return null;
+		const { west, east, north, south } = cloudImagery.bounds;
+		const northWest = projection([west, north]);
+		const southEast = projection([east, south]);
+		if (!northWest || !southEast) return null;
+
+		return {
+			x: northWest[0],
+			y: northWest[1],
+			width: southEast[0] - northWest[0],
+			height: southEast[1] - northWest[1]
+		};
+	});
 
 	const hasError = $derived(mapLayersQuery.isError || plantsQuery.isError);
 
@@ -189,22 +197,39 @@
 	}
 </script>
 
-{#snippet centralJavaShape(fill?: string, outline?: string)}
+<!--
+	Poligon kabupaten di `central-java-regencies.json` berputar berlawanan arah
+	jarum jam (konvensi GeoJSON RFC 7946), sedangkan `d3-geo` membaca cincin
+	seperti itu sebagai "seluruh bola dunia kecuali poligon ini". Hasilnya isian
+	di sini menutupi seluruh bidang peta, bukan hanya Jawa Tengah — dan clip-path
+	yang dulu memakai bentuk yang sama tidak pernah memotong apa pun.
+
+	Itu dibiarkan dengan sengaja: isian ini berfungsi sebagai latar peta, dan
+	overlay awan memang ingin terlihat sampai ke laut dan provinsi tetangga.
+	Kalau suatu saat butuh bentuk Jawa Tengah yang benar (clip, isian terpisah),
+	balik dulu urutan titik tiap cincin, misalnya dengan memeriksa
+	`geoArea(feature) > 2 * Math.PI`.
+-->
+{#snippet centralJavaShape(fill: string, outline: string)}
 	{#if mapLayers}
 		{@const d = shapePath(mapLayers.regencies)}
-		{#if outline}
-			<!--
-				Goresan digambar lebih dulu untuk seluruh batas, lalu ditimpa isian.
-				Batas antar kabupaten tertutup isian, menyisakan garis terluar saja.
-			-->
-			<g pointer-events="none">
-				<path {d} fill="none" stroke={outline} stroke-width={3} stroke-linejoin="round" />
-				<path {d} {fill} />
-			</g>
-		{:else}
+		<g pointer-events="none">
+			<path {d} fill="none" stroke={outline} stroke-width={3} stroke-linejoin="round" />
 			<path {d} {fill} />
-		{/if}
+		</g>
 	{/if}
+{/snippet}
+
+{#snippet cloudTierSwatch(sizeClass: string)}
+	<!-- Dari tingkat teringan ke terberat, kiri ke kanan. -->
+	<div
+		class={`flex shrink-0 overflow-hidden rounded-sm opacity-70 ${sizeClass}`}
+		aria-hidden="true"
+	>
+		{#each [...CLOUD_TIERS].reverse() as tier (tier.tier)}
+			<div class="h-full flex-1" style:background-color={tier.color}></div>
+		{/each}
+	</div>
 {/snippet}
 
 {#if hasError}
@@ -238,46 +263,27 @@
 			viewBox={`0 0 ${mapSize.width} ${mapSize.height}`}
 			class="block h-full w-full"
 		>
-			<defs>
-				<clipPath id={clipPathId}>
-					{@render centralJavaShape()}
-				</clipPath>
-			</defs>
+			{@render centralJavaShape(isCloudLayerVisible ? '#f1f1f1' : '#f9f9f9', '#c7c7c7')}
 
-			{@render centralJavaShape(isRadarVisible ? '#f1f1f1' : '#f9f9f9', '#c7c7c7')}
-
-			{#if isRadarVisible && radarFrame}
-				<g
-					clip-path={`url(#${clipPathId})`}
-					aria-label="Presipitasi radar terbaru"
-					opacity={0.72}
-					pointer-events="none"
-				>
-					{#each CENTRAL_JAVA_RADAR_TILES as tile (`${tile.zoom}-${tile.x}-${tile.y}`)}
-						{@const northWest = projection([
-							tileXToLongitude(tile.x, tile.zoom),
-							tileYToLatitude(tile.y, tile.zoom)
-						])}
-						{@const southEast = projection([
-							tileXToLongitude(tile.x + 1, tile.zoom),
-							tileYToLatitude(tile.y + 1, tile.zoom)
-						])}
-						{#if northWest && southEast}
-							<!--
-								Ubin dilebihkan setengah piksel di setiap sisi. Tanpa itu,
-								pembulatan sub-piksel meninggalkan garis rambut transparan di
-								antara ubin yang bersebelahan.
-							-->
-							<image
-								href={`${RAIN_VIEWER_TILE_HOST}${radarFrame.path}/256/${tile.zoom}/${tile.x}/${tile.y}/2/1_1.png`}
-								x={northWest[0] - 0.5}
-								y={northWest[1] - 0.5}
-								width={southEast[0] - northWest[0] + 1}
-								height={southEast[1] - northWest[1] + 1}
-								preserveAspectRatio="none"
-							/>
-						{/if}
-					{/each}
+			{#if isCloudLayerVisible && cloudImagery && cloudImageBox}
+				<!--
+					Satu gambar untuk seluruh petak: petak-petaknya sudah digabung di
+					kanvas saat awannya dipisahkan dari latar, jadi tidak ada sambungan
+					antarpetak yang bisa meninggalkan garis rambut.
+				-->
+				<!--
+					Sengaja tidak dipotong ke batas Jawa Tengah: awan di atas laut dan
+					provinsi tetangga menunjukkan badai yang sedang mendekat.
+				-->
+				<g aria-label="Citra awan hujan Himawari terbaru" opacity={0.72} pointer-events="none">
+					<image
+						href={cloudImagery.imageUrl}
+						x={cloudImageBox.x}
+						y={cloudImageBox.y}
+						width={cloudImageBox.width}
+						height={cloudImageBox.height}
+						preserveAspectRatio="none"
+					/>
 				</g>
 			{/if}
 
@@ -296,7 +302,6 @@
 
 			{#if riverLayers}
 				<g
-					clip-path={`url(#${clipPathId})`}
 					aria-label="Jaringan aliran sungai Jawa Tengah"
 					fill="none"
 					stroke-linecap="round"
@@ -454,13 +459,15 @@
 				<div class="flex items-center justify-between gap-3">
 					<span class="flex items-center gap-1.5 text-sm font-medium text-text-primary">
 						<IconCloudRain class="size-3.5 shrink-0 text-text-muted" aria-hidden="true" />
-						Radar Hujan
+						Awan Hujan
 					</span>
 					<button
 						type="button"
 						role="switch"
 						aria-checked={isPrecipitationVisible}
-						aria-label={isPrecipitationVisible ? 'Matikan radar hujan' : 'Nyalakan radar hujan'}
+						aria-label={isPrecipitationVisible
+							? 'Matikan citra awan hujan'
+							: 'Nyalakan citra awan hujan'}
 						onclick={() => (isPrecipitationVisible = !isPrecipitationVisible)}
 						class={`relative h-[18px] w-8 shrink-0 cursor-pointer rounded-full transition-colors ${
 							isPrecipitationVisible ? 'bg-brand-primary-strong' : 'bg-border-subtle'
@@ -479,25 +486,41 @@
 						<p
 							class="flex items-center justify-between gap-2 text-xs font-medium text-text-secondary"
 						>
-							<span>Frame terakhir</span>
-							{#if radarStatus === 'ready' && radarFrame}
+							<span>Citra terakhir</span>
+							{#if cloudStatus === 'ready' && cloudImagery}
 								<span class="font-mono text-xs text-text-primary tabular-nums">
-									{formatTimeWIB(radarFrame.time * 1000)} WIB
+									{formatTimeWIB(cloudImagery.time)} WIB
 								</span>
-							{:else if radarStatus === 'error'}
+							{:else if cloudStatus === 'error'}
 								<span class="text-status-warning-strong">Tidak tersedia</span>
-							{:else if radarStatus === 'loading'}
+							{:else if cloudStatus === 'loading'}
 								<span class="animate-pulse text-text-muted">Memuat…</span>
 							{/if}
 						</p>
-						{#if radarStatus === 'ready'}
+						{#if cloudStatus === 'ready' && cloudImagery}
+							{#if cloudImagery.hasRainClouds}
+								<div class="mt-2">
+									{@render cloudTierSwatch('h-1.5 w-full')}
+									<p class="mt-1 flex justify-between text-xs text-text-muted">
+										<span>{CLOUD_TIERS.at(-1)?.label}</span>
+										<span>{CLOUD_TIERS[0].label}</span>
+									</p>
+								</div>
+								<p class="mt-1.5 text-xs text-text-muted">
+									Perkiraan dari suhu puncak awan, bukan hujan terukur.
+								</p>
+							{:else}
+								<p class="mt-1 text-xs text-text-muted">
+									Tidak ada awan hujan di atas Jawa Tengah.
+								</p>
+							{/if}
 							<a
-								href="https://www.rainviewer.com/"
+								href="https://worldview.earthdata.nasa.gov/"
 								target="_blank"
 								rel="noreferrer"
 								class="mt-1 block text-xs font-medium text-brand-primary-strong underline underline-offset-2"
 							>
-								Data radar: RainViewer
+								Himawari-9 (JMA) via NASA GIBS
 							</a>
 						{/if}
 					</div>
@@ -568,12 +591,11 @@
 					<div class="h-0.5 w-3.5 shrink-0 rounded-full bg-sky-400"></div>
 					<span class="text-xs text-text-secondary">Jaringan Sungai</span>
 				</div>
-				{#if isRadarVisible}
+				{#if isCloudLayerVisible}
+					<!-- Satu baris saja; skala per tingkat ada di panel sakelar. -->
 					<div class="flex items-center gap-2">
-						<div
-							class="h-2.5 w-3.5 shrink-0 rounded-sm bg-gradient-to-r from-sky-300 via-amber-300 to-fuchsia-500"
-						></div>
-						<span class="text-xs text-text-secondary">Radar Hujan</span>
+						{@render cloudTierSwatch('h-2.5 w-3.5')}
+						<span class="text-xs text-text-secondary">Awan Hujan</span>
 					</div>
 				{/if}
 				<div class="flex items-center gap-2">
@@ -585,8 +607,8 @@
 				class="hidden max-w-[210px] border-t border-surface-overlay pt-2 text-xs leading-tight text-text-muted sm:block"
 				title="Batas wilayah: BIG · Jaringan sungai: HydroRIVERS/HydroSHEDS"
 			>
-				Batas: BIG · Sungai: HydroRIVERS{showPrecipitation && radarStatus === 'ready'
-					? ' · Radar: RainViewer'
+				Batas: BIG · Sungai: HydroRIVERS{showPrecipitation && cloudStatus === 'ready'
+					? ' · Awan: Himawari-9'
 					: ''}
 			</span>
 		</div>

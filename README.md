@@ -61,12 +61,12 @@ bun run build:staging # -> dist-staging/
 
 ## 3. Environment
 
-| Variabel                  | Wajib | Keterangan                                                                                                                                                                                    |
-| ------------------------- | ----- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `VITE_API_BASE_URL`       | ya    | **Host saja**, tanpa `/api` atau `/api/v1` — setiap endpoint repository sudah memuat prefix itu. Isi `/` bila backend diproksikan pada origin yang sama (lihat [Proxy API](#proxy-api---api)) |
-| `VITE_ERROR_REPORT_URL`   | tidak | Kolektor error di jaringan lokal. Kosong berarti laporan hanya disimpan di memori browser                                                                                                     |
-| `VITE_RAINVIEWER_API_URL` | tidak | Sumber radar presipitasi peta Overview. Kosongkan pada jaringan tertutup untuk mematikan overlay sekaligus menghentikan request yang pasti gagal                                              |
-| `VITE_DEV_ALLOWED_HOSTS`  | tidak | Dev server saja. Host tambahan yang boleh mengakses `bun run dev`, dipisah koma. Diperlukan saat dev server dibuka lewat tunnel                                                               |
+| Variabel                 | Wajib | Keterangan                                                                                                                                                                                                                               |
+| ------------------------ | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `VITE_API_BASE_URL`      | ya    | **Host saja**, tanpa `/api` atau `/api/v1` — setiap endpoint repository sudah memuat prefix itu. Isi `/` bila backend diproksikan pada origin yang sama (lihat [Proxy API](#proxy-api---api))                                            |
+| `VITE_ERROR_REPORT_URL`  | tidak | Kolektor error di jaringan lokal. Kosong berarti laporan hanya disimpan di memori browser                                                                                                                                                |
+| `VITE_CLOUD_IMAGERY_URL` | tidak | Alamat WMTS NASA GIBS untuk citra awan Himawari di peta Overview (bawaan `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best`). Kosongkan pada jaringan tertutup untuk mematikan overlay sekaligus menghentikan request yang pasti gagal |
+| `VITE_DEV_ALLOWED_HOSTS` | tidak | Dev server saja. Host tambahan yang boleh mengakses `bun run dev`, dipisah koma. Diperlukan saat dev server dibuka lewat tunnel                                                                                                          |
 
 Nama variabel sengaja **tidak** dipindahkan ke konvensi `PUBLIC_` milik
 SvelteKit: `import.meta.env.VITE_*` tetap bekerja lewat Vite, dan mengubahnya

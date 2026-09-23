@@ -129,7 +129,7 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
 	{
 		id: 'overview',
 		title: 'Overview',
-		summary: 'Peta sebaran PLTA di Jawa Tengah beserta radar hujan terkini.',
+		summary: 'Peta sebaran PLTA di Jawa Tengah beserta citra awan hujan terkini.',
 		blocks: [
 			{
 				title: 'Membaca peta',
@@ -144,13 +144,14 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
 				steps: ['Klik titik PLTA pada peta.', 'Halaman **Telemetering** PLTA tersebut terbuka.']
 			},
 			{
-				title: 'Radar hujan',
+				title: 'Awan hujan',
 				steps: [
-					'Gunakan sakelar **Radar Hujan** di kanan atas peta untuk menampilkan atau menyembunyikan sebaran hujan.',
-					'Waktu citra radar terakhir tertulis di baris **Frame terakhir**.'
+					'Gunakan sakelar **Awan Hujan** di kanan atas peta untuk menampilkan atau menyembunyikan sebaran awan hujan.',
+					'Waktu citra terakhir tertulis di baris **Citra terakhir**.'
 				],
 				notes: [
-					'Citra radar diperbarui otomatis setiap 10 menit. Bila tertulis **Tidak tersedia**, layanan radar sedang tidak dapat dijangkau; peta lainnya tetap bisa dipakai.'
+					'Warna menunjukkan perkiraan intensitas dari suhu puncak awan: biru ringan–sedang, jingga lebat, ungu sangat lebat. Ini perkiraan dari citra satelit Himawari-9, bukan hujan terukur — untuk curah hujan sebenarnya, lihat sensor di halaman Telemetering.',
+					'Citra diperbarui otomatis setiap 10 menit dan biasanya tertinggal sekitar 30–40 menit dari waktu sekarang. Bila tertulis **Tidak tersedia**, layanan citra sedang tidak dapat dijangkau; peta lainnya tetap bisa dipakai.'
 				]
 			}
 		]

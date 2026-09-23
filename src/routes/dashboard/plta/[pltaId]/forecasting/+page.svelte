@@ -54,12 +54,25 @@
 		return { from: from.toISOString(), to: to.toISOString() };
 	});
 
+	/**
+	 * TMA Waduk diambil dari station waduk saja, bukan agregat seluruh station.
+	 *
+	 * Tanpa `station`, `/trends` merata-ratakan seluruh station parameter itu —
+	 * untuk `water_level` berarti TMA waduk ikut dirata-rata dengan tailrace dan
+	 * gateshaft, dan garis aktualnya jadi tidak sebanding dengan prediksi yang
+	 * memang tentang waduk. Station waduk tidak bernama, jadi filternya string
+	 * kosong; `undefined` akan menghilangkan parameternya dari URL dan kembali
+	 * berarti "agregat".
+	 */
+	const actualStation = $derived(parameter === 'water_level' ? '' : undefined);
+
 	const actualQuery = createTrendQuery(() => ({
 		pltaId,
 		parameter,
 		...actualRange,
 		resolution: '1h',
-		aggregation: 'avg'
+		aggregation: 'avg',
+		station: actualStation
 	}));
 
 	const series = $derived(forecastQuery.data);

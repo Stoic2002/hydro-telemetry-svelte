@@ -207,7 +207,7 @@ yang memilikinya.
 Berkas yang harus mempertahankan nama/path dan diakses lewat URL root: logo,
 favicon, GeoJSON peta, template Excel, dan foto bendungan.
 
-**Gambar bendungan** (`static/dam/<nama>.jpg`, dirujuk
+**Gambar bendungan** (`static/dam/<nama>.avif`, dirujuk
 `features/plta/dam-imagery.ts`) punya syarat tambahan:
 
 - rasionya **milik masing-masing bendungan**, ditulis di field `frame` pada

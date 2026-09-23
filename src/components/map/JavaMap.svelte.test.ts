@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Plant } from '$features/plta';
 import JavaMapHarness from './JavaMap.test-harness.svelte';
 import * as labelPlacement from './label-placement';
-import { createMapLayersQuery, createRainRadarFrameQuery } from './queries';
+import { createMapLayersQuery, createCloudImageryQuery } from './queries';
 import { createPlantCatalogQuery } from '$features/plta';
 
 /**
@@ -21,7 +21,7 @@ import { createPlantCatalogQuery } from '$features/plta';
 
 vi.mock('./queries', () => ({
 	createMapLayersQuery: vi.fn(),
-	createRainRadarFrameQuery: vi.fn()
+	createCloudImageryQuery: vi.fn()
 }));
 
 vi.mock('$features/plta', async (importOriginal) => ({
@@ -30,7 +30,7 @@ vi.mock('$features/plta', async (importOriginal) => ({
 }));
 
 const createMapLayersQueryMock = vi.mocked(createMapLayersQuery);
-const createRainRadarFrameQueryMock = vi.mocked(createRainRadarFrameQuery);
+const createCloudImageryQueryMock = vi.mocked(createCloudImageryQuery);
 const createPlantCatalogQueryMock = vi.mocked(createPlantCatalogQuery);
 
 function regency(name: string, offset: number) {
@@ -87,13 +87,13 @@ beforeEach(() => {
 		refetch: vi.fn()
 	} as unknown as ReturnType<typeof createMapLayersQuery>);
 
-	createRainRadarFrameQueryMock.mockReturnValue({
+	createCloudImageryQueryMock.mockReturnValue({
 		data: undefined,
 		isError: false,
 		isPending: true,
 		fetchStatus: 'idle',
 		refetch: vi.fn()
-	} as unknown as ReturnType<typeof createRainRadarFrameQuery>);
+	} as unknown as ReturnType<typeof createCloudImageryQuery>);
 
 	createPlantCatalogQueryMock.mockReturnValue({
 		data: PLANTS,

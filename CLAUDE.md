@@ -133,7 +133,7 @@ Hal-hal yang sudah pernah menggigit dan tidak akan terlihat dari membaca kode:
 - **Telemetering**: kondisi hidrologi harian selalu ambil hari ini (tanpa pemilih
   tanggal); tombol "Input data" berubah jadi "Edit data" bila datanya sudah ada;
   ada **gambar statis bendungan** dengan overlay SVG penanda hulu / dam / hilir.
-  Gambarnya di-host sendiri di `static/dam/<nama>.jpg` dan posisi penanda
+  Gambarnya di-host sendiri di `static/dam/<nama>.avif` dan posisi penanda
   ditulis sebagai persen (`xPercent`/`yPercent`) di
   `features/plta/dam-imagery.ts`. Dulu citra Esri World Imagery di-_export_ on
   demand: setiap kali halaman dibuka browser menembak server pihak ketiga di
@@ -146,8 +146,26 @@ Hal-hal yang sudah pernah menggigit dan tidak akan terlihat dari membaca kode:
   `ellipse` (pendekatan kasar) dan `outline` (batas sesungguhnya). Soedirman
   memakai `outline` hasil telusur dari citranya sendiri — air diklasifikasi per
   warna lalu konturnya disederhanakan — sehingga arsiran berhenti tepat di garis
-  pantai waduk. Wonogiri masih `ellipse`. Tidak ada overlay keterangan di atas
-  citra: kotak nama bendungan + kredit sumber sudah dihapus atas permintaan tim
+  pantai waduk. **Seluruh 13 PLTA sudah punya citra dan `outline`.** Air yang
+  jelas ditelusuri otomatis (flood fill warna dari titik benih); tanggul,
+  gedung PLTA, dan perairan yang berkabut, berbuih, atau tertutup hutan
+  digambar manual di atas grid persen. Penanda hilir Soedirman berada sedikit
+  di luar batasnya sendiri — sudah begitu sejak awal. Sidorejo, Klambu, dan Pejengkolan bendung, bukan bendungan waduk.
+  Garung, Jelok, Timo, Ketenger, dan Tulis memakai saluran/terowongan panjang,
+  jadi bingkainya 2,4–6,6 km dan "hilir" = gedung PLTA (kecuali Tulis, yang
+  gedungnya belum ditemukan). Rantai Timo: Rawa Pening → Bendung Tuntang →
+  PLTA Jelok → Kolam Tando → terowongan ±4 km → PLTA Timo. Bendung Sidorejo
+  tidak ada di OpenStreetMap — posisinya dikenali dari citra di Kali Serang
+  dekat Desa Ngleses, Juwangi, dan belum dikonfirmasi tim. Citra diambil dari
+  endpoint `export` Esri World Imagery (utara di atas, 1600x1000), dengan posisi
+  dari OpenStreetMap — koordinat PLTA di backend kebanyakan masih `null`.
+  Berkasnya **AVIF** (total ±2,2 MB, separuh JPG dengan kualitas setara),
+  di-encode dari unduhan Esri asli, bukan dari JPG yang sudah dikompresi.
+  AVIF butuh Chrome 85+, Firefox 93+, Safari 16.4+, atau Edge 121+; browser
+  yang lebih tua memicu `onImageError` dan jatuh ke skema generik. `<picture>`
+  tidak bisa dipakai karena gambarnya `<image>` di dalam SVG.
+  Tidak ada overlay keterangan di atas citra: kotak nama bendungan + kredit
+  sumber sudah dihapus atas permintaan tim
   karena dinilai mengganggu, jadi **isinya masih citra Esri tapi kreditnya tidak
   ditampilkan** — mengganti berkasnya dengan foto milik PLN menyelesaikan itu.
   Kalau `getDamImagery()` null atau gambarnya gagal dimuat, halaman jatuh ke
@@ -164,7 +182,14 @@ Hal-hal yang sudah pernah menggigit dan tidak akan terlihat dari membaca kode:
 - **Forecasting**: khusus PLTA Soedirman, tanpa pemilih PLTA.
 - **User Management**: limit paginasi 10 item.
 - **Overview**: peta Jawa Tengah dengan batas kabupaten/kota, garis aliran
-  sungai, dan overlay presipitasi realtime (memakai layanan tier gratis).
+  sungai, dan overlay **awan hujan Himawari-9** (NASA GIBS, kanal 13
+  inframerah, tertinggal ~30–40 menit). Dulu RainViewer, tetapi RainViewer
+  **tidak punya cakupan radar di atas Indonesia** — ubinnya selalu transparan
+  dan peta cakupannya hitam di seluruh Jawa, jadi overlay-nya tidak pernah
+  tampil sekalipun musim hujan. NASA IMERG ditolak karena tertinggal 3–4 jam.
+  Ubin GIBS berupa gambar opak, jadi `components/map/cloud-mask.ts` membaca
+  ulang warnanya menjadi suhu puncak awan lewat colormap GIBS dan hanya
+  menggambar awan ≤ -32 °C. Ini perkiraan, bukan hujan terukur.
 - **Upload** (`/dashboard/upload`) adalah menu sendiri, bukan lagi sub-menu
   Telemetering, dengan empat tab lewat `?tab=`: **Excel Bulanan**, **Excel Harian**
   (`/hydrology/daily/template.xlsx` + `/hydrology/daily/excel`), **Prakiraan

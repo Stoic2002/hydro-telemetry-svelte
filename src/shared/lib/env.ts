@@ -43,11 +43,12 @@ const environmentSchema = z.object({
 			message: 'Harus berupa path relatif atau URL HTTP(S) yang valid'
 		}),
 	/**
-	 * Sumber radar presipitasi peta Overview. Layanan ini berada di internet,
-	 * jadi pada jaringan tertutup nilainya dapat dikosongkan untuk mematikan
-	 * overlay sekaligus menghentikan percobaan request yang pasti gagal.
+	 * Alamat WMTS NASA GIBS untuk citra awan Himawari di peta Overview. Layanan
+	 * ini berada di internet, jadi pada jaringan tertutup nilainya dapat
+	 * dikosongkan untuk mematikan overlay sekaligus menghentikan percobaan
+	 * request yang pasti gagal.
 	 */
-	VITE_RAINVIEWER_API_URL: z
+	VITE_CLOUD_IMAGERY_URL: z
 		.string()
 		.trim()
 		.optional()
@@ -56,7 +57,12 @@ const environmentSchema = z.object({
 		})
 });
 
-const DEFAULT_RAINVIEWER_API_URL = 'https://api.rainviewer.com/public/weather-maps.json';
+/**
+ * RainViewer dulu dipakai di sini, tetapi tidak punya cakupan radar di atas
+ * Indonesia — overlay-nya selalu transparan. Himawari-9 menutupi seluruh
+ * Indonesia setiap 10 menit.
+ */
+const DEFAULT_CLOUD_IMAGERY_URL = 'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best';
 
 const parsedEnvironment = environmentSchema.safeParse(import.meta.env);
 
@@ -71,11 +77,11 @@ if (!parsedEnvironment.success) {
 const rawApiBaseUrl = parsedEnvironment.data.VITE_API_BASE_URL;
 
 const rawErrorReportUrl = parsedEnvironment.data.VITE_ERROR_REPORT_URL?.trim();
-const rawRainviewerUrl = parsedEnvironment.data.VITE_RAINVIEWER_API_URL?.trim();
+const rawCloudImageryUrl = parsedEnvironment.data.VITE_CLOUD_IMAGERY_URL?.trim();
 
 export const env = Object.freeze({
 	apiBaseUrl: rawApiBaseUrl === '/' ? rawApiBaseUrl : rawApiBaseUrl.replace(/\/+$/, ''),
 	errorReportUrl: rawErrorReportUrl ? rawErrorReportUrl : null,
-	rainviewerApiUrl:
-		rawRainviewerUrl === undefined ? DEFAULT_RAINVIEWER_API_URL : rawRainviewerUrl || null
+	cloudImageryUrl:
+		rawCloudImageryUrl === undefined ? DEFAULT_CLOUD_IMAGERY_URL : rawCloudImageryUrl || null
 });
