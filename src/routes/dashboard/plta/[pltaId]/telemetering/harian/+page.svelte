@@ -2,6 +2,7 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import IconRefresh from '~icons/ph/arrow-clockwise';
+	import IconClock from '~icons/ph/clock';
 	import IconWarning from '~icons/ph/warning';
 
 	import SourceMarker from '$components/controls/SourceMarker.svelte';
@@ -23,6 +24,7 @@
 		latestMonitoringParameter,
 		monitoringSource,
 		resolveMetricUploadTargets,
+		staleMetricRows,
 		type MetricSection
 	} from '../presentation';
 
@@ -124,9 +126,20 @@
 
 	const monitoringParameters = $derived(monitoringQuery.data?.parameters ?? []);
 
+	/**
+	 * Jam untuk umur pembacaan sensor. Berdetak per menit supaya badge "32 mnt
+	 * lalu" ikut bertambah tanpa menunggu data baru — justru saat sensor diam,
+	 * tidak ada data baru yang memicu render ulang.
+	 */
+	let now = $state(Date.now());
+	$effect(() => {
+		const timer = setInterval(() => (now = Date.now()), 60_000);
+		return () => clearInterval(timer);
+	});
+
 	function toOverride(reading: ReturnType<typeof latestMonitoringParameter>) {
 		if (reading?.value === undefined) return undefined;
-		return { value: reading.value, source: monitoringSource(reading) };
+		return { value: reading.value, source: monitoringSource(reading), time: reading.time };
 	}
 
 	const reservoirOverride = $derived(
@@ -161,7 +174,8 @@
 				isDailyLoading,
 				metricUploadTargets,
 				{ tma_waduk: reservoirOverride },
-				['target_tma', 'tma_waduk', 'inflow', 'curah_hujan', 'volume_waduk']
+				['target_tma', 'tma_waduk', 'inflow', 'curah_hujan', 'volume_waduk'],
+				now
 			)
 		}
 	]);
@@ -174,7 +188,8 @@
 				isDailyLoading,
 				metricUploadTargets,
 				{ debit_turbin_total: turbineDischargeOverride },
-				['debit_turbin_total', 'debit_spillway', 'debit_irigasi', 'debit_ddc', 'delta_head']
+				['debit_turbin_total', 'debit_spillway', 'debit_irigasi', 'debit_ddc', 'delta_head'],
+				now
 			)
 		}
 	]);
@@ -187,10 +202,22 @@
 				isDailyLoading,
 				metricUploadTargets,
 				{ tma_tailrace: tailraceOverride },
-				['tma_tailrace', 'head', 'swc_unit_1', 'turbidity_hilir', 'ph_hilir']
+				['tma_tailrace', 'head', 'swc_unit_1', 'turbidity_hilir', 'ph_hilir'],
+				now
 			)
 		}
 	]);
+
+	const staleRows = $derived(
+		staleMetricRows([...upstreamSections, ...damSections, ...downstreamSections])
+	);
+
+	function scrollToMetric(key: string | undefined) {
+		if (!key) return;
+		document
+			.getElementById(`metric-${key}`)
+			?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+	}
 </script>
 
 <div class="flex flex-1 flex-col gap-6">
@@ -274,6 +301,24 @@
 					Coba lagi
 				</button>
 			</span>
+		</Banner>
+	{/if}
+
+	{#if staleRows.length > 0}
+		<Banner tone="danger" title={`${staleRows.length} sensor tidak diperbarui`}>
+			<span class="flex flex-wrap items-center gap-x-3 gap-y-1">
+				Angka di baris ini adalah pembacaan terakhir, bukan kondisi saat ini:
+				{#each staleRows as row (row.key)}
+					<button
+						type="button"
+						onclick={() => scrollToMetric(row.key)}
+						class="inline-flex cursor-pointer items-center gap-1 font-medium underline underline-offset-2"
+					>
+						{row.label} · {row.freshness?.ageLabel}
+					</button>
+				{/each}
+			</span>
+			{#snippet icon()}<IconClock class="size-3" />{/snippet}
 		</Banner>
 	{/if}
 

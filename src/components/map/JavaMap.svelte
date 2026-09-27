@@ -5,6 +5,7 @@
 
 	import Badge from '$components/controls/Badge.svelte';
 	import MapSkeleton from '$components/skeletons/MapSkeleton.svelte';
+	import { createMeasuredRainQuery, type MeasuredRain } from '$features/monitoring';
 	import {
 		createPlantCatalogQuery,
 		getPLTAErrorMessage,
@@ -15,6 +16,7 @@
 	import { getLabelCoordinate } from './label-placement';
 	import { horizontalShiftForWidth, pixelShiftToLongitude } from './projection';
 	import { CLOUD_TIERS } from './cloud-mask';
+	import { MEASURED_RAIN_COLOR, describeMeasuredRain } from './measured-rain';
 	import { createCloudImageryQuery, createMapLayersQuery, type RiverProperties } from './queries';
 
 	interface Props {
@@ -67,6 +69,49 @@
 	let mapSize = $state<{ width: number; height: number }>({ ...MAP_VIEWBOX });
 
 	const plantList = $derived(plantsQuery.data ?? []);
+
+	/**
+	 * Hujan dari penakar milik PLTA sendiri, pelengkap citra awan yang hanya
+	 * perkiraan. Tidak bergantung pada sakelar Awan Hujan: sakelar itu mengatur
+	 * lapisan citra, sedangkan hujan terukur ditempel di penanda PLTA.
+	 */
+	const measuredRainQuery = createMeasuredRainQuery(
+		() => plantList.map((plant) => plant.riverBasinId).filter(Boolean),
+		() => showPrecipitation
+	);
+	const measuredRainByPlant = $derived(
+		new Map<string, MeasuredRain>((measuredRainQuery.data ?? []).map((rain) => [rain.pltaId, rain]))
+	);
+	/** Urut nama; PLTA tanpa koordinat tetap masuk daftar walau tidak ada di peta. */
+	const measuredRainList = $derived(
+		(measuredRainQuery.data ?? [])
+			.map((rain) => {
+				const plant = plantList.find((candidate) => candidate.id === rain.pltaId);
+				return plant ? { plant, rain, description: describeMeasuredRain(rain) } : null;
+			})
+			.filter((entry) => entry !== null)
+			.sort((first, second) =>
+				getPlantDisplayName(first.plant).localeCompare(getPlantDisplayName(second.plant))
+			)
+	);
+	/**
+	 * Yang kering diringkas jadi satu baris; hanya yang hujan atau penakarnya
+	 * diam yang dirinci. Panel ini berbagi sudut kanan peta dengan legenda, dan
+	 * daftar lengkap membuatnya menimpa legenda pada layar selebar 800 px.
+	 */
+	const dryRainEntries = $derived(
+		measuredRainList.filter(({ description }) => description.tone === 'dry')
+	);
+	const notableRainEntries = $derived(
+		measuredRainList.filter(({ description }) => description.tone !== 'dry')
+	);
+
+	const hasRainingMarker = $derived(
+		measuredRainList.some(
+			({ plant, rain }) =>
+				rain.status === 'raining' && plant.latitude !== null && plant.longitude !== null
+		)
+	);
 	const mapLayers = $derived(mapLayersQuery.data ?? null);
 	const cloudImagery = $derived(cloudQuery.data ?? null);
 
@@ -391,11 +436,15 @@
 						{@const isFocused = focusedId === plant.id}
 						{@const statusColor = plant.isActive ? '#0891b2' : '#9b9b9b'}
 						{@const plantName = getPlantDisplayName(plant)}
+						{@const rain = measuredRainByPlant.get(plant.id)}
+						{@const isRaining = rain?.status === 'raining'}
 						<g
 							transform={`translate(${position[0]} ${position[1]})`}
 							role="button"
 							tabindex="0"
-							aria-label={`Buka telemetering PLTA ${plantName}`}
+							aria-label={`Buka telemetering PLTA ${plantName}${
+								rain ? `. ${describeMeasuredRain(rain).spoken}` : ''
+							}`}
 							onclick={() => onPLTAClick(plant.id)}
 							onpointerenter={() => (hoveredId = plant.id)}
 							onpointerleave={() => (hoveredId = null)}
@@ -430,6 +479,25 @@
 								fill-opacity={isHighlighted ? 0.2 : 0.1}
 								class={isHighlighted ? '' : 'animate-pulse'}
 							/>
+							{#if isRaining}
+								<!--
+									Cincin + tetes: bentuk, bukan hanya warna, yang membedakan
+									PLTA yang sedang hujan. Angkanya ada di tooltip.
+								-->
+								<circle
+									r={isHighlighted ? 13 : 10}
+									fill="none"
+									stroke={MEASURED_RAIN_COLOR}
+									stroke-width={2.5}
+								/>
+								<path
+									d="M 0 -5 C 0 -5 -4 0 -4 2.5 A 4 4 0 0 0 4 2.5 C 4 0 0 -5 0 -5 Z"
+									transform={`translate(${isHighlighted ? 12 : 10} ${isHighlighted ? -10 : -8})`}
+									fill={MEASURED_RAIN_COLOR}
+									stroke="#ffffff"
+									stroke-width={1.5}
+								/>
+							{/if}
 							<circle
 								r={isHighlighted ? 7 : 5}
 								fill={statusColor}
@@ -451,82 +519,6 @@
 				{/if}
 			{/each}
 		</svg>
-
-		{#if showPrecipitation}
-			<div
-				class="absolute top-3 right-3 z-10 w-[212px] max-w-[calc(100%-1.5rem)] rounded-xl border border-border-subtle bg-surface-raised/95 px-3.5 py-3 shadow-overlay backdrop-blur-sm sm:top-4 sm:right-4"
-			>
-				<div class="flex items-center justify-between gap-3">
-					<span class="flex items-center gap-1.5 text-sm font-medium text-text-primary">
-						<IconCloudRain class="size-3.5 shrink-0 text-text-muted" aria-hidden="true" />
-						Awan Hujan
-					</span>
-					<button
-						type="button"
-						role="switch"
-						aria-checked={isPrecipitationVisible}
-						aria-label={isPrecipitationVisible
-							? 'Matikan citra awan hujan'
-							: 'Nyalakan citra awan hujan'}
-						onclick={() => (isPrecipitationVisible = !isPrecipitationVisible)}
-						class={`relative h-[18px] w-8 shrink-0 cursor-pointer rounded-full transition-colors ${
-							isPrecipitationVisible ? 'bg-brand-primary-strong' : 'bg-border-subtle'
-						}`}
-					>
-						<span
-							class={`absolute top-0.5 left-0.5 size-3.5 rounded-full bg-surface-raised transition-transform ${
-								isPrecipitationVisible ? 'translate-x-[14px]' : 'translate-x-0'
-							}`}
-						></span>
-					</button>
-				</div>
-
-				{#if isPrecipitationVisible}
-					<div role="status" class="mt-2.5 border-t border-surface-overlay pt-2">
-						<p
-							class="flex items-center justify-between gap-2 text-xs font-medium text-text-secondary"
-						>
-							<span>Citra terakhir</span>
-							{#if cloudStatus === 'ready' && cloudImagery}
-								<span class="font-mono text-xs text-text-primary tabular-nums">
-									{formatTimeWIB(cloudImagery.time)} WIB
-								</span>
-							{:else if cloudStatus === 'error'}
-								<span class="text-status-warning-strong">Tidak tersedia</span>
-							{:else if cloudStatus === 'loading'}
-								<span class="animate-pulse text-text-muted">Memuat…</span>
-							{/if}
-						</p>
-						{#if cloudStatus === 'ready' && cloudImagery}
-							{#if cloudImagery.hasRainClouds}
-								<div class="mt-2">
-									{@render cloudTierSwatch('h-1.5 w-full')}
-									<p class="mt-1 flex justify-between text-xs text-text-muted">
-										<span>{CLOUD_TIERS.at(-1)?.label}</span>
-										<span>{CLOUD_TIERS[0].label}</span>
-									</p>
-								</div>
-								<p class="mt-1.5 text-xs text-text-muted">
-									Perkiraan dari suhu puncak awan, bukan hujan terukur.
-								</p>
-							{:else}
-								<p class="mt-1 text-xs text-text-muted">
-									Tidak ada awan hujan di atas Jawa Tengah.
-								</p>
-							{/if}
-							<a
-								href="https://worldview.earthdata.nasa.gov/"
-								target="_blank"
-								rel="noreferrer"
-								class="mt-1 block text-xs font-medium text-brand-primary-strong underline underline-offset-2"
-							>
-								Himawari-9 (JMA) via NASA GIBS
-							</a>
-						{/if}
-					</div>
-				{/if}
-			</div>
-		{/if}
 
 		{#if hoveredPlant}
 			<div
@@ -551,6 +543,23 @@
 							{formatMetric(hoveredPlant.capacityMw, 1)}<span class="metric-unit ml-1">MW</span>
 						</span>
 					</div>
+					{#if measuredRainByPlant.get(hoveredPlant.id)}
+						{@const description = describeMeasuredRain(measuredRainByPlant.get(hoveredPlant.id)!)}
+						<div class="flex items-center justify-between gap-3">
+							<span class="text-xs text-text-muted">Hujan terukur</span>
+							<span
+								class={`text-right text-xs font-medium ${
+									description.tone === 'stale'
+										? 'text-status-warning-strong'
+										: description.tone === 'rain'
+											? 'text-text-primary'
+											: 'text-text-secondary'
+								}`}
+							>
+								{description.text}
+							</span>
+						</div>
+					{/if}
 					<div class="flex items-center justify-between gap-3">
 						<span class="text-xs text-text-muted">Koordinat</span>
 						<span class="text-right font-mono text-xs text-text-secondary">
@@ -574,43 +583,190 @@
 			</div>
 		{/if}
 
+		<!--
+			Panel Awan Hujan dan legenda berbagi satu kolom kanan. Dulu keduanya
+			diposisikan absolut sendiri-sendiri (atas dan bawah), dan begitu panelnya
+			bertambah tinggi — daftar hujan terukur — panel menimpa legenda di layar
+			selebar 800 px. Dalam satu kolom, legenda tetap di dasar bila ruangnya
+			cukup (`mt-auto`), dan kolomnya bergulir alih-alih bertumpuk bila tidak.
+		-->
 		<div
-			class="absolute right-3 bottom-3 flex max-w-[calc(100%-1.5rem)] min-w-[150px] flex-col gap-2 rounded-xl border border-border-subtle bg-surface-raised/95 px-3 py-2.5 shadow-overlay backdrop-blur-sm sm:right-4 sm:bottom-4 sm:min-w-[212px] sm:px-3.5"
+			class="pointer-events-none absolute inset-y-3 right-3 z-10 flex w-[212px] max-w-[calc(100%-1.5rem)] flex-col gap-2 overflow-y-auto sm:inset-y-4 sm:right-4"
 		>
-			<span class="table-head-cell">Legenda</span>
-			<div class="flex flex-col gap-1.5">
-				<div class="flex items-center gap-2">
-					<div class="h-2.5 w-3.5 shrink-0 rounded-sm bg-border-subtle"></div>
-					<span class="text-xs text-text-secondary">Jawa Tengah</span>
-				</div>
-				<div class="flex items-center gap-2">
-					<div class="w-3.5 shrink-0 border-t border-dashed border-text-placeholder"></div>
-					<span class="text-xs text-text-secondary">Batas Kab/Kota</span>
-				</div>
-				<div class="flex items-center gap-2">
-					<div class="h-0.5 w-3.5 shrink-0 rounded-full bg-sky-400"></div>
-					<span class="text-xs text-text-secondary">Jaringan Sungai</span>
-				</div>
-				{#if isCloudLayerVisible}
-					<!-- Satu baris saja; skala per tingkat ada di panel sakelar. -->
-					<div class="flex items-center gap-2">
-						{@render cloudTierSwatch('h-2.5 w-3.5')}
-						<span class="text-xs text-text-secondary">Awan Hujan</span>
+			{#if showPrecipitation}
+				<div
+					class="pointer-events-auto shrink-0 rounded-xl border border-border-subtle bg-surface-raised/95 px-3.5 py-3 shadow-overlay backdrop-blur-sm"
+				>
+					<div class="flex items-center justify-between gap-3">
+						<span class="flex items-center gap-1.5 text-sm font-medium text-text-primary">
+							<IconCloudRain class="size-3.5 shrink-0 text-text-muted" aria-hidden="true" />
+							Awan Hujan
+						</span>
+						<button
+							type="button"
+							role="switch"
+							aria-checked={isPrecipitationVisible}
+							aria-label={isPrecipitationVisible
+								? 'Matikan citra awan hujan'
+								: 'Nyalakan citra awan hujan'}
+							onclick={() => (isPrecipitationVisible = !isPrecipitationVisible)}
+							class={`relative h-[18px] w-8 shrink-0 cursor-pointer rounded-full transition-colors ${
+								isPrecipitationVisible ? 'bg-brand-primary-strong' : 'bg-border-subtle'
+							}`}
+						>
+							<span
+								class={`absolute top-0.5 left-0.5 size-3.5 rounded-full bg-surface-raised transition-transform ${
+									isPrecipitationVisible ? 'translate-x-[14px]' : 'translate-x-0'
+								}`}
+							></span>
+						</button>
 					</div>
-				{/if}
-				<div class="flex items-center gap-2">
-					<div class="size-2.5 shrink-0 rounded-full bg-brand-primary-strong"></div>
-					<span class="text-xs text-text-secondary">PLTA</span>
+
+					{#if isPrecipitationVisible}
+						<div role="status" class="mt-2.5 border-t border-surface-overlay pt-2">
+							<p
+								class="flex items-center justify-between gap-2 text-xs font-medium text-text-secondary"
+							>
+								<span>Citra terakhir</span>
+								{#if cloudStatus === 'ready' && cloudImagery}
+									<span class="font-mono text-xs text-text-primary tabular-nums">
+										{formatTimeWIB(cloudImagery.time)} WIB
+									</span>
+								{:else if cloudStatus === 'error'}
+									<span class="text-status-warning-strong">Tidak tersedia</span>
+								{:else if cloudStatus === 'loading'}
+									<span class="animate-pulse text-text-muted">Memuat…</span>
+								{/if}
+							</p>
+							{#if cloudStatus === 'ready' && cloudImagery}
+								{#if cloudImagery.hasRainClouds}
+									<div class="mt-2">
+										{@render cloudTierSwatch('h-1.5 w-full')}
+										<p class="mt-1 flex justify-between text-xs text-text-muted">
+											<span>{CLOUD_TIERS.at(-1)?.label}</span>
+											<span>{CLOUD_TIERS[0].label}</span>
+										</p>
+									</div>
+									<p class="mt-1.5 text-xs text-text-muted">
+										Perkiraan dari suhu puncak awan, bukan hujan terukur.
+									</p>
+								{:else}
+									<p class="mt-1 text-xs text-text-muted">
+										Tidak ada awan hujan di atas Jawa Tengah.
+									</p>
+								{/if}
+								<a
+									href="https://worldview.earthdata.nasa.gov/"
+									target="_blank"
+									rel="noreferrer"
+									class="mt-1 block text-xs font-medium text-brand-primary-strong underline underline-offset-2"
+								>
+									Himawari-9 (JMA) via NASA GIBS
+								</a>
+							{/if}
+						</div>
+					{/if}
+
+					<!--
+						Di luar sakelar citra: hujan terukur tetap relevan walau lapisan
+						awan dimatikan. Daftar, bukan hanya penanda, karena sebagian PLTA
+						berpenakar belum punya koordinat dan tidak muncul di peta.
+					-->
+					{#if measuredRainQuery.isError || measuredRainList.length > 0}
+						<div role="status" class="mt-2.5 border-t border-surface-overlay pt-2">
+							<p class="text-xs font-medium text-text-secondary">
+								Hujan terukur
+								<span class="font-normal text-text-muted">· 60 mnt terakhir</span>
+							</p>
+							{#if measuredRainQuery.isError}
+								<p class="mt-1 text-xs text-status-warning-strong">Tidak tersedia</p>
+							{:else}
+								{#if dryRainEntries.length > 0}
+									<p
+										class="mt-1 text-xs text-text-muted"
+										title={dryRainEntries
+											.map(
+												({ plant, description }) =>
+													`${getPlantDisplayName(plant)}: ${description.text}`
+											)
+											.join('\n')}
+									>
+										Tidak hujan di {dryRainEntries.length === measuredRainList.length
+											? 'semua'
+											: dryRainEntries.length} PLTA berpenakar
+									</p>
+								{/if}
+								{#if notableRainEntries.length > 0}
+									<ul class="mt-1 flex flex-col gap-1">
+										{#each notableRainEntries as { plant, description } (plant.id)}
+											<li class="flex flex-col">
+												<span class="text-xs text-text-primary">{getPlantDisplayName(plant)}</span>
+												<span
+													class={`text-xs ${
+														description.tone === 'stale'
+															? 'text-status-warning-strong'
+															: 'font-medium text-text-primary'
+													}`}
+												>
+													{description.text}
+												</span>
+											</li>
+										{/each}
+									</ul>
+								{/if}
+							{/if}
+						</div>
+					{/if}
 				</div>
-			</div>
-			<span
-				class="hidden max-w-[210px] border-t border-surface-overlay pt-2 text-xs leading-tight text-text-muted sm:block"
-				title="Batas wilayah: BIG · Jaringan sungai: HydroRIVERS/HydroSHEDS"
+			{/if}
+
+			<div
+				class="pointer-events-auto mt-auto flex shrink-0 flex-col gap-2 rounded-xl border border-border-subtle bg-surface-raised/95 px-3 py-2.5 shadow-overlay backdrop-blur-sm sm:px-3.5"
 			>
-				Batas: BIG · Sungai: HydroRIVERS{showPrecipitation && cloudStatus === 'ready'
-					? ' · Awan: Himawari-9'
-					: ''}
-			</span>
+				<span class="table-head-cell">Legenda</span>
+				<div class="flex flex-col gap-1.5">
+					<div class="flex items-center gap-2">
+						<div class="h-2.5 w-3.5 shrink-0 rounded-sm bg-border-subtle"></div>
+						<span class="text-xs text-text-secondary">Jawa Tengah</span>
+					</div>
+					<div class="flex items-center gap-2">
+						<div class="w-3.5 shrink-0 border-t border-dashed border-text-placeholder"></div>
+						<span class="text-xs text-text-secondary">Batas Kab/Kota</span>
+					</div>
+					<div class="flex items-center gap-2">
+						<div class="h-0.5 w-3.5 shrink-0 rounded-full bg-sky-400"></div>
+						<span class="text-xs text-text-secondary">Jaringan Sungai</span>
+					</div>
+					{#if isCloudLayerVisible}
+						<!-- Satu baris saja; skala per tingkat ada di panel sakelar. -->
+						<div class="flex items-center gap-2">
+							{@render cloudTierSwatch('h-2.5 w-3.5')}
+							<span class="text-xs text-text-secondary">Awan Hujan</span>
+						</div>
+					{/if}
+					<div class="flex items-center gap-2">
+						<div class="size-2.5 shrink-0 rounded-full bg-brand-primary-strong"></div>
+						<span class="text-xs text-text-secondary">PLTA</span>
+					</div>
+					{#if hasRainingMarker}
+						<div class="flex items-center gap-2">
+							<div
+								class="size-3 shrink-0 rounded-full border-[2.5px]"
+								style:border-color={MEASURED_RAIN_COLOR}
+							></div>
+							<span class="text-xs text-text-secondary">PLTA sedang hujan (terukur)</span>
+						</div>
+					{/if}
+				</div>
+				<span
+					class="hidden max-w-[210px] border-t border-surface-overlay pt-2 text-xs leading-tight text-text-muted sm:block"
+					title="Batas wilayah: BIG · Jaringan sungai: HydroRIVERS/HydroSHEDS"
+				>
+					Batas: BIG · Sungai: HydroRIVERS{showPrecipitation && cloudStatus === 'ready'
+						? ' · Awan: Himawari-9'
+						: ''}
+				</span>
+			</div>
 		</div>
 	</div>
 {/if}

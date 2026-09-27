@@ -9,7 +9,14 @@
 	import { createPLTATagsQuery, getActivePLTA } from '$features/plta';
 	import PlantSwitcher from '$features/plta/components/PlantSwitcher.svelte';
 	import { alignTrendRange, createTrendQuery, type TrendResolution } from '$features/trends';
-	import TrendCard from './TrendCard.svelte';
+	import TrendCard, { type TrendComparisonView } from './TrendCard.svelte';
+	import {
+		TREND_COMPARISONS,
+		comparisonOffsetMs,
+		formatRangeLabel,
+		isTrendComparison,
+		shiftRange
+	} from './comparison';
 
 	const TREND_PERIODS = ['24 Jam Terakhir', '7 Hari Terakhir', '30 Hari Terakhir'] as const;
 	type TrendPeriod = (typeof TREND_PERIODS)[number];
@@ -56,6 +63,10 @@
 		return isTrendPeriod(value) ? value : TREND_PERIODS[0];
 	});
 	const parameterParam = $derived(page.url.searchParams.get('parameter'));
+	const comparisonMode = $derived.by(() => {
+		const value = page.url.searchParams.get('compare');
+		return isTrendComparison(value) ? value : 'none';
+	});
 
 	const tagsQuery = createPLTATagsQuery(
 		() => pltaId,
@@ -135,12 +146,44 @@
 		aggregation: parameterConfig.aggregation
 	}));
 
+	const comparisonOffset = $derived(comparisonOffsetMs(comparisonMode, timeRange));
+	const comparisonRange = $derived(shiftRange(timeRange, comparisonOffset));
+
+	// Parameter, resolusi, dan agregasi sama persis dengan periode ini; hanya
+	// rentangnya yang digeser. Tanpa itu kedua garis tidak sebanding.
+	const comparisonQuery = createTrendQuery(
+		() => ({
+			pltaId,
+			parameter: parameterConfig.value,
+			...comparisonRange,
+			resolution: timeRange.resolution,
+			aggregation: parameterConfig.aggregation
+		}),
+		() => comparisonMode !== 'none'
+	);
+
+	const comparisonView = $derived.by<TrendComparisonView | null>(() => {
+		if (comparisonMode === 'none') return null;
+		const option = TREND_COMPARISONS.find((item) => item.value === comparisonMode);
+		const isLastYear = comparisonMode === 'last-year';
+
+		return {
+			label: `${option?.label} (${formatRangeLabel(comparisonRange, isLastYear)})`,
+			currentLabel: `Periode ini (${formatRangeLabel(timeRange, isLastYear)})`,
+			offsetMs: comparisonOffset,
+			series: comparisonQuery.data,
+			isLoading: comparisonQuery.isLoading,
+			isError: comparisonQuery.isError,
+			onRetry: () => void comparisonQuery.refetch()
+		};
+	});
+
 	const isWaitingForTags = $derived(tagsQuery.isLoading || tagsQuery.isPlaceholderData);
 	const hasNoParameters = $derived(
 		!isWaitingForTags && !tagsQuery.isError && parameterOptions.length === 0
 	);
 
-	async function setFilter(key: 'parameter' | 'period', value: string) {
+	async function setFilter(key: 'parameter' | 'period' | 'compare', value: string) {
 		// Salinan sekali pakai untuk menyusun URL berikutnya; dibuang setelah
 		// `goto`, jadi tidak perlu `SvelteURLSearchParams`.
 		// eslint-disable-next-line svelte/prefer-svelte-reactivity
@@ -178,6 +221,14 @@
 			onChange={(value) => void setFilter('period', value)}
 			options={TREND_PERIODS.map((item) => ({ value: item, label: item }))}
 		/>
+		<Select
+			ariaLabel="Bandingkan dengan"
+			value={comparisonMode}
+			onValueChange={(value) => void setFilter('compare', value)}
+			controlSize="sm"
+			class="w-full sm:w-48"
+			options={TREND_COMPARISONS.map((item) => ({ value: item.value, label: item.label }))}
+		/>
 		<span class="text-xs text-text-muted sm:ml-auto">Filter tersimpan di URL</span>
 	</section>
 
@@ -196,6 +247,7 @@
 			series={trendQuery.data}
 			isLoading={isWaitingForTags || trendQuery.isLoading}
 			isError={tagsQuery.isError || trendQuery.isError}
+			comparison={comparisonView}
 			onRetry={() => {
 				if (tagsQuery.isError) void tagsQuery.refetch();
 				if (trendQuery.isError) void trendQuery.refetch();

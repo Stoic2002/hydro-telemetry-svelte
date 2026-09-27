@@ -9,7 +9,10 @@ export const trendQueryKeys = {
 	series: (input: TrendQueryInput) => [...trendQueryKeys.all, input] as const
 };
 
-export function createTrendQuery(input: () => TrendQueryInput) {
+export function createTrendQuery(
+	input: () => TrendQueryInput,
+	enabled: () => boolean = () => true
+) {
 	return createQuery(() => {
 		const value = input();
 
@@ -17,7 +20,7 @@ export function createTrendQuery(input: () => TrendQueryInput) {
 			queryKey: trendQueryKeys.series(value),
 			queryFn: ({ signal }: { signal: AbortSignal }) =>
 				trendsRepository.getSeries(value, { signal }),
-			enabled: Boolean(value.pltaId && value.parameter && value.from && value.to),
+			enabled: enabled() && Boolean(value.pltaId && value.parameter && value.from && value.to),
 			staleTime: TREND_STALE_TIME,
 			refetchOnWindowFocus: false
 		};

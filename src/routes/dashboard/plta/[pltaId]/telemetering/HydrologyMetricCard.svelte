@@ -47,6 +47,10 @@
 	 * Batas ringkas berlaku untuk seluruh kartu, bukan per bagian: kalau setiap
 	 * bagian memotong lima baris sendiri-sendiri, kartu dengan tiga bagian akan
 	 * menampilkan lima belas baris dan tidak lagi ringkas.
+	 *
+	 * Baris sensor yang basi tetap tampil meski di luar lima baris pertama:
+	 * sensor yang berhenti tidak boleh tersembunyi di balik "Lihat semua", dan
+	 * tautan di banner ringkasan harus selalu menemukan barisnya.
 	 */
 	const visibleSections = $derived(
 		sections.map((section, sectionIndex) => {
@@ -57,7 +61,11 @@
 
 			return {
 				...section,
-				rows: isExpanded ? section.rows : section.rows.slice(0, remainingVisibleRows)
+				rows: isExpanded
+					? section.rows
+					: section.rows.filter(
+							(row, index) => index < remainingVisibleRows || row.freshness?.level === 'stale'
+						)
 			};
 		})
 	);

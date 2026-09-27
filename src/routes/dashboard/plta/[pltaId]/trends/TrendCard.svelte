@@ -8,6 +8,7 @@
 		Highlight,
 		LinearGradient,
 		Rule,
+		Spline,
 		Svg,
 		Tooltip
 	} from 'layerchart';
@@ -21,6 +22,19 @@
 	import { formatDayMonthTimeWIB, formatDayMonthWIB } from '$shared/lib/date';
 	import { chartValueDomain } from '$shared/utils/chart';
 	import { formatNumber } from '$shared/utils/number';
+	import { averageOf, mergeWithComparison, type TrendChartDatum } from './comparison';
+
+	export interface TrendComparisonView {
+		/** Mis. "Tahun lalu (24 Sep – 25 Sep 2025)". */
+		label: string;
+		/** Label periode ini untuk legenda, mis. "24 Sep – 25 Sep". */
+		currentLabel: string;
+		offsetMs: number;
+		series?: TrendSeries;
+		isLoading: boolean;
+		isError: boolean;
+		onRetry: () => void;
+	}
 
 	interface Props {
 		title: string;
@@ -32,6 +46,7 @@
 		isLoading: boolean;
 		isError: boolean;
 		onRetry: () => void;
+		comparison?: TrendComparisonView | null;
 	}
 
 	let {
@@ -43,26 +58,22 @@
 		series,
 		isLoading,
 		isError,
-		onRetry
+		onRetry,
+		comparison = null
 	}: Props = $props();
 
-	interface TrendChartDatum {
-		time: Date;
-		iso: string;
-		value: number;
-	}
-
 	const points = $derived(series?.points ?? []);
+	const comparisonPoints = $derived(comparison?.series?.points ?? []);
 
 	const chartData = $derived(
-		points.map<TrendChartDatum>((point) => ({
-			time: new Date(point.time),
-			iso: point.time,
-			value: point.value
-		}))
+		mergeWithComparison(points, comparisonPoints, comparison?.offsetMs ?? 0)
 	);
+	/** `Bars` tidak mengenal `defined`, jadi batang hanya diberi titik periode ini. */
+	const currentData = $derived(chartData.filter((datum) => datum.value !== undefined));
+	const hasComparisonData = $derived(comparisonPoints.length > 0);
 
 	const values = $derived(points.map((point) => point.value));
+	const comparisonAverage = $derived(averageOf(comparisonPoints.map((point) => point.value)));
 	const latest = $derived(points.at(-1));
 	const first = $derived(points.at(0));
 
@@ -72,7 +83,11 @@
 	const minimumValue = $derived(values.length > 0 ? Math.min(...values) : 0);
 	const maximumValue = $derived(values.length > 0 ? Math.max(...values) : 0);
 	const changeValue = $derived(latest && first ? latest.value - first.value : 0);
-	const yDomain = $derived(chartValueDomain(values));
+	// Sumbu Y mencakup kedua periode; tanpa itu garis pembanding yang lebih
+	// tinggi atau lebih rendah terpotong di tepi grafik.
+	const yDomain = $derived(
+		chartValueDomain([...values, ...comparisonPoints.map((point) => point.value)])
+	);
 
 	const changeClass = $derived(
 		changeValue > 0
@@ -131,7 +146,7 @@
 				{onRetry}
 				class="mt-5"
 			/>
-		{:else if chartData.length === 0}
+		{:else if points.length === 0}
 			<div
 				class="mt-5 flex h-[390px] items-center justify-center border-y border-surface-overlay bg-surface-base/40 text-xs text-text-muted"
 			>
@@ -148,6 +163,15 @@
 							{formatNumber(statistic.value, 2)}
 							<span class="ml-1 text-xs font-medium text-text-muted">{unit}</span>
 						</p>
+						{#if statistic.label === 'Rata-rata' && comparisonAverage !== null}
+							{@const difference = averageValue - comparisonAverage}
+							<p class="mt-0.5 text-xs text-text-muted">
+								Pembanding {formatNumber(comparisonAverage, 2)}
+								<span class="font-medium text-text-secondary">
+									({difference > 0 ? '+' : ''}{formatNumber(difference, 2)})
+								</span>
+							</p>
+						{/if}
 					</div>
 				{/each}
 
@@ -200,7 +224,7 @@
 							/>
 
 							{#if chartType === 'bar'}
-								<Bars fill={color} fillOpacity={0.82} radius={4} />
+								<Bars data={currentData} fill={color} fillOpacity={0.82} radius={4} />
 							{:else}
 								<!--
 									Gradien isian dibuat lewat `LinearGradient`, bukan `<defs>` manual
@@ -215,12 +239,26 @@
 								>
 									{#snippet children({ gradient })}
 										<Area
+											defined={(datum: TrendChartDatum) => datum.value !== undefined}
 											fill={gradient}
 											fillOpacity={0.3}
 											line={{ class: 'stroke-[3]', stroke: color }}
 										/>
 									{/snippet}
 								</LinearGradient>
+							{/if}
+
+							<!--
+								Pembanding selalu garis putus-putus abu-abu, termasuk untuk curah
+								hujan: batang berdampingan tidak terbaca pada 168 batang per jam
+								(7 hari), dan garis di atas batang tetap menunjukkan bentuknya.
+							-->
+							{#if hasComparisonData}
+								<Spline
+									y={(datum: TrendChartDatum) => datum.compare}
+									defined={(datum: TrendChartDatum) => datum.compare !== undefined}
+									class="stroke-chart-axis stroke-[2] [stroke-dasharray:6_4]"
+								/>
 							{/if}
 
 							<!-- Garis rata-rata periode, sebagai acuan baca cepat. -->
@@ -244,11 +282,27 @@
 										{formatDayMonthTimeWIB(datum.iso)}
 									</div>
 									<p class="mt-2 font-mono text-lg font-semibold text-text-on-inverse tabular-nums">
-										{formatNumber(datum.value, 2)}
+										{datum.value === undefined ? '–' : formatNumber(datum.value, 2)}
 										<span class="ml-1.5 text-xs font-medium text-text-on-inverse-muted">
 											{unit}
 										</span>
 									</p>
+									{#if comparison && datum.compare !== undefined && datum.compareIso}
+										<div
+											class="mt-2 border-t border-white/15 pt-2 text-xs text-text-on-inverse-muted"
+										>
+											<p>{formatDayMonthTimeWIB(datum.compareIso)}</p>
+											<p class="mt-0.5 font-mono text-sm text-text-on-inverse tabular-nums">
+												{formatNumber(datum.compare, 2)}
+												{#if datum.value !== undefined}
+													{@const difference = datum.value - datum.compare}
+													<span class="ml-1 text-text-on-inverse-muted">
+														({difference > 0 ? '+' : ''}{formatNumber(difference, 2)})
+													</span>
+												{/if}
+											</p>
+										</div>
+									{/if}
 								</div>
 							{/snippet}
 						</Tooltip.Root>
@@ -258,7 +312,34 @@
 				<div
 					class="flex flex-col justify-between gap-1 border-t border-surface-overlay pt-3 text-xs text-text-muted sm:flex-row sm:items-center"
 				>
-					<span>Arahkan kursor ke grafik untuk melihat detail nilai.</span>
+					{#if comparison}
+						<!-- Legenda hanya perlu saat ada dua garis. -->
+						<span class="flex flex-wrap items-center gap-x-4 gap-y-1">
+							<span class="flex items-center gap-1.5">
+								<span class="h-0.5 w-4 rounded-full" style={`background-color: ${color}`}></span>
+								{comparison.currentLabel}
+							</span>
+							<span class="flex items-center gap-1.5">
+								<span class="w-4 border-t-2 border-dashed border-chart-axis"></span>
+								{comparison.label}
+								{#if comparison.isLoading}
+									<span class="animate-pulse">· memuat…</span>
+								{:else if comparison.isError}
+									<button
+										type="button"
+										onclick={comparison.onRetry}
+										class="cursor-pointer font-medium text-status-warning-strong underline underline-offset-2"
+									>
+										· gagal dimuat, coba lagi
+									</button>
+								{:else if !hasComparisonData}
+									<span>· tidak ada data</span>
+								{/if}
+							</span>
+						</span>
+					{:else}
+						<span>Arahkan kursor ke grafik untuk melihat detail nilai.</span>
+					{/if}
 					<span>
 						{chartData.length.toLocaleString('id-ID')} titik · resolusi {series?.resolution} · agregasi
 						lintas stasiun

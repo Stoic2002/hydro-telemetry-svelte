@@ -1,6 +1,9 @@
 <script lang="ts">
 	import IconCaretDown from '~icons/ph/caret-down';
+	import IconClock from '~icons/ph/clock';
+	import Badge from '$components/controls/Badge.svelte';
 	import SourceMarker from '$components/controls/SourceMarker.svelte';
+	import { formatDayMonthTimeWIB } from '$shared/lib/date';
 	import type { DailyTelemetryUploadTarget } from '$features/telemetry-upload';
 	import type { MetricRow } from './presentation';
 
@@ -15,9 +18,14 @@
 
 	const subRows = $derived(row.subRows ?? []);
 	const hasSubRows = $derived(subRows.length > 0);
+	const freshness = $derived(row.freshness);
 </script>
 
-<div class="py-2">
+<div
+	class="scroll-mt-24 py-2"
+	id={row.key ? `metric-${row.key}` : undefined}
+	data-freshness={freshness?.level}
+>
 	<div class="flex items-center justify-between gap-3">
 		<div class="flex min-w-0 items-center gap-1.5">
 			<span class="truncate text-sm text-text-secondary">{row.label}</span>
@@ -47,8 +55,28 @@
 			{/if}
 		</div>
 
-		<span class="metric-value shrink-0 text-right text-sm whitespace-nowrap">
-			{row.value}{#if row.unit}<span class="metric-unit ml-1">{row.unit}</span>{/if}
+		<span class="flex shrink-0 items-center gap-2">
+			{#if freshness}
+				<!--
+					Teks umur ada di dalam badge, jadi warnanya bukan satu-satunya
+					penanda. Waktu ukur persisnya di title untuk yang perlu memastikan.
+					Nilai basi diredupkan ke `text-muted`, bukan `opacity`: token itu
+					warna teks paling redup yang masih lolos WCAG AA.
+				-->
+				<span title={`Terakhir diukur ${formatDayMonthTimeWIB(freshness.measuredAt)} WIB`}>
+					<Badge tone={freshness.level === 'stale' ? 'red' : 'amber'}>
+						{#snippet icon()}<IconClock class="size-3" aria-hidden="true" />{/snippet}
+						{freshness.ageLabel}
+					</Badge>
+				</span>
+			{/if}
+			<span
+				class={`metric-value text-right text-sm whitespace-nowrap ${
+					freshness?.level === 'stale' ? 'text-text-muted' : ''
+				}`}
+			>
+				{row.value}{#if row.unit}<span class="metric-unit ml-1">{row.unit}</span>{/if}
+			</span>
 		</span>
 	</div>
 

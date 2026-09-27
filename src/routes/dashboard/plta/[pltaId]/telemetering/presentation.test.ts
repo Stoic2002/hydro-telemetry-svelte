@@ -7,7 +7,13 @@ import {
 	buildUploadTarget,
 	currentWibDate,
 	dashboardMetricRows,
+	formatReadingAge,
+	freshnessThresholdsFor,
+	HOURLY_SENSOR_FRESHNESS_MINUTES,
+	METRIC_FRESHNESS_MINUTES,
 	latestMonitoringParameter,
+	metricFreshness,
+	staleMetricRows,
 	resolveMetricUploadTargets
 } from './presentation';
 
@@ -472,5 +478,146 @@ describe('tujuan isian dari server (`metric.input`)', () => {
 		);
 
 		expect(targets.rencana_debit_pintu_air).toBeUndefined();
+	});
+});
+
+describe('umur pembacaan sensor', () => {
+	// measuredMetric diukur 2026-08-10T08:00:00Z.
+	const at = (minutesAfter: number) => Date.parse('2026-08-10T08:00:00Z') + minutesAfter * 60_000;
+
+	it('tidak memberi penanda selama pembacaan masih segar', () => {
+		expect(metricFreshness('2026-08-10T08:00:00Z', at(14))).toBeUndefined();
+	});
+
+	it('menandai kuning setelah 30 menit dan merah setelah 60 menit', () => {
+		expect(metricFreshness('2026-08-10T08:00:00Z', at(29))).toBeUndefined();
+		expect(metricFreshness('2026-08-10T08:00:00Z', at(30))?.level).toBe('aging');
+		expect(metricFreshness('2026-08-10T08:00:00Z', at(59))?.level).toBe('aging');
+		expect(metricFreshness('2026-08-10T08:00:00Z', at(60))?.level).toBe('stale');
+	});
+
+	it('memberi sensor per jam kelonggaran satu pembacaan terlewat', () => {
+		// Curah hujan dikirim tiap 60 menit: 70 menit berarti baru terlambat sedikit.
+		const rain = (minutes: number) =>
+			dashboardMetricRows(
+				{ curah_hujan_bendungan: measuredMetric },
+				false,
+				{},
+				{},
+				[],
+				at(minutes)
+			)[0].freshness?.level;
+
+		expect(rain(70)).toBeUndefined();
+		expect(rain(90)).toBe('aging');
+		expect(rain(180)).toBe('stale');
+	});
+
+	it('memperlakukan setiap stasiun curah hujan sebagai sensor per jam', () => {
+		expect(freshnessThresholdsFor('curah_hujan')).toBe(HOURLY_SENSOR_FRESHNESS_MINUTES);
+		expect(freshnessThresholdsFor('curah_hujan_bendungan')).toBe(HOURLY_SENSOR_FRESHNESS_MINUTES);
+		expect(freshnessThresholdsFor('elevasi_sedimen')).toBe(HOURLY_SENSOR_FRESHNESS_MINUTES);
+		expect(freshnessThresholdsFor('tma_waduk')).toBe(METRIC_FRESHNESS_MINUTES);
+	});
+
+	it('tidak menyebut basi tanpa waktu yang valid, atau bila waktunya di masa depan', () => {
+		expect(metricFreshness(null, at(600))).toBeUndefined();
+		expect(metricFreshness('bukan tanggal', at(600))).toBeUndefined();
+		expect(metricFreshness('2026-08-10T09:00:00Z', at(0))).toBeUndefined();
+	});
+
+	it('menulis umur dalam satuan yang paling mudah dibaca', () => {
+		expect(formatReadingAge(32.9)).toBe('32 mnt lalu');
+		expect(formatReadingAge(6 * 60 + 10)).toBe('6 jam lalu');
+		expect(formatReadingAge(2 * 24 * 60 + 5)).toBe('2 hari lalu');
+	});
+
+	it('hanya menandai pembacaan sensor, bukan formula, rencana, atau konstanta', () => {
+		const rows = dashboardMetricRows(
+			{
+				tma: measuredMetric,
+				formula: { ...measuredMetric, label: 'Formula', source: 'derived' },
+				rencana: { ...measuredMetric, label: 'Rencana', source: 'plan' },
+				konstanta: { ...measuredMetric, label: 'Konstanta', source: 'constant' }
+			},
+			false,
+			{},
+			{},
+			[],
+			at(120)
+		);
+
+		expect(rows.map((row) => [row.key, row.freshness?.level])).toEqual([
+			['tma', 'stale'],
+			['formula', undefined],
+			['rencana', undefined],
+			['konstanta', undefined]
+		]);
+	});
+
+	it('tidak menandai realisasi yang di PLTA ini diisi manual', () => {
+		// Baris dengan tombol isian = diisi operator sekali sehari, bukan sensor.
+		const [row] = dashboardMetricRows(
+			{ debit_spillway: measuredMetric },
+			false,
+			{
+				debit_spillway: {
+					label: 'Debit spillway',
+					parameter: 'outflow_spillway',
+					unit: 'm³/s',
+					tags: []
+				} as never
+			},
+			{},
+			[],
+			at(120)
+		);
+
+		expect(row.freshness).toBeUndefined();
+	});
+
+	it('memakai waktu nilai realtime bila nilai harian ditimpa', () => {
+		// Nilai harian sudah basi, tetapi realtime baru masuk 5 menit lalu.
+		const [row] = dashboardMetricRows(
+			{ tma_waduk: measuredMetric },
+			false,
+			{},
+			{ tma_waduk: { value: 224, source: 'Realtime', time: new Date(at(115)).toISOString() } },
+			[],
+			at(120)
+		);
+
+		expect(row.value).toBe('224');
+		expect(row.freshness).toBeUndefined();
+	});
+
+	it('tidak menghitung umur bila halaman tidak memberi jam', () => {
+		const [row] = dashboardMetricRows({ tma: measuredMetric }, false);
+
+		expect(row.freshness).toBeUndefined();
+	});
+});
+
+describe('ringkasan sensor basi', () => {
+	const row = (
+		key: string,
+		level: 'aging' | 'stale' | undefined,
+		measuredAt = '2026-08-10T08:00:00Z'
+	) => ({
+		key,
+		label: key,
+		value: '1',
+		source: 'Realtime',
+		sourceType: 'api' as const,
+		freshness: level ? { level, ageLabel: '-', measuredAt } : undefined
+	});
+
+	it('hanya memuat yang merah, yang paling lama diam lebih dulu', () => {
+		const rows = staleMetricRows([
+			{ title: 'Hulu', rows: [row('a', 'stale', '2026-08-10T06:00:00Z'), row('b', 'aging')] },
+			{ title: 'Hilir', rows: [row('c', undefined), row('d', 'stale', '2026-08-10T02:00:00Z')] }
+		]);
+
+		expect(rows.map((item) => item.key)).toEqual(['d', 'a']);
 	});
 });

@@ -35,7 +35,94 @@ export interface MetricSubRow {
 	unit?: string;
 }
 
+/**
+ * Umur pembacaan sensor yang dianggap perlu perhatian.
+ *
+ * Status "Realtime aktif" di header hanya berarti koneksi WebSocket terbuka,
+ * bukan sensornya masih mengirim. Sensor yang berhenti pukul 08.00 tetap
+ * menampilkan angka 08.00 sampai sore, dan tanpa penanda umur angka itu tidak
+ * bisa dibedakan dari angka yang baru masuk.
+ */
+export interface FreshnessThresholds {
+	/** Lewat dari ini (menit): badge kuning. */
+	aging: number;
+	/** Lewat dari ini (menit): badge merah dan nilainya diredupkan. */
+	stale: number;
+}
+
+/**
+ * Ambang untuk sensor yang mengirim tiap 1–10 menit (TMA, debit, guide vane,
+ * cuaca). Diukur di staging 25 Sep 2026: TMA tiap 1 menit, debit dan guide vane
+ * tiap 6, suhu udara umumnya 10 tetapi sesekali 23 menit tanpa ada yang salah —
+ * karena itu kuning mulai 30, bukan 15.
+ */
+export const METRIC_FRESHNESS_MINUTES: FreshnessThresholds = { aging: 30, stale: 60 };
+
+/**
+ * Sensor yang memang mengirim sekali per jam. Dengan ambang bawaan, keduanya
+ * kuning 45 menit dari setiap jam dan berkedip merah tepat sebelum pembacaan
+ * berikutnya — derau yang membuat operator berhenti memperhatikan badge.
+ * Kuning = satu pembacaan terlewat, merah = dua.
+ */
+export const HOURLY_SENSOR_FRESHNESS_MINUTES: FreshnessThresholds = { aging: 90, stale: 180 };
+
+/**
+ * Curah hujan dicocokkan lewat awalan, bukan daftar kunci: setiap stasiun hujan
+ * (`curah_hujan` di hulu, `curah_hujan_bendungan`, …) mengirim tiap 60 menit,
+ * dan stasiun baru tidak boleh diam-diam jatuh ke ambang sensor cepat.
+ */
+function isHourlySensor(key: string): boolean {
+	return key.startsWith('curah_hujan') || key === 'elevasi_sedimen';
+}
+
+export function freshnessThresholdsFor(key: string): FreshnessThresholds {
+	return isHourlySensor(key) ? HOURLY_SENSOR_FRESHNESS_MINUTES : METRIC_FRESHNESS_MINUTES;
+}
+
+export type MetricFreshnessLevel = 'aging' | 'stale';
+
+/** Hanya terisi bila pembacaan sudah melewati ambang `aging`. */
+export interface MetricFreshness {
+	level: MetricFreshnessLevel;
+	/** Umur yang siap tampil, mis. "32 mnt lalu". */
+	ageLabel: string;
+	measuredAt: string;
+}
+
+export function formatReadingAge(minutes: number): string {
+	if (minutes < 60) return `${Math.floor(minutes)} mnt lalu`;
+	if (minutes < 60 * 24) return `${Math.floor(minutes / 60)} jam lalu`;
+	return `${Math.floor(minutes / (60 * 24))} hari lalu`;
+}
+
+/**
+ * Umur satu pembacaan terhadap `now`. `undefined` bila masih segar atau waktu
+ * pembacaannya tidak diketahui — tanpa waktu, tidak ada dasar untuk menyebutnya
+ * basi. Waktu di masa depan (jam server dan klien tidak sama persis) dianggap
+ * segar.
+ */
+export function metricFreshness(
+	measuredAt: string | null | undefined,
+	now: number,
+	thresholds: FreshnessThresholds = METRIC_FRESHNESS_MINUTES
+): MetricFreshness | undefined {
+	if (!measuredAt) return undefined;
+	const timestamp = new Date(measuredAt).getTime();
+	if (Number.isNaN(timestamp)) return undefined;
+
+	const minutes = (now - timestamp) / 60_000;
+	if (minutes < thresholds.aging) return undefined;
+
+	return {
+		level: minutes < thresholds.stale ? 'aging' : 'stale',
+		ageLabel: formatReadingAge(minutes),
+		measuredAt
+	};
+}
+
 export interface MetricRow {
+	/** Kunci metrik dari server; dipakai sebagai id elemen untuk lompatan dari ringkasan. */
+	key?: string;
 	label: string;
 	value: string;
 	unit?: string;
@@ -45,11 +132,37 @@ export interface MetricRow {
 	uploadTarget?: DailyTelemetryUploadTarget;
 	/** Terisi hanya bila parameter punya lebih dari satu stasiun. */
 	subRows?: MetricSubRow[];
+	/** Terisi hanya untuk pembacaan sensor yang sudah melewati ambang umur. */
+	freshness?: MetricFreshness;
+}
+
+/** Nilai realtime yang menimpa nilai dari endpoint harian. */
+export interface MetricOverride {
+	value: NullableMetric;
+	source: string;
+	time?: string | null;
 }
 
 export interface MetricSection {
 	title: string;
 	rows: MetricRow[];
+}
+
+/**
+ * Baris sensor yang sudah basi (`stale`), yang paling lama diam lebih dulu.
+ *
+ * Yang `aging` sengaja tidak ikut: terlambat 15–60 menit biasanya hanya
+ * pengiriman yang tertunda, dan memasukkannya ke ringkasan membuat banner
+ * hampir selalu muncul. Badge kuning di barisnya sudah cukup.
+ */
+export function staleMetricRows(sections: MetricSection[]): MetricRow[] {
+	return sections
+		.flatMap((section) => section.rows)
+		.filter((row) => row.freshness?.level === 'stale')
+		.sort(
+			(first, second) =>
+				Date.parse(first.freshness!.measuredAt) - Date.parse(second.freshness!.measuredAt)
+		);
 }
 
 export function formatHydrologyMetric(value: NullableMetric, maximumFractionDigits = 2): string {
@@ -138,10 +251,12 @@ export function dashboardMetricRow(
 	metric: DashboardMetric | undefined,
 	isLoading: boolean,
 	uploadTarget?: DailyTelemetryUploadTarget,
-	override?: { value: NullableMetric; source: string }
+	override?: MetricOverride,
+	now?: number
 ): MetricRow {
 	if (isLoading) {
 		return {
+			key,
 			label: metric?.label ?? key,
 			value: 'Memuat…',
 			source: 'Memuat',
@@ -153,6 +268,7 @@ export function dashboardMetricRow(
 
 	if (!metric || (override?.value ?? metric.value) === null) {
 		return {
+			key,
 			label: metric?.label ?? key,
 			value: 'N/A',
 			source: 'Belum tersedia',
@@ -173,7 +289,19 @@ export function dashboardMetricRow(
 			? 'constant-input'
 			: baseSourceType;
 
+	// Umur hanya berarti untuk pembacaan sensor. Rencana, konstanta, dan hasil
+	// formula diisi sekali sehari atau dihitung ulang server, jadi "sudah lama"
+	// adalah keadaan normalnya, bukan tanda sensor berhenti. Begitu juga realisasi
+	// yang di PLTA ini diisi manual (baris yang punya tombol isian) — mis. debit
+	// spillway di PLTA tanpa sensor pintu.
+	const isSensorReading = override !== undefined || (metric.source === 'measured' && !uploadTarget);
+	const freshness =
+		isSensorReading && now !== undefined
+			? metricFreshness(override ? override.time : metric.time, now, freshnessThresholdsFor(key))
+			: undefined;
+
 	return {
+		key,
 		label: metric.label,
 		value: formatHydrologyMetric(override?.value ?? metric.value),
 		unit: metric.unit ?? undefined,
@@ -181,7 +309,8 @@ export function dashboardMetricRow(
 		sourceType,
 		hasData: true,
 		uploadTarget,
-		subRows: metricSubRows(metric)
+		subRows: metricSubRows(metric),
+		freshness
 	};
 }
 
@@ -189,8 +318,9 @@ export function dashboardMetricRows(
 	group: DashboardMetricGroup | undefined,
 	isLoading: boolean,
 	uploadTargets: Record<string, DailyTelemetryUploadTarget | undefined> = {},
-	overrides: Record<string, { value: NullableMetric; source: string } | undefined> = {},
-	preferredKeys: string[] = []
+	overrides: Record<string, MetricOverride | undefined> = {},
+	preferredKeys: string[] = [],
+	now?: number
 ): MetricRow[] {
 	const priority = new Map(preferredKeys.map((key, index) => [key, index]));
 	const entries = Object.entries(group ?? {}).sort(([firstKey], [secondKey]) => {
@@ -204,7 +334,7 @@ export function dashboardMetricRows(
 	}
 
 	return entries.map(([key, metric]) =>
-		dashboardMetricRow(key, metric, isLoading, uploadTargets[key], overrides[key])
+		dashboardMetricRow(key, metric, isLoading, uploadTargets[key], overrides[key], now)
 	);
 }
 

@@ -36,3 +36,26 @@ describe('tombol isian data harian', () => {
 		expect(onUpload).toHaveBeenCalledWith(ROW.uploadTarget);
 	});
 });
+
+describe('penanda umur pembacaan', () => {
+	it('menampilkan umur di dalam badge, bukan hanya warna', () => {
+		render(MetricRowItem, {
+			props: {
+				row: {
+					...ROW,
+					uploadTarget: undefined,
+					freshness: { level: 'stale', ageLabel: '6 jam lalu', measuredAt: '2026-08-10T01:00:00Z' }
+				}
+			}
+		});
+
+		expect(screen.getByText('6 jam lalu')).toBeInTheDocument();
+		expect(screen.getByTitle(/Terakhir diukur/)).toBeInTheDocument();
+	});
+
+	it('tidak menampilkan badge untuk pembacaan segar', () => {
+		render(MetricRowItem, { props: { row: { ...ROW, uploadTarget: undefined } } });
+
+		expect(screen.queryByText(/lalu$/)).not.toBeInTheDocument();
+	});
+});

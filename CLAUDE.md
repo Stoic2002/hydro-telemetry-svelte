@@ -170,11 +170,28 @@ Hal-hal yang sudah pernah menggigit dan tidak akan terlihat dari membaca kode:
   ditampilkan** — mengganti berkasnya dengan foto milik PLN menyelesaikan itu.
   Kalau `getDamImagery()` null atau gambarnya gagal dimuat, halaman jatuh ke
   skema generik, jadi PLTA tanpa gambar tetap aman.
+- **Umur pembacaan sensor** (Hidrologi Harian): "Realtime aktif" hanya berarti
+  WebSocket terbuka, bukan sensornya masih mengirim. Karena itu baris sensor
+  diberi badge umur dari field `time` (angkanya diredupkan ke `text-muted` saat
+  merah). **Ambangnya per kelompok interval sensor**, diukur dari data staging
+  25 Sep 2026: bawaan kuning 30 / merah 60 menit (TMA tiap 1 menit, debit 6,
+  suhu 10–23, pH/turbidity 1), sedangkan seluruh `curah_hujan*` dan
+  `elevasi_sedimen` yang mengirim sekali per jam kuning 90 / merah 180. Satu ambang untuk semua
+  membuat sensor per jam kuning 45 menit dari setiap jam. Hanya `source: measured` dan nilai realtime;
+  formula, rencana, konstanta, dan realisasi yang punya tombol isian (diisi
+  manual) sengaja dikecualikan. Banner ringkasan hanya memuat yang merah —
+  yang kuning biasanya sekadar pengiriman tertunda. Jam halaman berdetak per
+  menit, karena justru saat sensor diam tidak ada data baru yang memicu render.
 - **Tren & Grafik**: hanya **satu** grafik dengan pemilih parameter (bukan 4
   grafik). Rentang default 24 jam. Daftar parameter diambil dari API tags. Garis
   grafik menampilkan nilai saat di-hover. Parameter terakumulasi (`*rainfall*`,
   `total_outflow`) diagregasi `sum`, sisanya `avg`; curah hujan digambar sebagai
-  batang.
+  batang. **Pembanding periode** (`?compare=previous|last-year`): garis
+  abu-abu putus-putus di sumbu waktu yang sama — tetap satu grafik. Periode
+  pembanding memakai parameter, resolusi, dan agregasi yang persis sama, hanya
+  rentangnya digeser; "tahun lalu" digeser satu tahun kalender, bukan 365 hari.
+  Untuk curah hujan pembandingnya juga garis, bukan batang berdampingan — 168
+  batang per jam (7 hari) tidak terbaca bila digandakan.
 - **Laporan**: alur = pilih laporan → masuk daftar tabel → status `completed` →
   download. Hanya periode bulanan dan hanya parameter time series. Daftar laporan
   pakai paginasi + search, tanpa tombol "Perbarui"; polling berhenti sendiri
@@ -190,6 +207,18 @@ Hal-hal yang sudah pernah menggigit dan tidak akan terlihat dari membaca kode:
   Ubin GIBS berupa gambar opak, jadi `components/map/cloud-mask.ts` membaca
   ulang warnanya menjadi suhu puncak awan lewat colormap GIBS dan hanya
   menggambar awan ≤ -32 °C. Ini perkiraan, bukan hujan terukur.
+  **Hujan terukur** (penakar ARR milik PLTA, `features/monitoring/rainfall.ts`)
+  melengkapinya: cincin biru di penanda PLTA + daftar di panel (PLTA tanpa
+  koordinat tetap masuk daftar). Per 25 Sep 2026 hanya Soedirman (4 stasiun
+  OPC), Sidorejo, dan Wadaslintang yang punya penakar. Jendelanya **bergulir 60
+  menit** dan diringkas dengan **maksimum, bukan jumlah** — nilai ARR Soedirman
+  berupa keadaan (03.56 = 0,2 · 04.00 = 0,2 · 04.06 = 0), jadi menjumlahkan
+  menghitung hujan yang sama dua kali. Penakar mengirim 0 tiap jam saat kering,
+  sehingga "tidak ada pembacaan > 3 jam" tampil **Tidak diperbarui**, bukan
+  "tidak hujan". "Masih mengirim" dinilai juga dari `/trends`, karena waktu di
+  snapshot `/monitoring/.../latest` untuk ARR Soedirman tertinggal berhari-hari.
+  **Kategori intensitas BMKG belum ditampilkan** sampai backend mengonfirmasi
+  periode nilai ARR Soedirman.
 - **Upload** (`/dashboard/upload`) adalah menu sendiri, bukan lagi sub-menu
   Telemetering, dengan empat tab lewat `?tab=`: **Excel Bulanan**, **Excel Harian**
   (`/hydrology/daily/template.xlsx` + `/hydrology/daily/excel`), **Prakiraan

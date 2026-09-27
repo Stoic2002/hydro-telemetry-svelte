@@ -9,10 +9,15 @@
 	 */
 	let {
 		queryClient,
-		onPLTAClick
-	}: { queryClient: QueryClient; onPLTAClick: (pltaId: string) => void } = $props();
+		onPLTAClick,
+		showPrecipitation = false
+	}: {
+		queryClient: QueryClient;
+		onPLTAClick: (pltaId: string) => void;
+		showPrecipitation?: boolean;
+	} = $props();
 </script>
 
 <QueryClientProvider client={queryClient}>
-	<JavaMap {onPLTAClick} />
+	<JavaMap {onPLTAClick} {showPrecipitation} />
 </QueryClientProvider>

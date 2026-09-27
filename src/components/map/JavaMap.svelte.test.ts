@@ -6,6 +6,7 @@ import type { Plant } from '$features/plta';
 import JavaMapHarness from './JavaMap.test-harness.svelte';
 import * as labelPlacement from './label-placement';
 import { createMapLayersQuery, createCloudImageryQuery } from './queries';
+import { createMeasuredRainQuery } from '$features/monitoring';
 import { createPlantCatalogQuery } from '$features/plta';
 
 /**
@@ -22,6 +23,11 @@ import { createPlantCatalogQuery } from '$features/plta';
 vi.mock('./queries', () => ({
 	createMapLayersQuery: vi.fn(),
 	createCloudImageryQuery: vi.fn()
+}));
+
+vi.mock('$features/monitoring', async (importOriginal) => ({
+	...(await importOriginal<typeof import('$features/monitoring')>()),
+	createMeasuredRainQuery: vi.fn(() => ({ data: [], isError: false }))
 }));
 
 vi.mock('$features/plta', async (importOriginal) => ({
@@ -163,5 +169,75 @@ describe('penanda PLTA', () => {
 		await user.keyboard('{Enter}');
 
 		expect(onPLTAClick).toHaveBeenCalledWith('plta-soedirman');
+	});
+});
+
+describe('hujan terukur', () => {
+	function renderWithRain(showPrecipitation = true) {
+		vi.mocked(createMeasuredRainQuery).mockReturnValue({
+			data: [
+				{
+					pltaId: 'plta-soedirman',
+					status: 'raining',
+					stationCount: 4,
+					peak: { station: 'ARR_ST02', value: 0.6, time: '2026-09-25T03:00:00Z' },
+					latestTime: '2026-09-25T03:00:00Z'
+				},
+				{
+					pltaId: 'plta-sidorejo',
+					status: 'stale',
+					stationCount: 1,
+					peak: null,
+					latestTime: '2026-09-24T20:00:00Z'
+				}
+			],
+			isError: false
+		} as unknown as ReturnType<typeof createMeasuredRainQuery>);
+		createPlantCatalogQueryMock.mockReturnValue({
+			data: [
+				...PLANTS,
+				// Tanpa koordinat: tidak ada di peta, tetapi penakarnya tetap dilaporkan.
+				{
+					...PLANTS[0],
+					id: 'plta-sidorejo',
+					name: 'PLTA Sidorejo',
+					latitude: null,
+					longitude: null
+				}
+			],
+			isError: false,
+			isPending: false,
+			isSuccess: true,
+			error: null,
+			refetch: vi.fn()
+		} as unknown as ReturnType<typeof createPlantCatalogQuery>);
+
+		const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+		return render(JavaMapHarness, {
+			props: { queryClient, onPLTAClick: vi.fn(), showPrecipitation }
+		});
+	}
+
+	it('menyebut hujan terukur pada label penanda PLTA', () => {
+		renderWithRain();
+
+		expect(
+			screen.getByRole('button', { name: /PLTA Soedirman\. Hujan terukur 0,6 mm/ })
+		).toBeInTheDocument();
+	});
+
+	it('mencantumkan PLTA berpenakar tanpa koordinat di daftar panel', () => {
+		renderWithRain();
+
+		expect(screen.getByText('Sidorejo')).toBeInTheDocument();
+		expect(screen.getByText(/Tidak diperbarui sejak/)).toBeInTheDocument();
+	});
+
+	it('meringkas PLTA yang tidak hujan dan hanya merinci yang perlu perhatian', () => {
+		renderWithRain();
+
+		// Soedirman hujan dan Sidorejo diam: keduanya dirinci, tanpa baris ringkasan kering.
+		expect(screen.getByText('0,6 mm · 10:00 · ARR_ST02')).toBeInTheDocument();
+		expect(screen.queryByText(/Tidak hujan di/)).not.toBeInTheDocument();
 	});
 });

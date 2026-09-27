@@ -153,6 +153,16 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
 					'Warna menunjukkan perkiraan intensitas dari suhu puncak awan: biru ringan–sedang, jingga lebat, ungu sangat lebat. Ini perkiraan dari citra satelit Himawari-9, bukan hujan terukur — untuk curah hujan sebenarnya, lihat sensor di halaman Telemetering.',
 					'Citra diperbarui otomatis setiap 10 menit dan biasanya tertinggal sekitar 30–40 menit dari waktu sekarang. Bila tertulis **Tidak tersedia**, layanan citra sedang tidak dapat dijangkau; peta lainnya tetap bisa dipakai.'
 				]
+			},
+			{
+				title: 'Hujan terukur',
+				notes: [
+					'Berbeda dari citra awan yang hanya perkiraan, **Hujan terukur** berasal dari penakar hujan milik PLTA sendiri.',
+					'PLTA yang penakarnya mencatat hujan dalam 60 menit terakhir diberi cincin biru dan tanda tetes pada penandanya. Arahkan kursor ke penanda untuk melihat nilainya.',
+					'Daftar **Hujan terukur** di panel kanan atas memuat setiap PLTA yang punya penakar hujan, termasuk yang belum tampil di peta karena koordinatnya belum diisi.',
+					'Bila tertulis **Tidak diperbarui sejak …**, penakarnya tidak mengirim data lebih dari 3 jam. Itu **bukan** berarti tidak hujan.',
+					'Nilai yang ditampilkan adalah pembacaan tertinggi dalam 60 menit terakhir, dalam milimeter.'
+				]
 			}
 		]
 	},
@@ -202,8 +212,19 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
 				example: 'source-markers',
 				notes: [
 					'Menampilkan kondisi **hari ini** untuk tiga zona: hulu, bendungan, dan hilir.',
-					'Penanda **Realtime aktif** berarti nilai diperbarui langsung dari lapangan. Bila tertulis **Realtime belum aktif**, tekan **Hubungkan ulang** bila tombol itu muncul.',
+					'Penanda **Realtime aktif** berarti koneksi ke server terbuka dan nilai baru langsung masuk begitu dikirim sensor. Bila tertulis **Realtime belum aktif**, tekan **Hubungkan ulang** bila tombol itu muncul.',
 					'Penanda di depan setiap nilai menunjukkan asalnya: **Formulasi** (dihitung), **Input** (diisi manual), **Konstanta**, atau **Belum tersedia**.'
+				]
+			},
+			{
+				title: 'Umur pembacaan sensor',
+				notes: [
+					'**Realtime aktif** tidak menjamin setiap sensor masih mengirim. Nilai sensor yang lama tidak diperbarui diberi badge umur di sebelah angkanya, misalnya **32 mnt lalu**.',
+					'Badge kuning: pembacaan terlambat. Badge merah: sensor kemungkinan berhenti mengirim, dan angkanya diredupkan — itu pembacaan terakhir, bukan kondisi saat ini.',
+					'Kebanyakan sensor mengirim tiap beberapa menit: kuning setelah 30 menit, merah setelah 1 jam. Curah hujan dan elevasi sedimen mengirim sekali per jam: kuning setelah 1,5 jam, merah setelah 3 jam.',
+					'Bila ada badge merah, di atas halaman muncul ringkasan **sensor tidak diperbarui**. Klik nama parameternya untuk melompat ke barisnya.',
+					'Arahkan kursor ke badge untuk melihat waktu ukur persisnya.',
+					'Nilai formula, rencana, konstanta, dan data yang diisi manual tidak diberi badge umur — nilainya memang hanya berubah sekali sehari.'
 				]
 			},
 			{
@@ -286,15 +307,30 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
 				title: 'Membaca grafik',
 				notes: [
 					'Baris di atas grafik berisi **Rata-rata**, **Minimum**, **Maksimum**, dan **Perubahan periode**.',
-					'Garis putus-putus adalah nilai rata-rata periode.',
+					'Garis putus-putus yang lurus mendatar adalah nilai rata-rata periode.',
 					'Curah hujan digambar sebagai batang dan dijumlahkan; parameter lain dirata-rata.',
 					'Nilai yang jauh di luar batas wajar tidak ikut digambar, dan jumlahnya disebutkan di atas grafik.'
 				]
 			},
 			{
+				title: 'Membandingkan dengan periode lain',
+				steps: [
+					'Pada kotak **Bandingkan dengan**, pilih **Periode sebelumnya** atau **Tahun lalu**.',
+					'Periode pembanding muncul sebagai garis abu-abu putus-putus yang mengikuti bentuk datanya, di sumbu waktu yang sama.',
+					'Arahkan kursor ke grafik: tooltip menampilkan nilai kedua periode beserta selisihnya.'
+				],
+				notes: [
+					'**Periode sebelumnya** adalah rentang dengan panjang yang sama tepat sebelum periode ini — misalnya 24 jam sebelumnya.',
+					'**Tahun lalu** adalah tanggal yang sama setahun sebelumnya.',
+					'Di bawah **Rata-rata** tertulis rata-rata periode pembanding dan selisihnya.',
+					'Bila pembanding tertulis **tidak ada data**, data untuk periode itu memang belum tersimpan.',
+					'Pilih **Tanpa pembanding** untuk kembali ke satu garis.'
+				]
+			},
+			{
 				title: 'Membagikan grafik',
 				notes: [
-					'Parameter dan periode tersimpan di alamat halaman. Salin alamat dari browser untuk membagikan grafik yang sama persis.'
+					'Parameter, periode, dan pembanding tersimpan di alamat halaman. Salin alamat dari browser untuk membagikan grafik yang sama persis.'
 				]
 			}
 		]
