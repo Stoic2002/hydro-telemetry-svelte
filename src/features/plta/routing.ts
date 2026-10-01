@@ -17,12 +17,6 @@ export type PLTADashboardPage =
  */
 export const UPLOAD_PATH = '/dashboard/upload';
 
-/**
- * Rekap Hidrologi: ringkasan dan laporan SELURUH PLTA, jadi — seperti Upload —
- * rutenya tidak memuat `pltaId` walau menunya berada di bawah Telemetering.
- */
-export const HYDROLOGY_RECAP_PATH = '/dashboard/telemetering/rekap';
-
 export type UploadTab = 'excel' | 'harian' | 'prakiraan' | 'eva';
 
 export function getUploadPath(tab: UploadTab): string {

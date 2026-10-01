@@ -11,9 +11,8 @@ export {
 } from './api/queries';
 export { HYDROLOGY_ZONES, HYDROLOGY_ZONE_PRESENTATION, getDamImagery } from './dam-imagery';
 export { getPLTAErrorMessage } from './error';
-export { getPlantDisplayName } from './presentation';
+export { getPlantDisplayName, plantMatchesIdentity } from './presentation';
 export {
-	HYDROLOGY_RECAP_PATH,
 	UPLOAD_PATH,
 	getEvaUploadPath,
 	getPLTADashboardPath,

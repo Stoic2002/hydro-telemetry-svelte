@@ -3,6 +3,7 @@
 	import Badge from '$components/controls/Badge.svelte';
 	import Input from '$components/controls/Input.svelte';
 	import Select from '$components/controls/Select.svelte';
+	import ResourceTableSkeleton from '$components/skeletons/ResourceTableSkeleton.svelte';
 	import EmptyState from '$components/ui/EmptyState.svelte';
 	import TablePagination from '$components/ui/TablePagination.svelte';
 	import { formatDayMonthYearTimeWIB } from '$shared/lib/date';
@@ -118,7 +119,25 @@
 			description="Silakan muat ulang halaman untuk mencoba lagi."
 		/>
 	{:else if historyQuery.isLoading}
-		<p class="loading-text mt-3" role="status">Memuat riwayat…</p>
+		<!--
+			Tabel, jadi skeleton — bukan teks "Memuat…". Kepala kolomnya yang asli,
+			supaya lebar tabel tidak berubah saat data tiba.
+		-->
+		<div class="mt-3 overflow-x-auto" role="status" aria-label="Memuat riwayat unggah">
+			<table class="w-full min-w-[680px] border-collapse text-left">
+				<thead>
+					<tr class="bg-surface-overlay">
+						{#each columns as head (head)}
+							<th class="table-head-cell px-3 py-2">{head}</th>
+						{/each}
+					</tr>
+				</thead>
+				<tbody>
+					<ResourceTableSkeleton columns={columns.length} rows={PAGE_LIMIT} />
+				</tbody>
+			</table>
+			<span class="sr-only">Memuat riwayat unggah...</span>
+		</div>
 	{:else if items.length === 0}
 		<EmptyState class="mt-3" title="Belum ada riwayat" description={emptyDescription} />
 	{:else}

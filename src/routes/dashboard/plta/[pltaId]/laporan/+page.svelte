@@ -1,4 +1,7 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
+	// `page` sudah dipakai untuk nomor halaman tabel.
+	import { page as appPage } from '$app/state';
 	import IconDownload from '~icons/ph/download-simple';
 	import IconPlus from '~icons/ph/plus';
 	import IconSearch from '~icons/ph/magnifying-glass';
@@ -13,6 +16,7 @@
 	import RefetchBar from '$components/ui/RefetchBar.svelte';
 	import Sheet from '$components/ui/Sheet.svelte';
 	import TablePagination from '$components/ui/TablePagination.svelte';
+	import Tabs from '$components/ui/Tabs.svelte';
 	import { createPLTATagsQuery, getActivePLTA } from '$features/plta';
 	import PlantSwitcher from '$features/plta/components/PlantSwitcher.svelte';
 	import {
@@ -30,8 +34,37 @@
 		getWIBDateParts
 	} from '$shared/lib/date';
 	import { notificationStore } from '$shared/lib/notification.svelte';
+	import HydrologyReportDownloads from './HydrologyReportDownloads.svelte';
 
 	const PAGE_LIMIT = 10;
+
+	/**
+	 * Dua jenis laporan dengan cakupan berbeda: time series milik satu PLTA
+	 * (dibuat lewat antrean, dipilih lewat PlantSwitcher), dan laporan hidrologi
+	 * Excel untuk SELURUH PLTA yang langsung diunduh — dulu Telemetering › Rekap
+	 * Hidrologi. Tab disimpan di `?tab=` supaya tautan lama Rekap bisa dialihkan
+	 * langsung ke tab yang benar.
+	 */
+	const LAPORAN_TABS = [
+		{ value: 'timeseries', label: 'Laporan Time Series' },
+		{ value: 'hidrologi', label: 'Laporan Hidrologi' }
+	] as const;
+	type LaporanTab = (typeof LAPORAN_TABS)[number]['value'];
+
+	const activeTab = $derived<LaporanTab>(
+		appPage.url.searchParams.get('tab') === 'hidrologi' ? 'hidrologi' : 'timeseries'
+	);
+
+	function selectTab(tab: LaporanTab) {
+		// Salinan sekali pakai untuk menyusun URL berikutnya; dibuang setelah
+		// `goto`, jadi tidak perlu `SvelteURLSearchParams`.
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity
+		const params = new URLSearchParams(appPage.url.searchParams);
+		if (tab === 'timeseries') params.delete('tab');
+		else params.set('tab', tab);
+		const query = params.toString();
+		void goto(query ? `?${query}` : '?', { replaceState: true, keepFocus: true, noScroll: true });
+	}
 
 	const MONTH_OPTIONS = [
 		'Januari',
@@ -238,140 +271,175 @@
 {/snippet}
 
 <div class="flex flex-1 flex-col gap-6">
-	<PageHeader title="Laporan" description={`Laporan time series bulanan PLTA ${displayName}`}>
+	<PageHeader
+		title="Laporan"
+		description={activeTab === 'hidrologi'
+			? 'Laporan Excel hidrologi seluruh PLTA dalam satu periode'
+			: `Laporan time series bulanan PLTA ${displayName}`}
+	>
 		{#snippet actions()}
-			<PlantSwitcher page="laporan" />
-			<Button
-				type="button"
-				size="lg"
-				onclick={() => (isQuerySheetOpen = true)}
-				class="whitespace-nowrap"
-			>
-				{#snippet leftIcon()}<IconPlus class="size-4" />{/snippet}
-				Buat Laporan
-			</Button>
+			{#if activeTab === 'hidrologi'}
+				<Badge tone="cyan">Berlaku untuk semua PLTA</Badge>
+			{:else}
+				<PlantSwitcher page="laporan" />
+				<Button
+					type="button"
+					size="lg"
+					onclick={() => (isQuerySheetOpen = true)}
+					class="whitespace-nowrap"
+				>
+					{#snippet leftIcon()}<IconPlus class="size-4" />{/snippet}
+					Buat Laporan
+				</Button>
+			{/if}
 		{/snippet}
 	</PageHeader>
 
-	<div class="flex flex-col gap-2.5 border-b border-border-subtle pb-4 sm:flex-row sm:items-center">
-		<form onsubmit={applySearch} class="flex min-w-0 items-center gap-2 sm:w-72">
-			<div class="relative flex min-w-0 flex-1 items-center">
-				<IconSearch class="pointer-events-none absolute left-3 size-4 shrink-0 text-text-muted" />
-				<input
-					type="search"
-					bind:value={searchInput}
-					maxlength={100}
-					placeholder="Cari nama laporan…"
-					class="field h-9 pl-9 text-[13px]"
-				/>
+	<Tabs
+		idPrefix="laporan"
+		ariaLabel="Jenis laporan"
+		items={[...LAPORAN_TABS]}
+		activeValue={activeTab}
+		onChange={selectTab}
+	/>
+
+	<div
+		id={`laporan-panel-${activeTab}`}
+		role="tabpanel"
+		aria-labelledby={`laporan-tab-${activeTab}`}
+		tabindex="0"
+		class="flex flex-col gap-6 outline-none"
+	>
+		{#if activeTab === 'hidrologi'}
+			<HydrologyReportDownloads />
+		{:else}
+			<div
+				class="flex flex-col gap-2.5 border-b border-border-subtle pb-4 sm:flex-row sm:items-center"
+			>
+				<form onsubmit={applySearch} class="flex min-w-0 items-center gap-2 sm:w-72">
+					<div class="relative flex min-w-0 flex-1 items-center">
+						<IconSearch
+							class="pointer-events-none absolute left-3 size-4 shrink-0 text-text-muted"
+						/>
+						<input
+							type="search"
+							bind:value={searchInput}
+							maxlength={100}
+							placeholder="Cari nama laporan…"
+							class="field h-9 pl-9 text-[13px]"
+						/>
+					</div>
+					<button type="submit" class="btn btn-ghost btn-sm h-9 shrink-0">Cari</button>
+					{#if search}
+						<button
+							type="button"
+							onclick={clearSearch}
+							class="h-9 shrink-0 cursor-pointer rounded-lg px-2 text-[13px] font-medium text-text-muted transition-colors hover:bg-surface-overlay"
+						>
+							Bersihkan
+						</button>
+					{/if}
+				</form>
+				{#if !reportsQuery.isError}
+					<span class="shrink-0 text-xs text-text-muted sm:ml-auto">{total} laporan</span>
+				{/if}
 			</div>
-			<button type="submit" class="btn btn-ghost btn-sm h-9 shrink-0">Cari</button>
-			{#if search}
-				<button
-					type="button"
-					onclick={clearSearch}
-					class="h-9 shrink-0 cursor-pointer rounded-lg px-2 text-[13px] font-medium text-text-muted transition-colors hover:bg-surface-overlay"
-				>
-					Bersihkan
-				</button>
-			{/if}
-		</form>
-		{#if !reportsQuery.isError}
-			<span class="shrink-0 text-xs text-text-muted sm:ml-auto">{total} laporan</span>
+
+			<section
+				class="flex flex-col overflow-hidden rounded-xl border border-border-subtle bg-surface-raised"
+			>
+				<RefetchBar isRefetching={reportsQuery.isFetching && !reportsQuery.isLoading} />
+
+				{#if reportsQuery.isError}
+					<ErrorState
+						title="Daftar laporan belum bisa dimuat"
+						description={errorMessage(reportsQuery.error)}
+						isRetrying={reportsQuery.isFetching}
+						onRetry={() => void reportsQuery.refetch()}
+					/>
+				{:else if reportsQuery.isLoading}
+					<div class="overflow-x-auto" role="status" aria-label="Memuat daftar laporan">
+						<table class="w-full min-w-[900px] border-collapse text-left">
+							{@render tableHead()}
+							<tbody><ResourceTableSkeleton columns={5} rows={PAGE_LIMIT} /></tbody>
+						</table>
+						<span class="sr-only">Memuat daftar laporan...</span>
+					</div>
+				{:else if reports.length === 0}
+					<div class="p-5">
+						<EmptyState
+							title={search ? 'Laporan tidak ditemukan' : 'Belum ada laporan'}
+							description={search
+								? 'Coba kata kunci lain atau kosongkan pencarian.'
+								: 'Laporan yang Anda buat akan muncul di daftar ini.'}
+						/>
+					</div>
+				{:else}
+					<div class="overflow-x-auto">
+						<table class="w-full min-w-[900px] border-collapse text-left">
+							{@render tableHead()}
+							<tbody class="divide-y divide-surface-overlay">
+								{#each reports as report (report.id)}
+									{@const statusMeta = STATUS_META[report.status]}
+									<tr class="hover:bg-surface-base/70">
+										<td class="px-4 py-2.5">
+											<p class="text-sm font-medium text-text-primary">
+												{report.template === 'timeseries'
+													? 'Laporan Time Series'
+													: 'Laporan Historis'}
+											</p>
+											<p class="mt-0.5 max-w-md truncate text-xs text-text-muted">
+												{REPORT_TYPES[report.type]} · {report.parameters
+													?.map(formatParameterLabel)
+													.join(', ') || 'semua parameter'}
+											</p>
+										</td>
+										<td class="px-4 py-2.5 font-mono text-xs text-text-secondary tabular-nums">
+											{formatDayMonthYearWIB(report.periodStart)} – {formatDayMonthYearWIB(
+												report.periodEnd
+											)}
+										</td>
+										<td class="px-4 py-2.5 font-mono text-xs text-text-secondary tabular-nums">
+											{formatDayMonthYearTimeWIB(report.createdAt)}
+										</td>
+										<td class="px-4 py-2.5">
+											<Badge tone={statusMeta.tone} spinning={report.status === 'processing'}>
+												{statusMeta.label}
+											</Badge>
+										</td>
+										<td class="px-4 py-2.5 text-right">
+											<button
+												type="button"
+												disabled={report.status !== 'completed' || downloadMutation.isPending}
+												onclick={() => void downloadReport(report)}
+												class="btn btn-ghost btn-sm text-brand-primary-strong"
+											>
+												<IconDownload class="size-3.5" />
+												Unduh Excel
+											</button>
+										</td>
+									</tr>
+								{/each}
+							</tbody>
+						</table>
+					</div>
+				{/if}
+
+				{#if !reportsQuery.isLoading && !reportsQuery.isError}
+					<TablePagination
+						{page}
+						{totalPages}
+						{total}
+						pageSize={PAGE_LIMIT}
+						itemLabel="laporan"
+						isBusy={reportsQuery.isFetching}
+						onPrevious={() => (page = Math.max(page - 1, 1))}
+						onNext={() => (page = Math.min(page + 1, totalPages))}
+					/>
+				{/if}
+			</section>
 		{/if}
 	</div>
-
-	<section
-		class="flex flex-col overflow-hidden rounded-xl border border-border-subtle bg-surface-raised"
-	>
-		<RefetchBar isRefetching={reportsQuery.isFetching && !reportsQuery.isLoading} />
-
-		{#if reportsQuery.isError}
-			<ErrorState
-				title="Daftar laporan belum bisa dimuat"
-				description={errorMessage(reportsQuery.error)}
-				isRetrying={reportsQuery.isFetching}
-				onRetry={() => void reportsQuery.refetch()}
-			/>
-		{:else if reportsQuery.isLoading}
-			<div class="overflow-x-auto" role="status" aria-label="Memuat daftar laporan">
-				<table class="w-full min-w-[900px] border-collapse text-left">
-					{@render tableHead()}
-					<tbody><ResourceTableSkeleton columns={5} rows={PAGE_LIMIT} /></tbody>
-				</table>
-				<span class="sr-only">Memuat daftar laporan...</span>
-			</div>
-		{:else if reports.length === 0}
-			<div class="p-5">
-				<EmptyState
-					title={search ? 'Laporan tidak ditemukan' : 'Belum ada laporan'}
-					description={search
-						? 'Coba kata kunci lain atau kosongkan pencarian.'
-						: 'Laporan yang Anda buat akan muncul di daftar ini.'}
-				/>
-			</div>
-		{:else}
-			<div class="overflow-x-auto">
-				<table class="w-full min-w-[900px] border-collapse text-left">
-					{@render tableHead()}
-					<tbody class="divide-y divide-surface-overlay">
-						{#each reports as report (report.id)}
-							{@const statusMeta = STATUS_META[report.status]}
-							<tr class="hover:bg-surface-base/70">
-								<td class="px-4 py-2.5">
-									<p class="text-sm font-medium text-text-primary">
-										{report.template === 'timeseries' ? 'Laporan Time Series' : 'Laporan Historis'}
-									</p>
-									<p class="mt-0.5 max-w-md truncate text-xs text-text-muted">
-										{REPORT_TYPES[report.type]} · {report.parameters
-											?.map(formatParameterLabel)
-											.join(', ') || 'semua parameter'}
-									</p>
-								</td>
-								<td class="px-4 py-2.5 font-mono text-xs text-text-secondary tabular-nums">
-									{formatDayMonthYearWIB(report.periodStart)} – {formatDayMonthYearWIB(
-										report.periodEnd
-									)}
-								</td>
-								<td class="px-4 py-2.5 font-mono text-xs text-text-secondary tabular-nums">
-									{formatDayMonthYearTimeWIB(report.createdAt)}
-								</td>
-								<td class="px-4 py-2.5">
-									<Badge tone={statusMeta.tone} spinning={report.status === 'processing'}>
-										{statusMeta.label}
-									</Badge>
-								</td>
-								<td class="px-4 py-2.5 text-right">
-									<button
-										type="button"
-										disabled={report.status !== 'completed' || downloadMutation.isPending}
-										onclick={() => void downloadReport(report)}
-										class="btn btn-ghost btn-sm text-brand-primary-strong"
-									>
-										<IconDownload class="size-3.5" />
-										Unduh Excel
-									</button>
-								</td>
-							</tr>
-						{/each}
-					</tbody>
-				</table>
-			</div>
-		{/if}
-
-		{#if !reportsQuery.isLoading && !reportsQuery.isError}
-			<TablePagination
-				{page}
-				{totalPages}
-				{total}
-				pageSize={PAGE_LIMIT}
-				itemLabel="laporan"
-				isBusy={reportsQuery.isFetching}
-				onPrevious={() => (page = Math.max(page - 1, 1))}
-				onNext={() => (page = Math.min(page + 1, totalPages))}
-			/>
-		{/if}
-	</section>
 </div>
 
 <Sheet

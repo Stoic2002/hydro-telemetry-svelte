@@ -267,7 +267,7 @@
 				<text
 					text-anchor="middle"
 					dominant-baseline="central"
-					font-family="'JetBrains Mono', monospace"
+					style:font-family="var(--font-mono)"
 					font-weight={600}
 					font-size={isActive ? 13 : 12}
 					class={MARKER_TEXT_FILL[zone]}
@@ -295,7 +295,7 @@
 						y={1}
 						text-anchor="middle"
 						dominant-baseline="central"
-						font-family="Manrope, system-ui, sans-serif"
+						style:font-family="var(--font-sans)"
 						font-weight={700}
 						font-size={17}
 						fill={presentation.accentTextColor}

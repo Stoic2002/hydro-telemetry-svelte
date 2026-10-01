@@ -1,15 +1,9 @@
 import { apiRequest, createApiResponseParser } from '../../../api/http';
-import type { ForecastRunResult, ForecastSeries } from '../model';
-import {
-	apiForecastRunResultSchema,
-	apiForecastSeriesSchema,
-	type ApiForecastRunResult,
-	type ApiForecastSeries
-} from './schemas';
+import type { ForecastSeries } from '../model';
+import { apiForecastSeriesSchema, type ApiForecastSeries } from './schemas';
 import type { ForecastingRepository } from './forecasting-repository';
 
 const parseSeries = createApiResponseParser('Respons server tidak sesuai kontrak Forecasting');
-const parseRunResult = createApiResponseParser('Respons antrean Forecasting tidak sesuai kontrak');
 
 function mapSeries(series: ApiForecastSeries): ForecastSeries {
 	return {
@@ -37,10 +31,6 @@ function mapSeries(series: ApiForecastSeries): ForecastSeries {
 	};
 }
 
-function mapRunResult(result: ApiForecastRunResult): ForecastRunResult {
-	return { taskId: result.task_id, status: result.status };
-}
-
 export const httpForecastingRepository: ForecastingRepository = {
 	async getLatest(input, options) {
 		const endpoint = '/api/v1/forecasts';
@@ -55,19 +45,5 @@ export const httpForecastingRepository: ForecastingRepository = {
 			}
 		});
 		return mapSeries(parseSeries(payload, apiForecastSeriesSchema, endpoint));
-	},
-
-	async run(input) {
-		const endpoint = '/api/v1/forecasts/run';
-		const payload = await apiRequest<unknown>(endpoint, {
-			method: 'POST',
-			cache: 'no-store',
-			json: {
-				plta_id: input.pltaId,
-				parameter: input.parameter,
-				horizon: input.horizon
-			}
-		});
-		return mapRunResult(parseRunResult(payload, apiForecastRunResultSchema, endpoint));
 	}
 };

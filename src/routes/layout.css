@@ -1,4 +1,8 @@
-@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400..800&family=JetBrains+Mono:wght@400;500&display=swap');
+/*
+ * Font disajikan server sendiri lewat @fontsource (diimpor di +layout.svelte),
+ * bukan Google Fonts: dashboard ini dibuka dari jaringan kantor yang tidak
+ * selalu punya internet, dan tanpa itu seluruh teks jatuh ke font sistem.
+ */
 @import 'tailwindcss';
 
 /*
@@ -23,19 +27,24 @@
 
 @theme {
 	/*
-	 * Manrope wajib varian variable. Bobot 485 di bawah meniru font Basel di
-	 * situs rujukan — dengan bobot statis, 485 dibulatkan ke 500 dan efeknya
-	 * hilang sama sekali.
+	 * IBM Plex Sans + IBM Plex Mono: satu keluarga untuk teks dan angka, dengan
+	 * bentuk tegas yang cocok untuk antarmuka teknik. Menggantikan Manrope +
+	 * JetBrains Mono (29 Sep 2026), yang terasa terlalu bulat untuk dashboard
+	 * kelistrikan.
 	 */
-	--font-sans: 'Manrope', ui-sans-serif, system-ui, -apple-system, sans-serif;
-	--font-display: 'Manrope', ui-sans-serif, system-ui, sans-serif;
-	--font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', monospace;
+	--font-sans: 'IBM Plex Sans Variable', 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+	--font-display: 'IBM Plex Sans Variable', 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+	--font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', monospace;
 
-	/* Skala bobot digeser naik: "normal" = 485, bukan 400. */
-	--font-weight-normal: 485;
-	--font-weight-medium: 550;
-	--font-weight-semibold: 650;
-	--font-weight-bold: 750;
+	/*
+	 * Skala bobot standar. Pergeseran ke 485/550/650/750 dulu disetel khusus
+	 * untuk Manrope yang tipis; Plex pada 400 sudah cukup hadir, dan varian
+	 * variable-nya berhenti di 700.
+	 */
+	--font-weight-normal: 400;
+	--font-weight-medium: 500;
+	--font-weight-semibold: 600;
+	--font-weight-bold: 700;
 
 	/* Permukaan — hierarki lewat tingkat terang, bukan bayangan. */
 	--color-surface-base: #f9f9f9;

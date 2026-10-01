@@ -1,4 +1,8 @@
-import { redirectToDefaultPLTA } from '$core/guards';
+import { redirectToForecastingPlant } from '$core/guards';
 
-/** Tautan lama tanpa `pltaId`. Dipertahankan supaya bookmark operator tidak mati. */
-export const load = ({ url }) => redirectToDefaultPLTA('forecasting', url.search);
+/**
+ * Pintu masuk Forecasting tanpa `pltaId` — dipakai menu dan Panduan, juga
+ * bookmark lama. Selalu berakhir di PLTA Soedirman, karena hanya PLTA itu yang
+ * punya model prediksi.
+ */
+export const load = ({ url }) => redirectToForecastingPlant(url.search);

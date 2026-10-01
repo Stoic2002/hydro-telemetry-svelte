@@ -10,15 +10,12 @@
 	import IconUpload from '~icons/ph/cloud-arrow-up';
 	import IconDatabase from '~icons/ph/database';
 	import IconUsers from '~icons/ph/users';
-	import IconGuide from '~icons/ph/book-open-text';
 	import IconLogout from '~icons/ph/sign-out';
-	import IconCaretLeft from '~icons/ph/caret-left';
-	import IconCaretRight from '~icons/ph/caret-right';
+	import IconSidebar from '~icons/ph/sidebar-simple';
 	import IconMenu from '~icons/ph/list';
 	import IconX from '~icons/ph/x';
 
 	import {
-		HYDROLOGY_RECAP_PATH,
 		UPLOAD_PATH,
 		createPlantCatalogQuery,
 		getPLTADashboardPath,
@@ -26,7 +23,7 @@
 		isValidPLTAId,
 		type PLTADashboardPage
 	} from '../../features/plta';
-	import { FORECASTING_PLTA_ID } from '../../features/forecasting';
+	import { findForecastingPlant } from '../../features/forecasting';
 	import {
 		authStore,
 		canAccessDataTools,
@@ -41,6 +38,7 @@
 	import NavGroup from './NavGroup.svelte';
 	import NavItem from './NavItem.svelte';
 	import NavSubItem from './NavSubItem.svelte';
+	import ProfileMenu from './ProfileMenu.svelte';
 
 	let { children } = $props();
 
@@ -79,6 +77,18 @@
 		return (plants.find((plant) => plant.isActive) ?? plants[0])?.id;
 	});
 
+	/**
+	 * Langsung ke halaman PLTA Soedirman begitu katalog dimuat, supaya penanda
+	 * menu aktif cocok dengan alamatnya. Sebelum itu, alamat tanpa `pltaId` yang
+	 * mengalihkan ke PLTA yang sama.
+	 */
+	const forecastingPath = $derived.by(() => {
+		const plant = findForecastingPlant(plantsQuery.data ?? []);
+		return plant
+			? getPLTADashboardPath(plant.id, 'forecasting')
+			: getUnscopedDashboardPath('forecasting');
+	});
+
 	function dashboardPath(target: PLTADashboardPage): string {
 		return selectedPLTAId
 			? getPLTADashboardPath(selectedPLTAId, target)
@@ -93,16 +103,6 @@
 		isLogoutDialogOpen = false;
 		authStore.logout();
 		await goto('/login', { replaceState: true });
-	}
-
-	/** Inisial untuk avatar pengguna. */
-	function getInitials(name: string): string {
-		return name
-			.split(' ')
-			.map((part) => part[0])
-			.join('')
-			.slice(0, 2)
-			.toUpperCase();
 	}
 </script>
 
@@ -121,37 +121,39 @@
 			isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'
 		} ${collapsed ? 'lg:w-[72px]' : 'lg:w-64'}`}
 	>
+		<!--
+			Tombol ciut/perluas memakai ikon panel sisi yang lazim, di kiri logo —
+			dulu panah kecil yang menempel di tepi sidebar dan mudah terlewat. Saat
+			ciut, rail 72px tidak cukup untuk tombol dan logo berdampingan, jadi yang
+			tersisa hanya tombolnya: fungsi lebih penting daripada merek di rail.
+		-->
 		<div
-			class="relative flex h-[72px] shrink-0 items-center gap-2.5 border-b border-border-subtle px-4 transition-all duration-300"
+			class={`flex h-[72px] shrink-0 items-center gap-2 border-b border-border-subtle transition-all duration-300 ${
+				collapsed ? 'lg:justify-center lg:px-0' : ''
+			} px-4`}
 		>
-			<div
-				class={`flex items-center gap-2.5 overflow-hidden transition-all duration-300 ${
-					collapsed ? 'w-full justify-center' : 'w-full'
-				}`}
-			>
-				<img src="/logo.png" alt="Logo" class="size-9 shrink-0 rounded-md object-contain" />
-				{#if !collapsed}
-					<div class="flex flex-col whitespace-nowrap">
-						<span class="font-sans text-[15px] leading-tight font-bold text-text-primary">
-							PLTA Monitoring
-						</span>
-						<span class="font-sans text-[11px] leading-normal text-text-muted">Jawa Tengah</span>
-					</div>
-				{/if}
-			</div>
-
 			<button
 				type="button"
 				aria-label={collapsed ? 'Perluas menu navigasi' : 'Ciutkan menu navigasi'}
-				class="absolute top-[88px] -right-3 z-50 hidden size-6 cursor-pointer items-center justify-center rounded-lg border border-border-subtle bg-surface-raised text-text-muted transition-colors hover:border-brand-primary-strong hover:text-brand-primary-strong lg:flex"
+				aria-expanded={!collapsed}
+				title={collapsed ? 'Perluas menu' : 'Ciutkan menu'}
+				class="-ml-1.5 hidden size-9 shrink-0 cursor-pointer items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-surface-overlay hover:text-text-primary lg:flex"
 				onclick={() => (collapsed = !collapsed)}
 			>
-				{#if collapsed}
-					<IconCaretRight class="size-3.5" />
-				{:else}
-					<IconCaretLeft class="size-3.5" />
-				{/if}
+				<IconSidebar class="size-5" />
 			</button>
+
+			<div
+				class={`flex min-w-0 items-center gap-2.5 overflow-hidden ${collapsed ? 'lg:hidden' : ''}`}
+			>
+				<img src="/logo.png" alt="Logo" class="size-9 shrink-0 rounded-md object-contain" />
+				<div class="flex flex-col whitespace-nowrap">
+					<span class="font-sans text-[15px] leading-tight font-bold text-text-primary">
+						PLTA Monitoring
+					</span>
+					<span class="font-sans text-[11px] leading-normal text-text-muted">Jawa Tengah</span>
+				</div>
+			</div>
 
 			<button
 				type="button"
@@ -177,16 +179,10 @@
 			<NavGroup
 				label="Telemetering"
 				{collapsed}
-				href={HYDROLOGY_RECAP_PATH}
+				href={dashboardPath('telemetering/harian')}
 				isActive={isTelemeteringActive}
 			>
 				{#snippet icon()}<IconActivity class="size-[18px]" />{/snippet}
-				<NavSubItem
-					inFlyout={collapsed}
-					onNavigate={closeMobileSidebar}
-					href={HYDROLOGY_RECAP_PATH}
-					label="Rekap Hidrologi"
-				/>
 				<NavSubItem
 					inFlyout={collapsed}
 					onNavigate={closeMobileSidebar}
@@ -201,11 +197,7 @@
 				/>
 			</NavGroup>
 
-			<NavItem
-				href={getPLTADashboardPath(FORECASTING_PLTA_ID, 'forecasting')}
-				{collapsed}
-				label="Forecasting"
-			>
+			<NavItem href={forecastingPath} {collapsed} label="Forecasting">
 				{#snippet icon()}<IconTrendingUp class="size-[18px]" />{/snippet}
 			</NavItem>
 
@@ -235,59 +227,32 @@
 					{#snippet icon()}<IconUsers class="size-[18px]" />{/snippet}
 				</NavItem>
 			{/if}
-
-			<!-- Didorong ke dasar nav: rujukan, bukan layar kerja harian. -->
-			<div class="mt-auto pt-3">
-				<NavItem href="/dashboard/panduan" end {collapsed} label="Panduan">
-					{#snippet icon()}<IconGuide class="size-[18px]" />{/snippet}
-				</NavItem>
-			</div>
 		</nav>
 
-		<div
-			class={`flex h-[68px] shrink-0 items-center border-t border-border-subtle transition-all duration-300 ${
-				collapsed
-					? 'h-auto flex-col justify-center gap-2 px-2 py-2'
-					: 'justify-between gap-2.5 px-4'
-			}`}
-		>
-			{#if user}
-				<button
-					type="button"
-					title="Profil Saya"
-					onclick={() => {
-						closeMobileSidebar();
-						void goto(dashboardPath('account'));
-					}}
-					class={`flex min-w-0 cursor-pointer items-center gap-2.5 overflow-hidden border-0 bg-transparent p-0 text-left ${
-						collapsed ? 'w-full justify-center' : 'flex-1'
-					}`}
-				>
-					<div
-						class="flex size-9 shrink-0 items-center justify-center rounded-lg border border-border-subtle bg-surface-overlay font-sans text-xs leading-none font-semibold text-text-subtle"
-					>
-						{getInitials(user.name)}
-					</div>
-					{#if !collapsed}
-						<div class="flex min-w-0 flex-col">
-							<span class="truncate font-sans text-[13px] font-medium text-text-primary">
-								{user.name}
-							</span>
-							<span class="truncate font-sans text-[11px] text-text-muted">{user.role}</span>
-						</div>
-					{/if}
-				</button>
-			{/if}
-			<button
-				type="button"
-				aria-label="Keluar dari aplikasi"
-				title="Keluar"
-				class="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-full text-text-muted transition-colors hover:bg-red-50 hover:text-red-600 focus:ring-2 focus:ring-brand-primary-strong/40 focus:outline-none"
-				onclick={() => (isLogoutDialogOpen = true)}
+		<!--
+			Satu pemicu untuk semua urusan akun: profil, panduan, dan keluar. Dulu
+			nama pengguna langsung membuka Profil dan ada ikon keluar kecil di
+			sebelahnya — dua sasaran klik berdempetan, dan satu di antaranya aksi
+			yang memutus sesi.
+		-->
+		{#if user}
+			<div
+				class={`shrink-0 border-t border-border-subtle p-2 transition-all duration-300 ${
+					collapsed ? 'lg:flex lg:justify-center' : ''
+				}`}
 			>
-				<IconLogout class="size-[17px]" />
-			</button>
-		</div>
+				<ProfileMenu
+					{user}
+					{collapsed}
+					accountHref={dashboardPath('account')}
+					onNavigate={closeMobileSidebar}
+					onLogout={() => {
+						closeMobileSidebar();
+						isLogoutDialogOpen = true;
+					}}
+				/>
+			</div>
+		{/if}
 	</aside>
 
 	<div

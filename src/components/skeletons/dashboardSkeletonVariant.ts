@@ -5,7 +5,8 @@ export function getDashboardSkeletonVariant(pathname: string): DashboardSkeleton
 	// Diperiksa sebelum '/telemetering' karena alamat lama `/telemetering/upload`
 	// masih dialihkan ke sini dan bentuk kerangkanya dropzone, bukan panel parameter.
 	if (pathname.includes('/upload') || pathname.includes('/input-ghw')) return 'upload';
-	if (pathname.includes('/telemetering/rekap')) return 'default';
+	// Alamat lama Rekap Hidrologi kini dialihkan ke tab Laporan Hidrologi.
+	if (pathname.includes('/telemetering/rekap')) return 'table';
 	if (pathname.includes('/telemetering')) return 'telemetering';
 	if (pathname.includes('/trends')) return 'trends';
 	if (pathname.includes('/forecasting')) return 'forecasting';

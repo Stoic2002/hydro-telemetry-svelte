@@ -19,8 +19,7 @@
 	import EmptyState from '$components/ui/EmptyState.svelte';
 	import PageHeader from '$components/ui/PageHeader.svelte';
 	import { authStore } from '$features/auth';
-	import { FORECASTING_PLTA_ID } from '$features/forecasting';
-	import { UPLOAD_PATH, getPLTADashboardPath, getUnscopedDashboardPath } from '$features/plta';
+	import { UPLOAD_PATH, getUnscopedDashboardPath } from '$features/plta';
 	import GuideExample from './GuideExample.svelte';
 	import GuideText from './GuideText.svelte';
 	import { GUIDE_CHAPTERS, filterGuideByAccess, searchGuide, type GuideChapterId } from './guide';
@@ -47,7 +46,7 @@
 	const CHAPTER_LINKS: Partial<Record<GuideChapterId, string>> = {
 		overview: getUnscopedDashboardPath('overview'),
 		telemetering: getUnscopedDashboardPath('telemetering'),
-		forecasting: getPLTADashboardPath(FORECASTING_PLTA_ID, 'forecasting'),
+		forecasting: getUnscopedDashboardPath('forecasting'),
 		tren: getUnscopedDashboardPath('trends'),
 		laporan: getUnscopedDashboardPath('laporan'),
 		upload: UPLOAD_PATH,

@@ -404,7 +404,7 @@
 								text-anchor="middle"
 								dominant-baseline="central"
 								fill="#454545"
-								font-family="Manrope, ui-sans-serif, system-ui, sans-serif"
+								style:font-family="var(--font-sans)"
 								font-size={labelFontSize}
 								font-weight={700}
 								letter-spacing={0.08}

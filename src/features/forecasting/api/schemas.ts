@@ -21,17 +21,15 @@ export const apiForecastSeriesSchema = z.object({
 		z.object({
 			time: z.string(),
 			horizon: z.number().int(),
-			value: z.number(),
+			// Swagger menyebut `value` wajib angka, tetapi run 1 Okt 2026 00.30 WIB
+			// mengirim 24 titik dengan `value: null` semua. Menolaknya membuat seluruh
+			// halaman jatuh ke "respons tidak sesuai kontrak" — padahal yang benar
+			// "run ini belum berisi prediksi", dan halaman bisa menyampaikannya.
+			value: z.number().nullable(),
 			value_p10: z.number().nullable().optional().default(null),
 			value_p90: z.number().nullable().optional().default(null)
 		})
 	)
 });
 
-export const apiForecastRunResultSchema = z.object({
-	task_id: z.string(),
-	status: z.string()
-});
-
 export type ApiForecastSeries = z.infer<typeof apiForecastSeriesSchema>;
-export type ApiForecastRunResult = z.infer<typeof apiForecastRunResultSchema>;

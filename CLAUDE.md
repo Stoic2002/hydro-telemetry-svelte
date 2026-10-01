@@ -92,8 +92,9 @@ Hal-hal yang sudah pernah menggigit dan tidak akan terlihat dari membaca kode:
   dirender (`canEditHydrologyData`). Halamannya sendiri tetap terbuka untuk
   dibaca.
 - Menu: Overview (peta Jawa Tengah), Telemetering, Forecasting, Tren & Grafik,
-  Laporan, Upload, Katalog Data, User Management, dan Panduan (di dasar sidebar,
-  untuk semua role).
+  Laporan, Upload, Katalog Data, dan User Management. **Panduan dan Profil Saya
+  tidak ada di daftar menu** — keduanya dibuka lewat menu akun (klik nama di
+  dasar sidebar), bersama Keluar.
 
 ## Backend & integrasi
 
@@ -196,7 +197,15 @@ Hal-hal yang sudah pernah menggigit dan tidak akan terlihat dari membaca kode:
   download. Hanya periode bulanan dan hanya parameter time series. Daftar laporan
   pakai paginasi + search, tanpa tombol "Perbarui"; polling berhenti sendiri
   begitu tidak ada baris `pending`/`processing`.
-- **Forecasting**: khusus PLTA Soedirman, tanpa pemilih PLTA.
+- **Forecasting**: khusus PLTA Soedirman, tanpa pemilih PLTA. PLTA-nya
+  **dicari dari katalog lewat nama** (`findForecastingPlant`: `soedirman` /
+  `mrica`), bukan UUID tertulis — id Soedirman berbeda per environment (staging
+  `4b4747da…`, backend lain `727c0a7e…`), dan dulu Forecasting di staging
+  meminta prediksi untuk PLTA yang tidak ada. `/dashboard/forecasting` selalu
+  mengalihkan ke Soedirman. `points[].value` boleh `null` walau Swagger
+  menyebutnya wajib: run 1 Okt 2026 00.30 WIB mengirim 24 titik kosong semua,
+  dan halaman menampilkan "Prediksi terbaru belum berisi nilai", bukan galat
+  kontrak.
 - **User Management**: limit paginasi 10 item.
 - **Overview**: peta Jawa Tengah dengan batas kabupaten/kota, garis aliran
   sungai, dan overlay **awan hujan Himawari-9** (NASA GIBS, kanal 13
@@ -236,14 +245,20 @@ Hal-hal yang sudah pernah menggigit dan tidak akan terlihat dari membaca kode:
   berlaku bila tag parameter itu dipecah per station — baris Unit 4 di PLTA yang
   hanya punya T1–T3 harus tetap hanya-baca. Hapus tabelnya begitu backend
   mengisi `input` untuk kedua kasus itu.
-- **Rekap Hidrologi** (`/dashboard/telemetering/rekap`): submenu ketiga
-  Telemetering, satu-satunya yang mencakup SELURUH PLTA — tanpa `pltaId` di
-  rute, tanpa PlantSwitcher. Periode (`?tahun=`, `?bulan=` atau
-  `bulan=semua`) dan cakupan PLTA (`?plta=`) disimpan di URL. Isinya unduhan
-  laporan Excel bulanan (`/hydrology/monthly/report.xlsx`) dan harian
-  (`/hydrology/daily/report.xlsx`, bisa per panel), serta — menyusul —
-  ringkasan armada dari `/hydrology/monthly/overview`. Nama "Overview" tidak
-  dipakai karena sudah menjadi nama menu peta.
+- **Rekap Hidrologi sudah dipecah** (29 Sep 2026) dan submenunya dihapus dari
+  Telemetering. **Ringkasan armada** (`/hydrology/monthly/overview`) kini satu
+  baris di kepala halaman **Overview** (kanan judul): pencapaian armada, rata-rata
+  antar-PLTA, jumlah tercapai/tidak, dan cakupan; pemilih periode dan tabel
+  rata-rata ada di popover **Detail**. Sempat dicoba sebagai kolom 300px di
+  samping peta, tetapi itu mengecilkan gambar peta 15–20% — kepala halaman
+  punya ruang mendatar kosong, jadi tidak menambah tinggi maupun memotong peta.
+  **Unduhan Excel** (`/hydrology/monthly/report.xlsx`,
+  `/hydrology/daily/report.xlsx`) kini tab **Laporan Hidrologi** di menu Laporan
+  (`?tab=hidrologi`), dengan cakupan PLTA sendiri — bukan PlantSwitcher, karena
+  bawaannya seluruh PLTA. Periode (`?tahun=`, `?bulan=` atau `bulan=semua`) dan
+  `?plta=` tetap di URL; alamat lama `/dashboard/telemetering/rekap` dialihkan
+  ke tab itu beserta query-nya. Aturan bersama keduanya di
+  `routes/dashboard/hydrology-report.ts`.
 - **Hapus gambar prakiraan hujan** ada di Upload › Prakiraan Hujan, lewat
   pratinjau gambar lalu `ConfirmDialog`. Berlaku untuk seluruh PLTA dan tidak
   bisa dibatalkan; backend mencatatnya di jejak audit.

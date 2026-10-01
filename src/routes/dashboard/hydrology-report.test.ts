@@ -7,7 +7,7 @@ import {
 	parseReportYear,
 	reportFilename,
 	reportPeriodLabel
-} from './model';
+} from './hydrology-report';
 
 function overview(patch: Partial<MonthlyHydrologyOverview> = {}): MonthlyHydrologyOverview {
 	return {

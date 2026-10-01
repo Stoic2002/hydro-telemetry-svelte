@@ -1,4 +1,4 @@
-import { createMutation, createQuery, useQueryClient } from '@tanstack/svelte-query';
+import { createQuery } from '@tanstack/svelte-query';
 import type { ForecastQueryInput } from '../model';
 import { forecastingRepository } from './repository';
 
@@ -7,6 +7,12 @@ export const forecastQueryKeys = {
 	series: (input: ForecastQueryInput) => [...forecastQueryKeys.all, input] as const
 };
 
+/**
+ * Hanya membaca hasil run terbaru. Run sendiri dijadwalkan backend setiap
+ * 00.30 WIB; dashboard sengaja tidak punya jalur untuk memicu
+ * `POST /forecasts/run` — membuka atau menyegarkan halaman tidak boleh
+ * menjalankan model.
+ */
 export function createForecastQuery(input: () => ForecastQueryInput) {
 	return createQuery(() => {
 		const value = input();
@@ -20,13 +26,4 @@ export function createForecastQuery(input: () => ForecastQueryInput) {
 			refetchOnWindowFocus: false
 		};
 	});
-}
-
-export function createRunForecastMutation() {
-	const queryClient = useQueryClient();
-
-	return createMutation(() => ({
-		mutationFn: (input: ForecastQueryInput) => forecastingRepository.run(input),
-		onSuccess: () => queryClient.invalidateQueries({ queryKey: forecastQueryKeys.all })
-	}));
 }

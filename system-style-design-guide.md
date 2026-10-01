@@ -37,12 +37,14 @@ dokumen ini yang harus diperbarui.
 Catat, supaya tidak "dikembalikan" oleh orang berikutnya yang membandingkan
 dengan dokumen rujukan:
 
-| Rujukan                                   | Di sini        | Alasan                                                                                                                                                                                                       |
-| ----------------------------------------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Aksen magenta `#e0009b`                   | Cyan `#0891b2` | `zone-hulu` juga cyan dan peta bendungan sudah memakai pasangan hulu/dam/hilir; magenta akan berebut perhatian dengan penanda zona dan `status-danger` di layar yang sama                                    |
-| Tema terang **dan** gelap                 | Terang saja    | Layar dipakai di ruang kontrol dengan pencahayaan tetap. Menambah tema gelap berarti mengukur ulang seluruh warna zona, seri grafik, dan ubin radar peta                                                     |
-| "Memuat = teks `Memuat…`, tanpa skeleton" | **Campuran**   | Dokumen rujukan ditulis untuk aplikasi dengan daftar pendek. Layar ini memuat tabel telemetri, grafik 24 jam, dan peta yang butuh waktu — teks di tengah layar kosong membuat layout melompat saat data tiba |
-| Abu sekunder `#7d7d7d`                    | `#6e6e6e`      | 4,12 : 1 di atas putih — terlalu tipis untuk teks kecil yang dipakai di puluhan tempat                                                                                                                       |
+| Rujukan                                    | Di sini                                  | Alasan                                                                                                                                                                                                        |
+| ------------------------------------------ | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Aksen magenta `#e0009b`                    | Cyan `#0891b2`                           | `zone-hulu` juga cyan dan peta bendungan sudah memakai pasangan hulu/dam/hilir; magenta akan berebut perhatian dengan penanda zona dan `status-danger` di layar yang sama                                     |
+| Tema terang **dan** gelap                  | Terang saja                              | Layar dipakai di ruang kontrol dengan pencahayaan tetap. Menambah tema gelap berarti mengukur ulang seluruh warna zona, seri grafik, dan ubin radar peta                                                      |
+| "Memuat = teks `Memuat…`, tanpa skeleton"  | **Campuran**                             | Dokumen rujukan ditulis untuk aplikasi dengan daftar pendek. Layar ini memuat tabel telemetri, grafik 24 jam, dan peta yang butuh waktu — teks di tengah layar kosong membuat layout melompat saat data tiba  |
+| Abu sekunder `#7d7d7d`                     | `#6e6e6e`                                | 4,12 : 1 di atas putih — terlalu tipis untuk teks kecil yang dipakai di puluhan tempat                                                                                                                        |
+| Manrope + JetBrains Mono, bobot normal 485 | IBM Plex Sans + IBM Plex Mono, bobot 400 | Manrope terasa terlalu bulat untuk dashboard kelistrikan (keputusan tim, 29 Sep 2026). Plex dirancang untuk antarmuka teknik dan satu keluarga dengan font angkanya. Bobot 485 hanya masuk akal untuk Manrope |
+| Font dari Google Fonts                     | `@fontsource`, disajikan server sendiri  | Jaringan kantor tidak selalu punya internet; tanpa itu seluruh teks jatuh ke font sistem                                                                                                                      |
 
 **Aturan memuat yang berlaku:** skeleton untuk **peta, grafik, dan tabel**; teks
 `Memuat…` (kelas `.loading-text`) untuk **form, dialog, dan panel kecil**. Tombol
@@ -151,11 +153,20 @@ LayerChart menerima nilai CSS, jadi warnanya dirujuk sebagai
 
 ## 4. Tipografi
 
-Satu family untuk seluruh antarmuka: **Manrope**, wajib varian _variable_
-(`wght@400..800`). Skala bobotnya digeser naik — "normal" adalah **485**, bukan 400. Bobot ganjil itu yang membuat teks terasa sedikit lebih hadir tanpa terlihat
-tebal; dengan bobot statis, 485 dibulatkan ke 500 dan efeknya hilang.
+Satu family untuk seluruh antarmuka: **IBM Plex Sans**, varian _variable_
+(`@fontsource-variable/ibm-plex-sans`, sumbu bobot 100–700). Skala bobot
+standar: normal 400, medium 500, semibold 600, bold 700 — Plex berhenti di 700,
+jadi jangan memakai bobot di atasnya.
 
-`font-mono` (JetBrains Mono) dipertahankan khusus angka dan identifier.
+`font-mono` (**IBM Plex Mono**, 400 dan 500) dipertahankan khusus angka dan
+identifier. Satu keluarga dengan font teksnya, jadi angka di dalam kalimat tidak
+tampak seperti tempelan.
+
+Font diimpor di `routes/+layout.svelte` dan disajikan dari server aplikasi
+sendiri, **bukan Google Fonts**. Teks di dalam SVG (label peta, penanda
+bendungan) memakai `style:font-family="var(--font-sans)"` atau
+`var(--font-mono)`, bukan nama font yang ditulis langsung — mengganti font cukup
+di `layout.css`.
 
 Kelas siap pakai di `@layer components`:
 

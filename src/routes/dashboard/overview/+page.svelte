@@ -3,6 +3,7 @@
 	import JavaMap from '$components/map/JavaMap.svelte';
 	import PageHeader from '$components/ui/PageHeader.svelte';
 	import { createPlantCatalogQuery, getPLTADashboardPath } from '$features/plta';
+	import FleetSummary from './FleetSummary.svelte';
 
 	const OVERVIEW_MAP_PROJECTION = {
 		center: [110.0, -7.35] as [number, number],
@@ -10,30 +11,22 @@
 	};
 
 	const plantsQuery = createPlantCatalogQuery();
-	const activePlantCount = $derived(
-		(plantsQuery.data ?? []).filter((plant) => plant.isActive).length
-	);
 </script>
 
 <div class="flex flex-1 flex-col gap-6">
-	<PageHeader
-		title="Overview"
-		description="Peta sebaran PLTA di Jawa Tengah beserta kapasitas energinya"
-	>
+	<PageHeader title="Overview" description="Peta sebaran PLTA di Jawa Tengah">
 		{#snippet actions()}
-			<span class="flex items-center gap-1.5">
-				<span class="relative flex size-2">
-					<span class="absolute inset-0 rounded-full bg-status-success-strong"></span>
-					<span class="absolute inset-0 animate-ping rounded-full bg-status-success-strong"></span>
-				</span>
-				<span class="text-xs text-text-secondary">Data diperbarui otomatis</span>
-			</span>
-			{#if plantsQuery.isSuccess}
-				<span class="h-3.5 w-px bg-border-subtle"></span>
-				<span class="font-mono text-xs font-medium text-text-muted">
-					{activePlantCount} PLTA aktif
-				</span>
-			{/if}
+			<!--
+				Ringkasan armada (dulu di Telemetering › Rekap Hidrologi) menempati
+				ruang mendatar yang kosong di kanan judul, bukan kolom di samping peta:
+				kolom itu mengecilkan gambar peta 15–20%. Di bawah `xl` kepala halaman
+				menumpuk, jadi ringkasannya turun ke bawah judul.
+			-->
+			<div class="w-full xl:w-auto">
+				<FleetSummary
+					registeredPlantCount={plantsQuery.isSuccess ? (plantsQuery.data?.length ?? 0) : null}
+				/>
+			</div>
 		{/snippet}
 	</PageHeader>
 

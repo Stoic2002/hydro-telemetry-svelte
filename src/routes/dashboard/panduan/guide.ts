@@ -91,7 +91,7 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
 				title: 'Berpindah menu',
 				notes: [
 					'Seluruh menu ada di sidebar kiri. Menu yang tampil menyesuaikan peran akun Anda.',
-					'Tombol panah kecil di tepi sidebar menciutkan sidebar menjadi deretan ikon. Arahkan kursor ke ikon untuk melihat nama menunya.',
+					'Tombol panel di kiri logo, di pojok kiri atas sidebar, menciutkan sidebar menjadi deretan ikon. Tekan lagi untuk memperluasnya. Saat ciut, arahkan kursor ke ikon untuk melihat nama menunya.',
 					'Di layar kecil, sidebar tersembunyi. Buka dengan tombol menu di kiri atas.'
 				]
 			},
@@ -119,7 +119,8 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
 			{
 				title: 'Keluar',
 				steps: [
-					'Tekan ikon keluar di pojok kiri bawah sidebar, di sebelah nama Anda.',
+					'Klik nama Anda di pojok kiri bawah sidebar untuk membuka menu akun.',
+					'Pilih **Keluar**.',
 					'Tekan **Ya, Keluar** pada kotak konfirmasi.'
 				],
 				notes: ['Keluar dari satu tab juga mengakhiri sesi di tab lain pada browser yang sama.']
@@ -129,7 +130,8 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
 	{
 		id: 'overview',
 		title: 'Overview',
-		summary: 'Peta sebaran PLTA di Jawa Tengah beserta citra awan hujan terkini.',
+		summary:
+			'Peta sebaran PLTA di Jawa Tengah, citra awan hujan terkini, dan ringkasan hidrologi armada.',
 		blocks: [
 			{
 				title: 'Membaca peta',
@@ -163,27 +165,27 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
 					'Bila tertulis **Tidak diperbarui sejak …**, penakarnya tidak mengirim data lebih dari 3 jam. Itu **bukan** berarti tidak hujan.',
 					'Nilai yang ditampilkan adalah pembacaan tertinggi dalam 60 menit terakhir, dalam milimeter.'
 				]
+			},
+			{
+				title: 'Ringkasan armada',
+				steps: [
+					'Baris **Ringkasan armada** ada di kanan atas halaman Overview — di layar kecil, di bawah judul.',
+					'Tekan **Detail** untuk memilih bulan — atau **Sepanjang tahun** — dan tahun, serta melihat rata-rata per PLTA.',
+					'Untuk laporan Excel periode yang sama, tekan **Unduh laporan Excel** di dasar panel Detail.'
+				],
+				notes: [
+					'**Pencapaian armada** adalah total prediksi dibagi total target seluruh PLTA — angka yang dipakai untuk melaporkan kinerja gabungan. **Rata-rata antar-PLTA** memberi bobot sama pada setiap PLTA, besar maupun kecil.',
+					'Baris yang prediksi atau targetnya belum diisi tidak dihitung sebagai "tidak tercapai" dan tidak ikut angka armada.',
+					'Titik jingga di sebelah **Detail** berarti ringkasan belum mencakup seluruh PLTA — penjelasannya ada di dalam panel.'
+				]
 			}
 		]
 	},
 	{
 		id: 'telemetering',
 		title: 'Telemetering',
-		summary: 'Rekap seluruh PLTA, serta kondisi hidrologi bulanan dan harian per PLTA.',
+		summary: 'Kondisi hidrologi bulanan dan harian per PLTA.',
 		blocks: [
-			{
-				title: 'Rekap Hidrologi',
-				steps: [
-					'Buka **Telemetering › Rekap Hidrologi**.',
-					'Pilih **Bulan** — atau **Sepanjang tahun** — dan **Tahun**.',
-					'Baca **Ringkasan armada**, lalu unduh **Laporan Hidrologi Bulanan** atau **Laporan Hidrologi Harian** dengan **Unduh Excel**.'
-				],
-				notes: [
-					'**Pencapaian armada** adalah total prediksi dibagi total target seluruh PLTA — angka yang dipakai untuk melaporkan kinerja gabungan. **Rata-rata antar-PLTA** memberi bobot sama pada setiap PLTA, besar maupun kecil.',
-					'Baris yang prediksi atau targetnya belum diisi tidak dihitung sebagai "tidak tercapai" dan tidak ikut angka armada.',
-					'Pilih **Cakupan PLTA** untuk mempersempit laporan ke satu PLTA, dan pilih panel Hulu, Bendungan, atau Hilir untuk laporan harian.'
-				]
-			},
 			{
 				title: 'Hidrologi Bulanan',
 				steps: [
@@ -338,13 +340,13 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
 	{
 		id: 'laporan',
 		title: 'Laporan',
-		summary: 'Membuat dan mengunduh laporan time series bulanan dalam format Excel.',
+		summary: 'Laporan time series per PLTA dan laporan hidrologi seluruh PLTA, dalam format Excel.',
 		blocks: [
 			{
 				title: 'Membuat laporan',
 				example: 'report-create',
 				steps: [
-					'Buka menu **Laporan** dan pilih PLTA di kanan atas.',
+					'Buka menu **Laporan**, tab **Laporan Time Series**, dan pilih PLTA di kanan atas.',
 					'Tekan **Buat Laporan**.',
 					'Pilih **Bulan** dan **Tahun**, lalu centang parameter yang dibutuhkan.',
 					'Tekan **Buat Laporan** pada panel.'
@@ -361,6 +363,18 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
 				notes: [
 					'Bila statusnya **Gagal**, buat ulang laporannya. Bila tetap gagal, hubungi administrator.',
 					'Gunakan kotak pencarian untuk menemukan laporan lama.'
+				]
+			},
+			{
+				title: 'Laporan hidrologi seluruh PLTA',
+				steps: [
+					'Buka menu **Laporan**, tab **Laporan Hidrologi**.',
+					'Pilih **Bulan** — atau **Sepanjang tahun** — dan **Tahun**.',
+					'Unduh **Laporan Hidrologi Bulanan** atau **Laporan Hidrologi Harian** dengan **Unduh Excel**.'
+				],
+				notes: [
+					'Laporan ini langsung diunduh, tanpa antrean.',
+					'Pilih **Cakupan PLTA** untuk mempersempit laporan ke satu PLTA, dan pilih panel Hulu, Bendungan, atau Hilir untuk laporan harian.'
 				]
 			}
 		]
@@ -496,7 +510,7 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
 			{
 				title: 'Mengubah profil',
 				steps: [
-					'Klik nama Anda di pojok kiri bawah sidebar.',
+					'Klik nama Anda di pojok kiri bawah sidebar, lalu pilih **Profil Saya**.',
 					'Ubah **Nama Lengkap** atau **Email** di bagian **Informasi Profil**.',
 					'Tekan **Simpan Profil**.'
 				]

@@ -4,17 +4,24 @@
 	import IconCalendar from '~icons/ph/calendar-blank';
 
 	import Badge from '$components/controls/Badge.svelte';
+	import Skeleton from '$components/controls/Skeleton.svelte';
 	import SegmentedControl from '$components/controls/SegmentedControl.svelte';
 	import Banner from '$components/ui/Banner.svelte';
+	import EmptyState from '$components/ui/EmptyState.svelte';
 	import ErrorState from '$components/ui/ErrorState.svelte';
 	import PageHeader from '$components/ui/PageHeader.svelte';
 	import {
-		FORECASTING_PLTA_ID,
-		FORECASTING_PLTA_NAME,
 		createForecastQuery,
+		findForecastingPlant,
 		type ForecastHorizon,
-		type ForecastParameter
+		type ForecastParameter,
+		type ForecastPoint
 	} from '$features/forecasting';
+	import {
+		createPlantCatalogQuery,
+		getPLTAErrorMessage,
+		getPlantDisplayName
+	} from '$features/plta';
 	import { createTrendQuery } from '$features/trends';
 	import { formatDayMonthWIB, formatDayMonthYearTimeWIB, formatTimeWIB } from '$shared/lib/date';
 	import { chartValueDomain } from '$shared/utils/chart';
@@ -39,7 +46,17 @@
 		{ value: 168, label: '7 Hari' }
 	];
 
-	const pltaId = FORECASTING_PLTA_ID;
+	/**
+	 * PLTA-nya selalu Soedirman, dicari dari katalog lewat nama — id-nya berbeda
+	 * per environment. `pltaId` di alamat sengaja tidak dipakai: menu dan
+	 * `/dashboard/forecasting` sudah mengarah ke Soedirman.
+	 */
+	const plantsQuery = createPlantCatalogQuery();
+	const forecastingPlant = $derived(findForecastingPlant(plantsQuery.data ?? []));
+	const pltaId = $derived(forecastingPlant?.id ?? '');
+	const plantName = $derived(
+		forecastingPlant ? getPlantDisplayName(forecastingPlant) : 'PB Soedirman (Mrica)'
+	);
 
 	let parameter = $state<ForecastParameter>('inflow');
 	let horizon = $state<ForecastHorizon>(24);
@@ -77,6 +94,16 @@
 
 	const series = $derived(forecastQuery.data);
 	const points = $derived(series?.points ?? []);
+	/**
+	 * Titik yang benar-benar berisi prediksi. Statistik dan garis P50 dihitung
+	 * dari sini saja; titik `null` tetap tampil di tabel sebagai "—" supaya
+	 * operator melihat jam mana yang kosong.
+	 */
+	const valuedPoints = $derived(
+		points.filter((point): point is ForecastPoint & { value: number } => point.value !== null)
+	);
+	/** Run ada tetapi tidak berisi satu pun nilai — bukan galat jaringan. */
+	const isEmptyRun = $derived(points.length > 0 && valuedPoints.length === 0);
 
 	function normalizeUnit(unit: string | null | undefined): string {
 		if (!unit) return '';
@@ -95,18 +122,22 @@
 
 	const unit = $derived(normalizeUnit(series?.unit));
 
+	const firstPoint = $derived(valuedPoints[0]);
 	const peakPoint = $derived(
-		points.reduce((peak, point) => (!peak || point.value > peak.value ? point : peak), points[0])
+		valuedPoints.reduce<(typeof valuedPoints)[number] | undefined>(
+			(peak, point) => (!peak || point.value > peak.value ? point : peak),
+			undefined
+		)
 	);
 	const minimumPoint = $derived(
-		points.reduce(
+		valuedPoints.reduce<(typeof valuedPoints)[number] | undefined>(
 			(minimum, point) => (!minimum || point.value < minimum.value ? point : minimum),
-			points[0]
+			undefined
 		)
 	);
 	const average = $derived(
-		points.length > 0
-			? points.reduce((total, point) => total + point.value, 0) / points.length
+		valuedPoints.length > 0
+			? valuedPoints.reduce((total, point) => total + point.value, 0) / valuedPoints.length
 			: null
 	);
 
@@ -122,7 +153,7 @@
 				time: new Date(point.time),
 				iso: point.time
 			});
-			current.forecast = point.value;
+			if (point.value !== null) current.forecast = point.value;
 			if (point.valueP10 !== null && point.valueP90 !== null) {
 				current.p10 = point.valueP10;
 				current.p90 = point.valueP90;
@@ -161,16 +192,13 @@
 </script>
 
 <div class="flex flex-1 flex-col gap-6">
-	<PageHeader
-		title="Forecasting"
-		description={`Prediksi ML terbaru untuk PLTA ${FORECASTING_PLTA_NAME}`}
-	>
+	<PageHeader title="Forecasting" description={`Prediksi ML terbaru untuk PLTA ${plantName}`}>
 		{#snippet actions()}
 			<span
 				class="inline-flex h-10 shrink-0 items-center gap-2 rounded-lg border border-border-subtle bg-surface-raised px-3 text-sm font-medium text-text-primary"
 			>
 				<IconCalendar class="size-4 shrink-0 text-text-muted" />
-				PLTA {FORECASTING_PLTA_NAME}
+				PLTA {plantName}
 			</span>
 		{/snippet}
 	</PageHeader>
@@ -199,8 +227,61 @@
 		</div>
 	</section>
 
-	{#if forecastQuery.isLoading}
-		<p class="loading-text py-10 text-center" role="status">Memuat prediksi…</p>
+	{#if plantsQuery.isError}
+		<section class="rounded-xl border border-border-subtle bg-surface-raised">
+			<ErrorState
+				title="Daftar PLTA belum bisa dimuat"
+				description={getPLTAErrorMessage(plantsQuery.error)}
+				isRetrying={plantsQuery.isFetching}
+				onRetry={() => void plantsQuery.refetch()}
+			/>
+		</section>
+	{:else if plantsQuery.isSuccess && !forecastingPlant}
+		<EmptyState
+			title="PLTA Soedirman tidak ditemukan"
+			description="Forecasting hanya tersedia untuk PLTA PB Soedirman (Mrica), tetapi PLTA itu tidak ada di daftar PLTA server ini."
+		/>
+	{:else if plantsQuery.isPending || forecastQuery.isLoading}
+		<!--
+			Halaman ini berisi grafik dan tabel, jadi memakai skeleton seperti
+			halaman sejenis — bukan teks "Memuat…". Bentuknya mengikuti isi aslinya
+			supaya tata letak tidak melompat saat data tiba.
+		-->
+		<div role="status" aria-label="Memuat prediksi" class="flex flex-col gap-6">
+			<div
+				class="grid grid-cols-1 divide-y divide-border-subtle overflow-hidden rounded-xl border border-border-subtle bg-surface-raised sm:grid-cols-2 sm:divide-x sm:divide-y-0 xl:grid-cols-4"
+			>
+				{#each [0, 1, 2, 3] as index (index)}
+					<div class="p-4">
+						<Skeleton class="h-2.5 w-24 rounded" />
+						<Skeleton class="mt-2.5 h-6 w-28 rounded" />
+						<Skeleton class="mt-2 h-2.5 w-32 rounded" />
+					</div>
+				{/each}
+			</div>
+
+			<section class="overflow-hidden rounded-xl border border-border-subtle bg-surface-raised">
+				<div class="border-b border-surface-overlay px-5 py-4">
+					<Skeleton class="h-4 w-32 rounded" />
+					<Skeleton class="mt-2 h-2.5 w-64 max-w-full rounded" />
+				</div>
+				<div class="px-2 pt-5 pb-3 sm:px-5">
+					<Skeleton class="h-[360px] w-full rounded-lg" />
+				</div>
+			</section>
+
+			<div class="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]">
+				<div class="flex flex-col gap-3">
+					<Skeleton class="h-4 w-36 rounded" />
+					{#each [0, 1, 2, 3] as index (index)}
+						<Skeleton class="h-5 w-full rounded" />
+					{/each}
+				</div>
+				<Skeleton class="h-[222px] rounded-xl" />
+			</div>
+
+			<span class="sr-only">Memuat prediksi...</span>
+		</div>
 	{:else if forecastQuery.isError}
 		<section class="rounded-xl border border-border-subtle bg-surface-raised">
 			<ErrorState
@@ -218,6 +299,19 @@
 			</Banner>
 		{/if}
 
+		{#if isEmptyRun}
+			<Banner tone="warning" title="Prediksi terbaru belum berisi nilai">
+				Model berjalan pada {formatDateTime(series?.generatedAt)}, tetapi tidak menghasilkan angka
+				untuk satu jam pun. Garis prediksi dan statistik dikosongkan; prediksi berikutnya dibuat
+				pukul 00.30 WIB.
+			</Banner>
+		{:else if valuedPoints.length < points.length}
+			<Banner tone="warning" title="Sebagian jam belum berisi prediksi">
+				{points.length - valuedPoints.length} dari {points.length} jam tidak punya nilai dari model dan
+				tampil sebagai "—" di tabel.
+			</Banner>
+		{/if}
+
 		{#if series?.accuracy && !series.accuracy.isPresentable}
 			<Banner tone="warning" title="Akurasi model belum layak jadi acuan tunggal">
 				Gunakan bersama data aktual dan pertimbangan operator.
@@ -227,7 +321,7 @@
 		<div
 			class="grid grid-cols-1 divide-y divide-border-subtle overflow-hidden rounded-xl border border-border-subtle bg-surface-raised sm:grid-cols-2 sm:divide-x sm:divide-y-0 xl:grid-cols-4"
 		>
-			{#each [{ label: 'Prediksi awal', value: points[0] ? formatNumber(points[0].value, 2) : 'N/A', detail: points[0] ? formatDateTime(points[0].time) : 'Belum ada data' }, { label: 'Prediksi maksimum', value: peakPoint ? formatNumber(peakPoint.value, 2) : 'N/A', detail: peakPoint ? formatDateTime(peakPoint.time) : 'Belum ada data' }, { label: 'Prediksi minimum', value: minimumPoint ? formatNumber(minimumPoint.value, 2) : 'N/A', detail: minimumPoint ? formatDateTime(minimumPoint.time) : 'Belum ada data' }, { label: 'Rata-rata', value: average === null ? 'N/A' : formatNumber(average, 2), detail: `${points.length} titik · horizon ${horizon} jam` }] as item (item.label)}
+			{#each [{ label: 'Prediksi awal', value: firstPoint ? formatNumber(firstPoint.value, 2) : 'N/A', detail: firstPoint ? formatDateTime(firstPoint.time) : 'Belum ada data' }, { label: 'Prediksi maksimum', value: peakPoint ? formatNumber(peakPoint.value, 2) : 'N/A', detail: peakPoint ? formatDateTime(peakPoint.time) : 'Belum ada data' }, { label: 'Prediksi minimum', value: minimumPoint ? formatNumber(minimumPoint.value, 2) : 'N/A', detail: minimumPoint ? formatDateTime(minimumPoint.time) : 'Belum ada data' }, { label: 'Rata-rata', value: average === null ? 'N/A' : formatNumber(average, 2), detail: `${valuedPoints.length} titik · horizon ${horizon} jam` }] as item (item.label)}
 				<div class="p-4">
 					<p class="table-head-cell">{item.label}</p>
 					<p class="metric-value mt-1.5 text-xl font-semibold">
@@ -400,7 +494,7 @@
 								<tr class="font-mono text-xs text-text-secondary hover:bg-surface-base/70">
 									<td class="px-3.5 py-2">{formatDateTime(point.time)}</td>
 									<td class="px-3.5 py-2 font-medium text-text-primary">
-										{formatNumber(point.value, 2)}
+										{point.value === null ? '—' : formatNumber(point.value, 2)}
 									</td>
 									<td class="px-3.5 py-2 text-text-muted">
 										{point.valueP10 === null ? '—' : formatNumber(point.valueP10, 2)}

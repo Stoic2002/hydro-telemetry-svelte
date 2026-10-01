@@ -19,7 +19,7 @@ aplikasi, kontrak API, dan keputusan produk dipertahankan.
 | Komponen     | **bits-ui** (headless)                         | Dialog, sheet, select, popover                   |
 | Grafik       | **layerchart** + `d3-scale`                    | Menggantikan Recharts                            |
 | Ikon         | **Iconify** via `unplugin-icons`               | Di-compile saat build, **tanpa request runtime** |
-| Font         | Manrope (variable) + JetBrains Mono            |                                                  |
+| Font         | IBM Plex Sans (variable) + IBM Plex Mono       | Via `@fontsource`, **tanpa request runtime**     |
 | Test         | **Vitest** + `@testing-library/svelte` + jsdom |                                                  |
 
 ### Kenapa SPA, bukan SSR

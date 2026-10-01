@@ -1,4 +1,9 @@
 <script lang="ts">
+	// Hanya berkas yang dipakai: sumbu bobot Plex Sans (tanpa sumbu lebar dan
+	// italic), dan Plex Mono 400/500 untuk angka.
+	import '@fontsource-variable/ibm-plex-sans/wght.css';
+	import '@fontsource/ibm-plex-mono/400.css';
+	import '@fontsource/ibm-plex-mono/500.css';
 	import './layout.css';
 	import { QueryClientProvider } from '@tanstack/svelte-query';
 	import { queryClient } from '$core/query-client';

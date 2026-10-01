@@ -11,6 +11,7 @@ import {
 	pickDefaultPlant,
 	type PLTADashboardPage
 } from '../features/plta';
+import { findForecastingPlant } from '../features/forecasting';
 import { queryClient } from './query-client';
 
 /**
@@ -90,4 +91,19 @@ export async function redirectToDefaultPLTA(
 	}
 
 	redirect(307, `${getPLTADashboardPath(defaultPlant.id, page)}${search}`);
+}
+
+/**
+ * Forecasting hanya untuk PLTA Soedirman, jadi alamat tanpa `pltaId` dialihkan
+ * ke PLTA itu — bukan ke PLTA bawaan seperti menu lain.
+ */
+export async function redirectToForecastingPlant(search: string): Promise<never> {
+	await requireAuthenticated();
+
+	const plants = await ensurePlantCatalog(queryClient);
+	const plant = findForecastingPlant(plants);
+
+	if (!plant) redirect(307, '/dashboard/overview');
+
+	redirect(307, `${getPLTADashboardPath(plant.id, 'forecasting')}${search}`);
 }

@@ -3,7 +3,8 @@ import { getDashboardSkeletonVariant } from './dashboardSkeletonVariant';
 
 /**
  * Bentuk skeleton dipilih dari pathname tujuan, dan rute sempat berpindah dua
- * kali: Upload keluar dari Telemetering, lalu Rekap Hidrologi masuk ke bawahnya.
+ * kali: Upload keluar dari Telemetering, lalu Rekap Hidrologi masuk ke bawahnya
+ * (dan belakangan dipecah ke Overview dan Laporan).
  * Urutan pemeriksaannya penting — `/dashboard/upload` dan
  * `/dashboard/telemetering/rekap` sama-sama akan cocok dengan aturan yang lebih
  * umum bila diperiksa belakangan.
@@ -30,8 +31,9 @@ describe('bentuk skeleton per halaman', () => {
 		expect(getDashboardSkeletonVariant('/dashboard/plta/abc/input-ghw')).toBe('upload');
 	});
 
-	it('tidak memakai bentuk panel parameter untuk Rekap Hidrologi', () => {
-		// Isinya ringkasan dan daftar unduhan, bukan tiga kartu zona.
-		expect(getDashboardSkeletonVariant('/dashboard/telemetering/rekap')).toBe('default');
+	it('memakai bentuk halaman Laporan untuk alamat lama Rekap Hidrologi', () => {
+		// Rekap sudah dipecah; alamatnya dialihkan ke tab Laporan Hidrologi,
+		// bukan ke tiga kartu zona Telemetering.
+		expect(getDashboardSkeletonVariant('/dashboard/telemetering/rekap')).toBe('table');
 	});
 });

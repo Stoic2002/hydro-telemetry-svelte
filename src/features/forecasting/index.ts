@@ -1,3 +1,3 @@
-export { createForecastQuery, createRunForecastMutation } from './api/queries';
-export { FORECASTING_PLTA_ID, FORECASTING_PLTA_NAME } from './constants';
-export type { ForecastHorizon, ForecastParameter } from './model';
+export { createForecastQuery } from './api/queries';
+export { findForecastingPlant } from './constants';
+export type { ForecastHorizon, ForecastParameter, ForecastPoint } from './model';

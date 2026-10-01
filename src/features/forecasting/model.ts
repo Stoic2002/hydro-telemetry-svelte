@@ -11,7 +11,8 @@ export interface ForecastAccuracySummary {
 export interface ForecastPoint {
 	time: string;
 	horizon: number;
-	value: number;
+	/** P50. `null` bila run model tidak menghasilkan nilai untuk jam itu. */
+	value: number | null;
 	valueP10: number | null;
 	valueP90: number | null;
 }
@@ -31,9 +32,4 @@ export interface ForecastQueryInput {
 	pltaId: string;
 	parameter: ForecastParameter;
 	horizon: ForecastHorizon;
-}
-
-export interface ForecastRunResult {
-	taskId: string;
-	status: string;
 }

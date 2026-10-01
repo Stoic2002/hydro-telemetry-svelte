@@ -1,8 +1,10 @@
 import type { MonthlyHydrologyOverview } from '$features/hydrology';
-import { MONTHS } from '../../plta/[pltaId]/telemetering/presentation';
+import { MONTHS } from './plta/[pltaId]/telemetering/presentation';
 
 /**
- * Aturan murni halaman Rekap Hidrologi.
+ * Aturan murni laporan hidrologi seluruh PLTA — dipakai tab Laporan Hidrologi
+ * di menu Laporan dan ringkasan armada di Overview. Dulu keduanya satu halaman
+ * (Telemetering › Rekap Hidrologi).
  *
  * Dipisah dari komponen karena ketiganya bisa salah tanpa gejala di layar:
  * periode yang terbaca keliru, nama berkas yang bertabrakan, dan — paling
