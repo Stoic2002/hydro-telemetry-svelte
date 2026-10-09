@@ -15,4 +15,10 @@ export interface UsersRepository {
 	updateById(userId: string, input: UpdateUserInput): Promise<UserAccount>;
 	updateStatus(userId: string, isActive: boolean): Promise<UserAccount>;
 	deleteById(userId: string): Promise<void>;
+	/**
+	 * Mencabut semua token user ini (semua perangkat) tanpa menonaktifkan
+	 * akunnya — untuk token yang dicurigai bocor. Pemiliknya tetap bisa login
+	 * ulang.
+	 */
+	revokeSessions(userId: string): Promise<void>;
 }

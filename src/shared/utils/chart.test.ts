@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { chartValueDomain } from './chart';
+import { chartValueDomain, timeAxisFormatter, valueAxisTicks } from './chart';
 
 describe('chartValueDomain', () => {
 	it('memberi rentang aman saat tidak ada nilai', () => {
@@ -38,5 +38,45 @@ describe('chartValueDomain', () => {
 
 	it('mengizinkan dasar negatif kalau datanya memang negatif', () => {
 		expect(chartValueDomain([-8, -2])[0]).toBeLessThan(-8);
+	});
+});
+
+describe('valueAxisTicks', () => {
+	it('memberi desimal secukupnya agar tick bertetangga tidak berlabel sama', () => {
+		const { ticks, fractionDigits } = valueAxisTicks([223.08, 223.32]);
+
+		expect(fractionDigits).toBe(2);
+		const labels = ticks.map((tick) => tick.toFixed(fractionDigits));
+		expect(new Set(labels).size).toBe(labels.length);
+	});
+
+	it('tanpa desimal bila tick-nya bilangan bulat, berapa pun besarnya', () => {
+		expect(valueAxisTicks([0, 900]).fractionDigits).toBe(0);
+		expect(valueAxisTicks([4.1, 4.9]).fractionDigits).toBe(1);
+	});
+
+	it('aman untuk rentang datar', () => {
+		expect(valueAxisTicks([5, 5]).fractionDigits).toBe(0);
+	});
+});
+
+describe('timeAxisFormatter', () => {
+	// 07 Okt 2026 14:00 WIB = 07:00 UTC; tengah malam WIB = 17:00 UTC hari sebelumnya.
+	const afternoon = new Date('2026-10-07T07:00:00Z');
+	const midnight = new Date('2026-10-06T17:00:00Z');
+
+	it('rentang sehari menampilkan jam, dan tanggal di tick tengah malam', () => {
+		const format = timeAxisFormatter(24 * 60 * 60 * 1000);
+
+		expect(format(afternoon)).toBe('14:00');
+		expect(format(midnight)).toBe('07 Okt');
+	});
+
+	it('rentang beberapa hari menampilkan tanggal dan jam', () => {
+		expect(timeAxisFormatter(7 * 24 * 60 * 60 * 1000)(afternoon)).toBe('07 Okt 14:00');
+	});
+
+	it('rentang panjang cukup tanggal', () => {
+		expect(timeAxisFormatter(30 * 24 * 60 * 60 * 1000)(afternoon)).toBe('07 Okt');
 	});
 });

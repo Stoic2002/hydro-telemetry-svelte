@@ -9,7 +9,7 @@
 	 */
 	let {
 		queryClient,
-		kind = 'curah_hujan',
+		kind = 'prediksi_curah_hujan',
 		onClose = () => {}
 	}: {
 		queryClient: QueryClient;

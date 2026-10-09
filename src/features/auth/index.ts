@@ -4,6 +4,7 @@ export { mapAuthUserToUIUser } from './model';
 export {
 	canAccessDataTools,
 	canEditHydrologyData,
+	canEditTagBounds,
 	canManageUsers,
 	canUploadMonthlyHydrology
 } from './permissions';

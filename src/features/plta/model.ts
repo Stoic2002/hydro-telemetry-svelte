@@ -50,6 +50,20 @@ export interface PlantTag {
 	offset: number;
 	unit: string;
 	enabled: boolean;
+	/** Nama tampilan tag; `null` bila belum diberi. */
+	label: string | null;
+	/** Batas bawah kelayakan pembacaan; `null` = tanpa batas di sisi itu. */
+	minValid: number | null;
+	maxValid: number | null;
+}
+
+/**
+ * Rentang pembacaan yang dianggap sah. Server menerimanya sebagai satu
+ * kesatuan: mengirim satu sisi saja tetap menimpa sisi lain menjadi `null`.
+ */
+export interface TagBounds {
+	minValid: number | null;
+	maxValid: number | null;
 }
 
 export interface PlantTagListParams extends ListParams {

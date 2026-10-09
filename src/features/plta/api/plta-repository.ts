@@ -4,7 +4,8 @@ import type {
 	Plant,
 	PlantTag,
 	PlantTagListParams,
-	RiverBasin
+	RiverBasin,
+	TagBounds
 } from '../model';
 
 export interface PLTARepository {
@@ -12,4 +13,9 @@ export interface PLTARepository {
 	list(params: ListParams): Promise<PaginatedResult<Plant>>;
 	getById(pltaId: string): Promise<Plant | null>;
 	listTags(pltaId: string, params: PlantTagListParams): Promise<PaginatedResult<PlantTag>>;
+	/**
+	 * Menyetel rentang pembacaan sah satu tag. Berlaku ke depan: pembacaan yang
+	 * sudah tersimpan tidak dinilai ulang. `{null, null}` mencabut pembatasan.
+	 */
+	updateTagBounds(tagId: string, bounds: TagBounds): Promise<PlantTag>;
 }

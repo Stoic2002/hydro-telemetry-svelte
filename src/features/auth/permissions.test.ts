@@ -3,6 +3,7 @@ import type { User, UserRole } from './model';
 import {
 	canAccessDataTools,
 	canEditHydrologyData,
+	canEditTagBounds,
 	canManageUsers,
 	canUploadMonthlyHydrology
 } from './permissions';
@@ -46,6 +47,13 @@ describe('permissions', () => {
 		expect(canEditHydrologyData(userWithRole('Operator PLTA'))).toBe(true);
 		expect(canEditHydrologyData(userWithRole('Viewer'))).toBe(false);
 		expect(canEditHydrologyData(null)).toBe(false);
+	});
+
+	it('membuka pengaturan batas tag untuk non-Viewer', () => {
+		expect(canEditTagBounds(userWithRole('Super Admin'))).toBe(true);
+		expect(canEditTagBounds(userWithRole('Operator PLTA'))).toBe(true);
+		expect(canEditTagBounds(userWithRole('Viewer'))).toBe(false);
+		expect(canEditTagBounds(null)).toBe(false);
 	});
 
 	it('menolak akses saat profil sesi belum tersedia', () => {

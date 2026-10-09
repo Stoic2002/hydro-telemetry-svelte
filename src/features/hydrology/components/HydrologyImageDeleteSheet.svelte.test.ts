@@ -8,7 +8,7 @@ import { hydrologyQueryKeys } from '../api/queries';
 import Harness from './HydrologyImageDeleteSheet.test-harness.svelte';
 
 /**
- * Menghapus gambar prakiraan hujan berlaku untuk SELURUH PLTA dan tidak dapat
+ * Menghapus gambar hujan berlaku untuk SELURUH PLTA dan tidak dapat
  * dibatalkan. Yang dikunci di sini: tombolnya tidak bisa ditekan sebelum ada
  * gambar yang terbukti ada, dan setelah terhapus cache gambarnya dibuang —
  * bukan di-invalidasi, karena memuat ulang hanya akan berakhir 404.
@@ -41,7 +41,7 @@ beforeEach(() => {
 	vi.clearAllMocks();
 });
 
-describe('panel hapus gambar prakiraan hujan', () => {
+describe('panel hapus gambar hujan', () => {
 	it('menahan tombol hapus saat periode itu belum punya gambar', async () => {
 		repository.getMonthlyImage.mockRejectedValue(notFound());
 
@@ -69,7 +69,7 @@ describe('panel hapus gambar prakiraan hujan', () => {
 
 		await waitFor(() => expect(repository.deleteMonthlyImage).toHaveBeenCalledTimes(1));
 		const [year, month, kind] = repository.deleteMonthlyImage.mock.calls[0];
-		expect(kind).toBe('curah_hujan');
+		expect(kind).toBe('prediksi_curah_hujan');
 		expect(
 			queryClient.getQueryData(hydrologyQueryKeys.monthlyImage(year, month, kind))
 		).toBeUndefined();

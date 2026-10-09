@@ -8,6 +8,7 @@
 	import { createUploadMonthlyHydrologyImageMutation } from '../api/queries';
 	import { getHydrologyErrorMessage } from '../error';
 	import type { MonthlyHydrologyImageKind } from '../model';
+	import { MONTHLY_IMAGE_KIND_LABEL } from '../monthly-image';
 
 	interface Props {
 		isOpen: boolean;
@@ -43,11 +44,6 @@
 		(value) => ({ value: String(value), label: String(value) })
 	);
 
-	const IMAGE_KIND_LABEL: Record<MonthlyHydrologyImageKind, string> = {
-		curah_hujan: 'Prakiraan Curah Hujan',
-		sifat_hujan: 'Prakiraan Sifat Hujan'
-	};
-
 	const uploadMutation = createUploadMonthlyHydrologyImageMutation();
 
 	let file = $state<File | null>(null);
@@ -59,7 +55,7 @@
 	let year = $state(String(CURRENT_YEAR));
 
 	const monthLabel = $derived(MONTH_LABELS[Number(month) - 1]);
-	const imageLabel = $derived(IMAGE_KIND_LABEL[kind]);
+	const imageLabel = $derived(MONTHLY_IMAGE_KIND_LABEL[kind]);
 	const isPending = $derived(uploadMutation.isPending);
 
 	function selectFile(nextFile: File | null) {
@@ -130,7 +126,7 @@
 				<IconImagePlus class="size-5" />
 			</span>
 			<span class="text-sm font-medium text-text-secondary">
-				{file ? file.name : 'Pilih gambar prakiraan hujan'}
+				{file ? file.name : 'Pilih gambar peta hujan'}
 			</span>
 			<span class="text-xs text-text-muted">PNG, JPG, atau JPEG · maksimal 5 MB</span>
 			<input

@@ -46,6 +46,13 @@ export function createCreateReportMutation() {
 	}));
 }
 
+export function createDownloadTimeseriesExcelMutation() {
+	return createMutation(() => ({
+		mutationFn: ({ pltaId, start, end }: { pltaId: string; start: string; end: string }) =>
+			reportsRepository.downloadTimeseriesExcel(pltaId, start, end)
+	}));
+}
+
 export function createDownloadReportMutation() {
 	return createMutation(() => ({
 		mutationFn: (reportId: string) => reportsRepository.download(reportId)

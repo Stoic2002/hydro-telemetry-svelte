@@ -10,6 +10,7 @@
 	import EmptyState from '$components/ui/EmptyState.svelte';
 	import ErrorState from '$components/ui/ErrorState.svelte';
 	import PageHeader from '$components/ui/PageHeader.svelte';
+	import ForecastAccuracyPanel from './ForecastAccuracyPanel.svelte';
 	import {
 		createForecastQuery,
 		findForecastingPlant,
@@ -509,5 +510,7 @@
 				</div>
 			</section>
 		</div>
+
+		<ForecastAccuracyPanel {pltaId} {parameter} {horizon} {unit} />
 	{/if}
 </div>

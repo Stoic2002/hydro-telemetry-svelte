@@ -19,12 +19,21 @@
 		ALL_MONTHS,
 		ALL_PANELS,
 		ALL_PLANTS,
+		NO_RANGE,
+		REPORT_END_MONTH_OPTIONS,
+		REPORT_END_YEAR_OPTIONS,
+		REPORT_MONTH_OPTIONS,
+		REPORT_YEAR_OPTIONS,
+		hasReportRange,
+		nextReportSearch,
+		parseReportEndMonth,
+		parseReportEndYear,
 		parseReportMonth,
 		parseReportYear,
 		reportFilename,
-		reportPeriodLabel
+		reportPeriodLabel,
+		reportRangeError
 	} from '../../../hydrology-report';
-	import { MONTHS } from '../telemetering/presentation';
 
 	/**
 	 * Laporan Excel hidrologi SELURUH PLTA — dulu bagian "Unduh laporan" di
@@ -38,13 +47,8 @@
 	 */
 
 	const CURRENT_YEAR = new Date().getFullYear();
-	const MONTH_OPTIONS = [
-		{ value: ALL_MONTHS, label: 'Sepanjang tahun' },
-		...MONTHS.map((label, index) => ({ value: String(index + 1), label }))
-	];
-	const YEAR_OPTIONS = Array.from({ length: 6 }, (_, index) => CURRENT_YEAR + 1 - index).map(
-		(value) => ({ value: String(value), label: String(value) })
-	);
+	// Akhir rentang (REPORT_END_*) hanya untuk laporan bulanan: server tidak
+	// mendukung rentang pada laporan harian.
 	const PANEL_OPTIONS: { value: DailyReportPanel | typeof ALL_PANELS; label: string }[] = [
 		{ value: ALL_PANELS, label: 'Semua panel' },
 		{ value: 'hulu', label: 'Hulu' },
@@ -61,6 +65,12 @@
 	const month = $derived(
 		parseReportMonth(page.url.searchParams.get('bulan'), new Date().getMonth() + 1)
 	);
+	const endYear = $derived(parseReportEndYear(page.url.searchParams.get('tahun_akhir')));
+	const endMonth = $derived(parseReportEndMonth(page.url.searchParams.get('bulan_akhir')));
+	const monthlyPeriod = $derived({ year, month, endYear, endMonth });
+	/** Rentang yang pasti ditolak server menahan tombol unduh bulanan. */
+	const rangeError = $derived(reportRangeError(monthlyPeriod));
+	const monthlyPeriodLabel = $derived(reportPeriodLabel(year, month, endYear, endMonth));
 	const plants = $derived(plantsQuery.data ?? []);
 	const selectedPlant = $derived(
 		plants.find((plant) => plant.id === page.url.searchParams.get('plta'))
@@ -80,26 +90,44 @@
 		}))
 	]);
 
-	function setFilter(key: 'tahun' | 'bulan' | 'plta', value: string) {
-		// Salinan sekali pakai untuk menyusun URL berikutnya; dibuang setelah
-		// `goto`, jadi tidak perlu `SvelteURLSearchParams`.
-		// eslint-disable-next-line svelte/prefer-svelte-reactivity
-		const params = new URLSearchParams(page.url.searchParams);
-		if (key === 'plta' && value === ALL_PLANTS) params.delete('plta');
-		else params.set(key, value);
-		void goto(`?${params.toString()}`, { replaceState: true, keepFocus: true, noScroll: true });
+	type FilterKey = 'tahun' | 'bulan' | 'plta' | 'tahun_akhir' | 'bulan_akhir';
+
+	function setFilter(key: FilterKey, value: string) {
+		setFilters({ [key]: value });
+	}
+
+	/**
+	 * Beberapa parameter dalam SATU navigasi: dua `goto` berturut-turut sama-sama
+	 * membaca URL lama, sehingga yang kedua mengembalikan perubahan yang pertama.
+	 */
+	function setFilters(changes: Partial<Record<FilterKey, string>>) {
+		void goto(nextReportSearch(page.url.searchParams, changes), {
+			replaceState: true,
+			keepFocus: true,
+			noScroll: true
+		});
 	}
 
 	async function downloadMonthlyReport() {
 		try {
+			if (rangeError) return;
 			const blob = await monthlyReportMutation.mutateAsync({
 				year,
 				month,
+				endYear,
+				endMonth,
 				pltaId: selectedPlant?.id
 			});
 			downloadBlob(
 				blob,
-				reportFilename({ kind: 'bulanan', year, month, plantCode: selectedPlant?.code })
+				reportFilename({
+					kind: 'bulanan',
+					year,
+					month,
+					endYear,
+					endMonth,
+					plantCode: selectedPlant?.code
+				})
 			);
 		} catch (error) {
 			notificationStore.addToast({ type: 'error', message: getHydrologyErrorMessage(error) });
@@ -139,7 +167,7 @@
 			label="Bulan"
 			value={month ? String(month) : ALL_MONTHS}
 			onValueChange={(value) => setFilter('bulan', value)}
-			options={MONTH_OPTIONS}
+			options={REPORT_MONTH_OPTIONS}
 			controlSize="sm"
 			class="w-full sm:w-[180px]"
 		/>
@@ -147,7 +175,7 @@
 			label="Tahun"
 			value={String(year)}
 			onValueChange={(value) => setFilter('tahun', value)}
-			options={YEAR_OPTIONS}
+			options={REPORT_YEAR_OPTIONS}
 			controlSize="sm"
 			class="w-full sm:w-[140px]"
 		/>
@@ -176,16 +204,51 @@
 				<div class="min-w-0">
 					<h3 class="card-title">Laporan Hidrologi Bulanan</h3>
 					<p class="mt-0.5 text-xs leading-relaxed text-text-muted">
-						Lembar DATA berisi satu baris per PLTA per bulan, lengkap dengan persentase dan status
-						pencapaian. Lembar RINGKASAN berisi rata-rata armada dan jumlah tercapai/tidak.
+						Lembar DATA berisi rekap tiap PLTA per bulan, lengkap dengan persentase dan status
+						pencapaian. Lembar RINGKASAN berisi rata-rata seluruh PLTA dan jumlah tercapai/tidak.
 					</p>
+					<div class="mt-3 flex flex-wrap items-end gap-2">
+						<span class="field-label w-full sm:w-auto sm:pb-2.5">Sampai (opsional)</span>
+						<div class="w-[150px] shrink-0">
+							<Select
+								ariaLabel="Bulan akhir laporan bulanan"
+								value={endMonth ? String(endMonth) : NO_RANGE}
+								onValueChange={(value) => setFilter('bulan_akhir', value)}
+								options={REPORT_END_MONTH_OPTIONS}
+								controlSize="sm"
+							/>
+						</div>
+						<div class="w-[110px] shrink-0">
+							<Select
+								ariaLabel="Tahun akhir laporan bulanan"
+								value={endYear ? String(endYear) : NO_RANGE}
+								onValueChange={(value) => setFilter('tahun_akhir', value)}
+								options={REPORT_END_YEAR_OPTIONS}
+								controlSize="sm"
+							/>
+						</div>
+						{#if hasReportRange(monthlyPeriod)}
+							<button
+								type="button"
+								onclick={() => setFilters({ tahun_akhir: NO_RANGE, bulan_akhir: NO_RANGE })}
+								class="cursor-pointer pb-2.5 text-xs font-medium text-brand-primary-strong hover:text-brand-primary-pressed"
+							>
+								Hapus rentang
+							</button>
+						{/if}
+					</div>
+					{#if rangeError}
+						<p role="alert" class="mt-1.5 text-xs text-status-danger-strong">{rangeError}</p>
+					{:else if hasReportRange(monthlyPeriod)}
+						<p class="mt-1.5 text-xs text-text-muted">Periode laporan: {monthlyPeriodLabel}</p>
+					{/if}
 				</div>
 			</div>
 			<Button
 				type="button"
 				variant="ghost"
 				size="sm"
-				disabled={monthlyReportMutation.isPending}
+				disabled={monthlyReportMutation.isPending || Boolean(rangeError)}
 				onclick={() => void downloadMonthlyReport()}
 				class="shrink-0 whitespace-nowrap text-brand-primary-strong"
 			>

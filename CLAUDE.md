@@ -119,9 +119,16 @@ Hal-hal yang sudah pernah menggigit dan tidak akan terlihat dari membaca kode:
   backend", cek Swagger dan bandingkan query param / request body / response
   dengan schema Zod.
 - Auth: `POST /api/v1/auth/login` dengan **`x-www-form-urlencoded`** (username,
-  password), `/auth/refresh`, `/auth/me`. **Tidak ada API logout** — logout murni
-  sisi klien (hapus token + bersihkan cache query). Ini keputusan tim, bukan
-  kekurangan.
+  password), `/auth/refresh`, `/auth/me`. **Logout sekarang dicabut di server**
+  (9 Okt 2026; dulu murni sisi klien karena endpoint-nya belum ada):
+  `authStore.logout()` membersihkan sesi lokal **lebih dulu** lalu mengirim
+  `POST /auth/logout` dengan access token di header **dan** `refresh_token` di
+  badan (tanpa refresh token sesi bisa hidup lagi 7 hari). Galat dan waktu
+  tunggu > 3 dtk diabaikan — server selalu membalas 204, dan keluar tidak boleh
+  bisa gagal. **Keluar dari semua perangkat** (Profil Saya,
+  `POST /auth/logout-all`) justru harus berhasil dulu: bila gagal, sesi lokal
+  dipertahankan dan galatnya tampil. Admin bisa **Cabut sesi** user lain di
+  User Management (`POST /users/{id}/revoke-sessions`; akunnya tetap aktif).
 - Realtime: `wss://<host>/api/v1/ws/monitoring?token=${accessToken}&plta_id=${pltaId}`.
 - Upload Excel: kirim file mentah ke server. **Jangan parsing Excel di frontend** —
   ini perubahan dari implementasi awal yang parsing di klien.
@@ -194,7 +201,10 @@ Hal-hal yang sudah pernah menggigit dan tidak akan terlihat dari membaca kode:
   Untuk curah hujan pembandingnya juga garis, bukan batang berdampingan — 168
   batang per jam (7 hari) tidak terbaca bila digandakan.
 - **Laporan**: alur = pilih laporan → masuk daftar tabel → status `completed` →
-  download. Hanya periode bulanan dan hanya parameter time series. Daftar laporan
+  download. Di atas daftar ada **Unduh langsung: Excel per jam**
+  (`GET /dashboard/plta/{id}/timeseries.xlsx?start=&end=`, 13 kolom rata-rata
+  per jam, tanpa antrean, maks. 62 hari inklusif; rentang yang pasti ditolak
+  tidak dikirim — `features/reports/timeseries-range.ts`). Hanya periode bulanan dan hanya parameter time series. Daftar laporan
   pakai paginasi + search, tanpa tombol "Perbarui"; polling berhenti sendiri
   begitu tidak ada baris `pending`/`processing`.
 - **Forecasting**: khusus PLTA Soedirman, tanpa pemilih PLTA. PLTA-nya
@@ -205,7 +215,13 @@ Hal-hal yang sudah pernah menggigit dan tidak akan terlihat dari membaca kode:
   mengalihkan ke Soedirman. `points[].value` boleh `null` walau Swagger
   menyebutnya wajib: run 1 Okt 2026 00.30 WIB mengirim 24 titik kosong semua,
   dan halaman menampilkan "Prediksi terbaru belum berisi nilai", bukan galat
-  kontrak.
+  kontrak. **Akurasi prediksi yang tersaji** (`GET /forecasts/accuracy`, 9 Okt 2026) di dasar halaman: prediksi jatuh tempo 30 hari terakhir vs realisasi —
+  MAE, RMSE, galat relatif, akurasi %, dan pecahan `per_versi` (kunci
+  `fallback` = tanpa model). Responsnya objek bebas di Swagger, jadi schema
+  Zod-nya toleran (metrik boleh hilang; `{n: 0, per_versi: {}}` = belum ada
+  yang jatuh tempo). Rentangnya dihitung **sekali** per halaman dan dibulatkan
+  ke jam (`forecastAccuracyWindow`) — rentang yang dihitung ulang tiap render
+  mengubah kunci query dan memicu permintaan tanpa henti.
 - **User Management**: limit paginasi 10 item.
 - **Overview**: peta Jawa Tengah dengan batas kabupaten/kota, garis aliran
   sungai, dan overlay **awan hujan Himawari-9** (NASA GIBS, kanal 13
@@ -230,12 +246,132 @@ Hal-hal yang sudah pernah menggigit dan tidak akan terlihat dari membaca kode:
   periode nilai ARR Soedirman.
 - **Upload** (`/dashboard/upload`) adalah menu sendiri, bukan lagi sub-menu
   Telemetering, dengan empat tab lewat `?tab=`: **Excel Bulanan**, **Excel Harian**
-  (`/hydrology/daily/template.xlsx` + `/hydrology/daily/excel`), **Prakiraan
-  Hujan**, dan **Input EVA** (dulu menu "Input GHW"). Tiga tab pertama berlaku
+  (`/hydrology/daily/template.xlsx` + `/hydrology/daily/excel`), **Gambar
+  Hujan** (empat gambar BMKG: prakiraan dan realisasi × curah dan sifat hujan),
+  dan **Input EVA** (dulu menu "Input GHW"). Tiga tab pertama berlaku
   untuk seluruh PLTA, jadi rutenya sengaja tidak memuat `pltaId`. Input EVA
   milik satu PLTA; PLTA-nya dipilih di dalam panel tab itu dan dibawa lewat
   `?plta=`. URL lama (`/dashboard/telemetering/upload`,
   `/dashboard/plta/<id>/input-ghw`) dialihkan ke sini.
+  **Pengelolaan kurva EVA (8 Okt 2026)** di tab Input EVA:
+  tabel status seluruh PLTA (`GET /elevations/status`: `siap` / `draft` /
+  `belum_ada`, dinilai dengan aturan kurva **berlaku** = published terbaru
+  ber-tahun ≤ tahun berjalan, jadi kurva 2024 bisa berlaku di 2026) dan daftar
+  kurva PLTA terpilih (`GET /elevations/curves`) dengan **Publish**,
+  **Jadikan draft** (`PATCH /elevations/{id}/status`), dan hapus draft
+  (`DELETE /elevations/{id}`; published ditolak 409). Kurva draft **tidak
+  dipakai perhitungan apa pun** — dulu publish hanya bisa lewat Swagger, jadi
+  unggahan dari aplikasi tidak berpengaruh. Publish langsung jalan; menurunkan
+  kurva yang sedang berlaku dan menghapus draft lewat `ConfirmDialog`. Server
+  menolak publish kurva yang titiknya identik dengan PLTA lain (`kembar`), dan
+  peringatannya tampil di baris kurva. Setiap perubahan kurva menyegarkan cache
+  hidrologi juga (`invalidateElevationCurves`), karena volume waduk dan
+  turunannya ikut berubah.
+- **Hidrologi Bulanan** menyajikan parameter berpasangan dalam satu tabel:
+  kolom **Target / Prediksi / Realisasi**, satu baris per parameter
+  (`buildMonthlyComparison` di `telemetering/presentation.ts`). Sel tanpa
+  padanan memakai "—", bukan "N/A" — "N/A" berarti seharusnya ada tetapi belum
+  terisi. **Periode (`?tahun=`, `?bulan=`) ada di URL**, bukan state komponen:
+  pemilih PLTA membawa query string, jadi berpindah PLTA tidak mengembalikan
+  periode ke bulan berjalan. Tiap baris energi memuat persentase dan status
+  **dari server** (bukan dihitung ulang: persentase dibulatkan, 99,996% terbaca
+  100). Keempat gambar hujan tampil sekaligus (baris Prediksi lalu Realisasi),
+  bukan lewat tab — sejak 7 Okt 2026. Menu **Telemetering** di sidebar membuka Hidrologi
+  Bulanan lebih dulu, bukan Harian.
+- **Kontrak hidrologi bulanan berubah 5 Okt 2026** (Swagger prod dan staging
+  identik). Nama lama (`aktual_hidrologi`, `prediksi_produksi_mwh`,
+  `pencapaian_sd_prev_mwh`, `prosentase_pencapaian`, `image_sifat_hujan`, …)
+  ditolak `422` pada `PUT`, dan responsnya memakai nama baru: energi bulan
+  berjalan (`prediksi_ketersediaan_energi_primer`, `target_produksi_energi_listrik`,
+  `realisasi_produksi_energi_listrik`) dan akumulasinya (`*_akumulasi_*`), dua
+  persentase + dua status `tercapai`/`tidak_tercapai`, dan **empat** gambar
+  (`prediksi`/`realisasi` × `sifat`/`curah` hujan). Overview kini dua blok
+  `bulanan` dan `akumulasi`; ringkasan seluruh PLTA di Overview memakai blok
+  **akumulasi**. Field wajib di schema Zod bulanan **sengaja tanpa `default`**
+  agar perubahan kontrak berikutnya muncul sebagai galat, bukan N/A diam-diam.
+  Metrik harian `hidden: true` (disembunyikan operator lewat
+  `PUT /dashboard/plta/{id}/daily/visibility`) tetap dikirim server tetapi
+  **tidak dirender** — disaring di `dashboardMetricRows`, jadi ikut hilang dari
+  ringkasan sensor basi. Layar pengubahnya: ikon pengatur di sebelah judul
+  tiap kartu panel Hidrologi Harian (`DailyVisibilitySheet` dengan prop
+  `panel`; satu sheet per panel sejak 7 Okt 2026), satu sakelar per metrik dan
+  hanya perubahan yang dikirim. Dirender untuk `canEditHydrologyData` (bukan Viewer);
+  Swagger tidak menyebut batas peran, jadi itu keputusan frontend dan belum
+  dikonfirmasi ke backend. Berlaku per PLTA untuk semua penggunanya.
+  **Urutan metrik harian (6 Okt 2026)**: tiap metrik membawa `urutan` (posisi
+  di panelnya, 0 = teratas) dan panel **dirender menurutnya** — urutan kunci
+  JSON hanya mengikuti skema server. Daftar kunci di halaman Harian
+  (`preferredKeys` pada `dashboardMetricRows`) tinggal cadangan bila `urutan`
+  tidak dikirim, dan hanya dipakai bila **seluruh** metrik panel itu tanpa
+  `urutan` (dua sumber urutan tidak dicampur). Urutan diubah di sheet yang
+  sama dengan **seret-lepas** (`components/ui/SortableList.svelte`) — pointer
+  events, bukan drag-and-drop HTML5, karena yang terakhir mati di layar sentuh;
+  pegangannya juga bisa digerakkan dengan panah atas/bawah. Mouse menyeret dari
+  mana saja di baris, sentuhan hanya dari pegangan (supaya daftar tetap bisa
+  digulir). Gerak didengar di `window`, bukan di pegangan: baris yang dipindah
+  di DOM kehilangan pointer capture, dan dulu itu membuat seretan tersangkut. Draf sheet hanya
+  memuat yang disentuh operator (sakelar maupun urutan), bukan salinan seluruh
+  status: query-nya di bawah `dashboardRoot`, dan salinan penuh akan
+  membatalkan perubahan operator lain saat disimpan. Urutan dikirim per panel
+  berisi **seluruh** kuncinya (server menaruh kunci yang tak disebut kembali
+  ke posisi bawaan); **Urutan bawaan** mengirim `[]` dan hanya muncul untuk
+  panel yang `urutan_diatur`-nya pernah `true`.
+  **Istilah label mengikuti lembar client (mockup "FORECAST BULAN")**, bukan
+  nama field BE dan bukan istilah lisan operator — penyebutan lisan mereka
+  sering berganti (TMA / WL / water level / elevasi). Di lembar itu prediksi
+  energi disebut **"Prognosa Ketersediaan Energi Primer"** (potensi energi
+  primer, bukan produksi listrik), sedangkan target dan realisasinya
+  **"Produksi Energi Listrik"**; "Kesimpulan" = status `tercapai` /
+  `tidak_tercapai`. Kolom tabel tetap bernama Prediksi/Target/Realisasi, dengan
+  keterangan di bawahnya. **Arti akumulasi sudah terkonfirmasi** (Swagger 7 Okt
+  2026): setiap `*_akumulasi_*` = Januari s.d. bulan barisnya, termasuk bulan
+  itu sendiri. Nama kunci `rerata` di overview juga terkonfirmasi dari respons
+  staging 6 Okt 2026: keenamnya persis nama field bulanan
+  (`OVERVIEW_AVERAGE_KEYS`).
+  **Swagger 7 Okt 2026 menambah `label`** (nama tampilan, mis. "… s.d. Bulan
+  September 2026") di data bulanan, blok overview (`label`, `label_prediksi`,
+  `label_target`), `rerata`, dan grafik (`label`, plus `sd_bulan` per titik).
+  Backend meminta nama baris dirender dari `label`; **FE sengaja belum
+  memakainya** — penyesuaian nama di Hidrologi Bulanan di-hold sampai
+  diputuskan tim, jadi istilah lembar client di atas masih berlaku. Yang sudah
+  dipakai: `sd_bulan` di tooltip grafik akumulasi, dan `periode_awal` /
+  `periode_akhir` blok overview. Untuk rentang, blok `bulanan` = total seluruh
+  rentang, sedangkan blok `akumulasi` = **satu bulan**, yang terakhir berdata
+  (menjumlahkan akumulasi lintas bulan menghitung bulan yang sama berkali-kali).
+  Kartu Overview memakai blok akumulasi, jadi ia menulis "Akumulasi s.d.
+  <bulan itu>", bukan rentang yang dipilih. Template Excel bulanan kini dua
+  baris judul: baris 1 nama tampilan, baris 2 kunci yang dibaca importir.
+- **Tambahan Swagger 5 Okt 2026** (di luar kontrak bulanan): **Excel harian**
+  punya opsi `per_jam` (template 24 baris per PLTA per tanggal) dan `isi_kosong`
+  (`lewati` bawaan | `bawa_terakhir`; hasilnya `titik_diwarisi`) — dikirim hanya
+  bila dipilih. **Tag** punya `label`, `min_valid`, `max_valid`; batas valid
+  diubah lewat `PATCH /tags/{id}/bounds` (**kedua sisi selalu dikirim**, karena
+  sisi yang hilang ditimpa `null`; server menolak `min` ≥ `max`) dan berlaku
+  ke depan saja. Dirender untuk `canEditTagBounds` (non-Viewer, keputusan
+  frontend). **Tren** menyebut sumber seri yang sungguh dibaca server
+  (`station` + `aggregated_stations`), bukan lagi selalu "agregasi lintas
+  stasiun". **Laporan** menampilkan `requested_by_username`.
+- **Rentang periode hidrologi bulanan** (`tahun`, `bulan`, `tahun_akhir`,
+  `bulan_akhir`; maks 60 bulan, 400 bila terbalik): aturan isian kosong
+  mengikuti server — `bulan` kosong = Januari, tahun akhir kosong = tahun awal,
+  bulan akhir kosong = `bulan` (satu bulan) atau Desember bila `bulan` juga
+  kosong. Semuanya di `routes/dashboard/hydrology-report.ts`
+  (`resolveReportRange`, `reportRangeError`) dan dipakai label, validasi, dan
+  nama berkas supaya sepakat dengan server; rentang yang pasti ditolak **tidak
+  dikirim** (query `enabled` mati). Rentang ada di **overview** (kartu Detail ringkasan di kolom kanan peta,
+  `?tahun_akhir=&bulan_akhir=`) dan **laporan bulanan** (tab Laporan Hidrologi);
+  **laporan harian tidak mendukung rentang**. Mengubah beberapa parameter URL
+  harus dalam satu `goto` (`setPeriods`/`setFilters`) — dua `goto` berturut-turut
+  sama-sama membaca URL lama dan yang kedua membatalkan yang pertama.
+- **Grafik akumulasi** (`GET /hydrology/monthly/chart`) ada di Hidrologi
+  Bulanan, per PLTA aktif untuk tahun terpilih (Jan–Des). Bulan yang belum
+  diisi bernilai `null` dan **memutus garis**, bukan nol. Tanpa `plta_id`
+  nilainya JUMLAH seluruh PLTA dan `n_target`/`n_realisasi` harus diperiksa
+  sebelum kedua garis dibandingkan — komponennya sudah memperingatkan bila
+  tidak sama, tetapi grafik gabungan seluruh PLTA belum ada layarnya. Kunci
+  query-nya di bawah `dashboardRoot(pltaId)` supaya ikut segar setelah isian
+  bulanan diubah. Test komponen grafik butuh stub `window.matchMedia` di
+  `src/test/setup.ts` (layerchart → `svelte/motion`).
 - **Tombol "Input data" di Hidrologi Harian** mengikuti field `input`
   (`{parameter, station}`) yang dikirim server pada tiap metrik panel harian —
   server hanya mengisinya bila PLTA itu benar-benar punya tag `upload`-nya.
@@ -246,12 +382,22 @@ Hal-hal yang sudah pernah menggigit dan tidak akan terlihat dari membaca kode:
   hanya punya T1–T3 harus tetap hanya-baca. Hapus tabelnya begitu backend
   mengisi `input` untuk kedua kasus itu.
 - **Rekap Hidrologi sudah dipecah** (29 Sep 2026) dan submenunya dihapus dari
-  Telemetering. **Ringkasan armada** (`/hydrology/monthly/overview`) kini satu
-  baris di kepala halaman **Overview** (kanan judul): pencapaian armada, rata-rata
-  antar-PLTA, jumlah tercapai/tidak, dan cakupan; pemilih periode dan tabel
-  rata-rata ada di popover **Detail**. Sempat dicoba sebagai kolom 300px di
-  samping peta, tetapi itu mengecilkan gambar peta 15–20% — kepala halaman
-  punya ruang mendatar kosong, jadi tidak menambah tinggi maupun memotong peta.
+  Telemetering. **Ringkasan hidrologi seluruh PLTA** (`/hydrology/monthly/overview`)
+  kini **kartu yang menempel di dasar peta Overview** (7 Okt 2026), bergaya
+  sama dengan kartu Awan Hujan/Legenda dan berhenti di kiri kolom kanannya
+  (slot `bottomOverlay` di `JavaMap`, hanya dari `lg`; di layar sempit kartu
+  turun ke bawah peta). Isinya pencapaian seluruh PLTA, rata-rata antar-PLTA,
+  status per PLTA, dan cakupan. **Pemilih bulan/tahun tetap di kepala halaman**
+  (`FleetSummaryControls`, satu baris), sedangkan rentang, catatan cakupan,
+  tabel rata-rata, dan unduh Excel ada di kartu **Detail ringkasan** yang
+  terlipat di kolom kanan peta bersama Awan Hujan/Legenda (`FleetSummaryDetail`,
+  slot `rightPanel`) — peta tidak punya celah kosong setinggi isinya. Ketiganya
+  membaca periode yang sama dari URL lewat `overview/fleet-summary.svelte.ts`.
+  `Select` memakai `w-full` di akarnya: lebar tetap dipasang di pembungkusnya,
+  bukan lewat prop `class` (yang kalah dan membuat pemilihnya bertumpuk). Bawaannya bulan berjalan; bila kosong,
+  kartu menawarkan bulan sebelumnya. Riwayat penempatan: kolom 300px di samping
+  peta (mengecilkan peta 15–20%), lalu strip di kanan judul (kurang terlihat),
+  lalu panel di bawah peta (bukan yang dimaksud tim).
   **Unduhan Excel** (`/hydrology/monthly/report.xlsx`,
   `/hydrology/daily/report.xlsx`) kini tab **Laporan Hidrologi** di menu Laporan
   (`?tab=hidrologi`), dengan cakupan PLTA sendiri — bukan PlantSwitcher, karena
@@ -259,7 +405,8 @@ Hal-hal yang sudah pernah menggigit dan tidak akan terlihat dari membaca kode:
   `?plta=` tetap di URL; alamat lama `/dashboard/telemetering/rekap` dialihkan
   ke tab itu beserta query-nya. Aturan bersama keduanya di
   `routes/dashboard/hydrology-report.ts`.
-- **Hapus gambar prakiraan hujan** ada di Upload › Prakiraan Hujan, lewat
+- **Hapus gambar hujan** ada di Upload › Gambar Hujan (dulu "Prakiraan Hujan"; kunci
+  tab `?tab=prakiraan` tidak berubah), lewat
   pratinjau gambar lalu `ConfirmDialog`. Berlaku untuk seluruh PLTA dan tidak
   bisa dibatalkan; backend mencatatnya di jejak audit.
 - **Panduan** (`/dashboard/panduan`): isi ditulis sebagai data di

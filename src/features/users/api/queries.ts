@@ -68,6 +68,13 @@ export function createDeleteUserMutation() {
 	}));
 }
 
+/** Daftar user tidak berubah: akunnya tetap aktif, hanya tokennya yang dicabut. */
+export function createRevokeUserSessionsMutation() {
+	return createMutation(() => ({
+		mutationFn: (userId: string) => usersRepository.revokeSessions(userId)
+	}));
+}
+
 export function createUpdateCurrentUserMutation() {
 	const queryClient = useQueryClient();
 

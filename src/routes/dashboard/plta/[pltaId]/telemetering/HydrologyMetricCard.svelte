@@ -21,6 +21,15 @@
 		 * — ketiga kartu berbagi satu baris tiga kolom.
 		 */
 		zoneControl?: Snippet;
+		/**
+		 * Kunci metrik tempat `zoneControl` ditempelkan, tepat di bawah barisnya —
+		 * mis. pemilih unit beban di bawah Service Hour Full Load. Bila baris itu
+		 * tidak tampil (disembunyikan operator atau terlipat di balik "Lihat
+		 * semua"), kontrolnya kembali ke bawah header supaya tidak hilang.
+		 */
+		zoneControlAfterKey?: string;
+		/** Aksi kecil di sebelah judul zona, mis. ikon pengatur tampilan panel itu. */
+		headerAction?: Snippet;
 		/** Diikat pemanggil supaya kartu bisa difokuskan saat zonanya dipilih di peta. */
 		element?: HTMLElement | null;
 	}
@@ -32,6 +41,8 @@
 		sections,
 		onUpload,
 		zoneControl,
+		zoneControlAfterKey,
+		headerAction,
 		element = $bindable(null)
 	}: Props = $props();
 
@@ -69,6 +80,11 @@
 			};
 		})
 	);
+
+	const isControlAnchored = $derived(
+		zoneControlAfterKey !== undefined &&
+			visibleSections.some((section) => section.rows.some((row) => row.key === zoneControlAfterKey))
+	);
 </script>
 
 <article
@@ -97,11 +113,12 @@
 				{presentation.order}
 			</span>
 			<h3 class="text-sm font-semibold text-text-primary">{presentation.title}</h3>
+			{@render headerAction?.()}
 		</div>
 		<span class="shrink-0 text-xs text-text-muted">{rowCount} parameter</span>
 	</div>
 
-	{#if zoneControl}
+	{#if zoneControl && !isControlAnchored}
 		<div class={`border-b px-4 py-2.5 ${presentation.borderClassName}`}>
 			{@render zoneControl()}
 		</div>
@@ -115,6 +132,11 @@
 			<div class={`divide-y ${presentation.dividerClassName} px-4`}>
 				{#each section.rows as row (row.label)}
 					<MetricRowItem {row} {onUpload} />
+					{#if zoneControl && isControlAnchored && row.key === zoneControlAfterKey}
+						<div class="py-2.5">
+							{@render zoneControl()}
+						</div>
+					{/if}
 				{/each}
 			</div>
 		</section>

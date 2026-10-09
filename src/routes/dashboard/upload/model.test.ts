@@ -77,6 +77,9 @@ describe('nama berkas dan periode unggahan', () => {
 		expect(dailyTemplateFilename('2026-09-01', '2026-09-30')).toBe(
 			'hidrologi_harian_2026-09-01_sd_2026-09-30.xlsx'
 		);
+		expect(dailyTemplateFilename('2026-09-01', '2026-09-01', true)).toBe(
+			'hidrologi_harian_2026-09-01_per-jam.xlsx'
+		);
 	});
 
 	it('merangkum tanggal hasil unggah jadi satu rentang', () => {

@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
+	import { page } from '$app/state';
 	import IconInfo from '~icons/ph/info';
 	import IconPencil from '~icons/ph/pencil-line';
 	import IconRefresh from '~icons/ph/arrow-clockwise';
@@ -10,19 +12,24 @@
 	import PageHeader from '$components/ui/PageHeader.svelte';
 	import { authStore, canEditHydrologyData, canUploadMonthlyHydrology } from '$features/auth';
 	import {
+		createMonthlyChartQuery,
 		createMonthlyHydrologyImageQuery,
 		createMonthlyHydrologyPanelQuery,
-		getHydrologyErrorMessage
+		getHydrologyErrorMessage,
+		type MonthlyHydrologyImageKind
 	} from '$features/hydrology';
 	import MonthlyHydrologySheet from '$features/hydrology/components/MonthlyHydrologySheet.svelte';
 	import { UPLOAD_PATH, getActivePLTA, getUploadPath } from '$features/plta';
 	import PlantSwitcher from '$features/plta/components/PlantSwitcher.svelte';
+	import { parseReportMonth, parseReportYear } from '../../../../hydrology-report';
 	import { createObjectUrl } from '$shared/lib/object-url.svelte';
-	import ForecastDetail from '../ForecastDetail.svelte';
 	import ForecastMapCard from '../ForecastMapCard.svelte';
-	import { MONTHS, buildMonthlyForecastRows } from '../presentation';
+	import MonthlyAccumulationChart from '../MonthlyAccumulationChart.svelte';
+	import MonthlyComparisonTable from '../MonthlyComparisonTable.svelte';
+	import { MONTHS, buildMonthlyComparison } from '../presentation';
 
 	const CURRENT_YEAR = new Date().getFullYear();
+	const CURRENT_MONTH = new Date().getMonth() + 1;
 	const MONTH_OPTIONS = MONTHS.map((label, index) => ({ value: String(index + 1), label }));
 	const YEAR_OPTIONS = Array.from({ length: 6 }, (_, index) => CURRENT_YEAR + 1 - index).map(
 		(value) => ({ value: String(value), label: String(value) })
@@ -37,10 +44,19 @@
 	const displayName = $derived(activePLTA.displayName);
 	const pltaId = $derived(activePLTA.pltaId);
 
-	// Periode dipilih operator, bukan selalu bulan berjalan — inilah penelusuran
-	// riwayatnya setelah tabel 12 bulan disembunyikan.
-	let year = $state(String(CURRENT_YEAR));
-	let month = $state(String(new Date().getMonth() + 1));
+	/**
+	 * Periode dipilih operator, bukan selalu bulan berjalan — inilah penelusuran
+	 * riwayatnya setelah tabel 12 bulan disembunyikan.
+	 *
+	 * Disimpan di query string (`?tahun=&bulan=`), bukan state komponen: pemilih
+	 * PLTA membawa query string ke PLTA berikutnya, jadi periode yang sudah
+	 * dipilih tidak kembali ke bulan berjalan saat operator berpindah PLTA.
+	 * Nilai yang tidak valid atau hilang jatuh ke tahun/bulan berjalan.
+	 */
+	const year = $derived(String(parseReportYear(page.url.searchParams.get('tahun'), CURRENT_YEAR)));
+	const month = $derived(
+		String(parseReportMonth(page.url.searchParams.get('bulan'), CURRENT_MONTH) ?? CURRENT_MONTH)
+	);
 	let isMonthlySheetOpen = $state(false);
 
 	const monthLabel = $derived(MONTHS[Number(month) - 1]);
@@ -56,36 +72,73 @@
 
 	const record = $derived(panelQuery.data ?? undefined);
 
+	// Grafik akumulasi mengikuti tahun terpilih (Januari–Desember). Bulan yang
+	// belum diisi tetap ada di sumbu X dengan nilai kosong.
+	const chartQuery = createMonthlyChartQuery(
+		() => pltaId,
+		() => ({ year: Number(year) })
+	);
+
 	// `id` null berarti baris bulanan PLTA ini belum ada, sedangkan path gambar
 	// tetap terisi karena gambarnya global — keduanya tidak boleh dicampur.
 	const hasMonthlyRecord = $derived(Boolean(record?.id));
 
-	const rainfallImageQuery = createMonthlyHydrologyImageQuery(
-		() => Number(year),
-		() => Number(month),
-		() => 'curah_hujan',
-		() => Boolean(record?.rainfallImage)
-	);
-	const rainfallCharacteristicImageQuery = createMonthlyHydrologyImageQuery(
-		() => Number(year),
-		() => Number(month),
-		() => 'sifat_hujan',
-		() => Boolean(record?.rainfallCharacteristicImage)
-	);
+	/**
+	 * Keempat gambar BMKG tampil sekaligus, satu baris per kelompok: prediksi
+	 * dan realisasi dibandingkan berdampingan tanpa berpindah tab (7 Okt 2026).
+	 * Gambar yang path-nya kosong tidak diunduh.
+	 */
+	const IMAGE_ROWS: {
+		group: string;
+		slots: { kind: MonthlyHydrologyImageKind; title: string }[];
+	}[] = [
+		{
+			group: 'Prediksi',
+			slots: [
+				{ kind: 'prediksi_curah_hujan', title: 'Curah Hujan' },
+				{ kind: 'prediksi_sifat_hujan', title: 'Sifat Hujan' }
+			]
+		},
+		{
+			group: 'Realisasi',
+			slots: [
+				{ kind: 'realisasi_curah_hujan', title: 'Curah Hujan' },
+				{ kind: 'realisasi_sifat_hujan', title: 'Sifat Hujan' }
+			]
+		}
+	];
 
-	const rainfallImageUrl = createObjectUrl(() => rainfallImageQuery.data);
-	const rainfallCharacteristicImageUrl = createObjectUrl(
-		() => rainfallCharacteristicImageQuery.data
-	);
+	const imageRows = IMAGE_ROWS.map((row) => ({
+		...row,
+		slots: row.slots.map((slot) => {
+			const query = createMonthlyHydrologyImageQuery(
+				() => Number(year),
+				() => Number(month),
+				() => slot.kind,
+				() => Boolean(record?.images[slot.kind])
+			);
+			return { ...slot, query, url: createObjectUrl(() => query.data) };
+		})
+	}));
 
-	const forecastRows = $derived(buildMonthlyForecastRows(record, monthLabel));
+	const comparison = $derived(buildMonthlyComparison(record, monthLabel));
+
+	async function setPeriod(key: 'tahun' | 'bulan', value: string) {
+		// Salinan sekali pakai untuk menyusun URL berikutnya; dibuang setelah
+		// `goto`, jadi tidak perlu `SvelteURLSearchParams`.
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity
+		const params = new URLSearchParams(page.url.searchParams);
+		params.set(key, value);
+
+		await goto(`?${params.toString()}`, { replaceState: true, keepFocus: true, noScroll: true });
+	}
 </script>
 
 <div class="flex flex-1 flex-col gap-6">
 	<PageHeader
-		eyebrow="Telemetering"
-		title="Hidrologi Bulanan"
-		description={`Prediksi dan realisasi kondisi hidrologi bulanan PLTA ${displayName}`}
+		eyebrow="Telemetering · Hidrologi Bulanan"
+		title={displayName}
+		description="Prediksi dan realisasi kondisi hidrologi bulanan"
 	>
 		{#snippet actions()}
 			<PlantSwitcher page="telemetering/bulanan" />
@@ -97,14 +150,16 @@
 		<div class="mt-2.5 flex flex-wrap items-end gap-3">
 			<Select
 				label="Bulan"
-				bind:value={month}
+				value={month}
+				onValueChange={(next) => void setPeriod('bulan', next)}
 				options={MONTH_OPTIONS}
 				controlSize="sm"
 				class="w-full sm:w-[180px]"
 			/>
 			<Select
 				label="Tahun"
-				bind:value={year}
+				value={year}
+				onValueChange={(next) => void setPeriod('tahun', next)}
 				options={YEAR_OPTIONS}
 				controlSize="sm"
 				class="w-full sm:w-[140px]"
@@ -151,7 +206,7 @@
 				{#if panelQuery.isLoading}
 					<p class="loading-text py-4" role="status">Memuat ringkasan…</p>
 				{:else}
-					<ForecastDetail rows={forecastRows} />
+					<MonthlyComparisonTable {comparison} />
 				{/if}
 			</div>
 
@@ -168,25 +223,27 @@
 
 		<section>
 			<div class="flex items-center justify-between gap-3">
-				<h2 class="card-title">Prakiraan Hujan</h2>
-				<span class="shrink-0 text-xs text-text-muted">Gambar bulanan</span>
+				<h2 class="card-title">Gambar Hujan</h2>
+				<span class="shrink-0 text-xs text-text-muted">{monthLabel} {year}</span>
 			</div>
 
-			<div class="mt-2.5 grid grid-cols-2 gap-3">
-				<ForecastMapCard
-					title="Curah Hujan"
-					subtitle={`${monthLabel} ${year}`}
-					imageUrl={rainfallImageUrl.current}
-					isLoading={panelQuery.isLoading || rainfallImageQuery.isLoading}
-					isError={rainfallImageQuery.isError}
-				/>
-				<ForecastMapCard
-					title="Sifat Hujan"
-					subtitle={`${monthLabel} ${year}`}
-					imageUrl={rainfallCharacteristicImageUrl.current}
-					isLoading={panelQuery.isLoading || rainfallCharacteristicImageQuery.isLoading}
-					isError={rainfallCharacteristicImageQuery.isError}
-				/>
+			<div class="mt-2.5 flex flex-col gap-3">
+				{#each imageRows as row (row.group)}
+					<div>
+						<p class="table-head-cell mb-1.5">{row.group}</p>
+						<div class="grid grid-cols-2 gap-3">
+							{#each row.slots as slot (slot.kind)}
+								<ForecastMapCard
+									title={slot.title}
+									subtitle={`${row.group} · ${monthLabel} ${year}`}
+									imageUrl={slot.url.current}
+									isLoading={panelQuery.isLoading || slot.query.isLoading}
+									isError={slot.query.isError}
+								/>
+							{/each}
+						</div>
+					</div>
+				{/each}
 			</div>
 
 			<p class="mt-2 text-xs text-text-muted">
@@ -201,6 +258,21 @@
 			</p>
 		</section>
 	</div>
+
+	<section>
+		<div class="flex items-center justify-between gap-3">
+			<h2 class="card-title">Akumulasi produksi {year}</h2>
+			<span class="shrink-0 text-xs text-text-muted">Target vs realisasi, MWh</span>
+		</div>
+		<div class="mt-2.5">
+			<MonthlyAccumulationChart
+				chart={chartQuery.data}
+				isLoading={chartQuery.isLoading}
+				isError={chartQuery.isError}
+				onRetry={() => void chartQuery.refetch()}
+			/>
+		</div>
+	</section>
 
 	<div class="flex items-start gap-2">
 		<IconInfo class="mt-0.5 size-3.5 shrink-0 text-text-muted" />

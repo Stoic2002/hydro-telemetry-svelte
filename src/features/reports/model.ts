@@ -25,6 +25,8 @@ export interface Report {
 	filePath: string | null;
 	error: string | null;
 	createdAt: string;
+	/** Username pembuat laporan; `null` bila tidak diketahui. */
+	requestedBy: string | null;
 }
 
 export interface ReportListParams {

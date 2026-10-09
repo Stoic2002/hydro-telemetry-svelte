@@ -1,19 +1,31 @@
 import { ApiError, apiRequest, createApiResponseParser } from '../../../api/http';
 import type {
+	AchievementStatus,
+	HydrologyPeriod,
 	DailyHydrology,
+	DailyVisibility,
+	DashboardMetricGroup,
+	MonthlyAccumulationChart,
 	MonthlyHydrology,
 	MonthlyHydrologyExcelResult,
 	MonthlyHydrologyOverview,
-	DailyHydrologyExcelResult
+	DailyHydrologyExcelResult,
+	OverviewAchievement,
+	OverviewAverageKey
 } from '../model';
 import type { HydrologyRepository } from './hydrology-repository';
 import {
+	apiDailyVisibilitySchema,
+	apiMonthlyChartSchema,
 	apiMonthlyHydrologyExcelResultSchema,
 	apiMonthlyHydrologySchema,
 	apiMonthlyHydrologyPageSchema,
 	apiPLTADailyDashboardSchema,
 	apiPLTAMonthlyDashboardSchema,
 	type ApiDailyHydrology,
+	type ApiDashboardMetricGroup,
+	type ApiDailyVisibility,
+	type ApiMonthlyChart,
 	type ApiMonthlyHydrology,
 	type ApiMonthlyHydrologyExcelResult,
 	apiDailyHydrologyExcelResultSchema,
@@ -23,15 +35,26 @@ import {
 
 const parseResponse = createApiResponseParser('Respons server tidak sesuai kontrak data hidrologi');
 
+function mapMetricGroup(group: ApiDashboardMetricGroup): DashboardMetricGroup {
+	return Object.fromEntries(
+		Object.entries(group).map(([key, { urutan, ...metric }]) => [key, { ...metric, order: urutan }])
+	);
+}
+
 function mapDailyHydrology(daily: ApiDailyHydrology): DailyHydrology {
 	return {
 		date: daily.tanggal,
 		constants: daily.constants,
-		upstream: daily.hulu,
-		dam: daily.dam,
-		downstream: daily.hilir,
+		upstream: mapMetricGroup(daily.hulu),
+		dam: mapMetricGroup(daily.dam),
+		downstream: mapMetricGroup(daily.hilir),
 		pendingFormulas: daily.pending_formulas
 	};
+}
+
+function mapAchievementStatus(status: 'tercapai' | 'tidak_tercapai' | null): AchievementStatus {
+	if (status === null) return null;
+	return status === 'tercapai' ? 'achieved' : 'not-achieved';
 }
 
 function mapMonthly(item: ApiMonthlyHydrology): MonthlyHydrology {
@@ -41,15 +64,72 @@ function mapMonthly(item: ApiMonthlyHydrology): MonthlyHydrology {
 		year: item.tahun,
 		month: item.bulan,
 		hydrologyPrediction: item.prediksi_hidrologi,
-		hydrologyActual: item.aktual_hidrologi,
-		rainfallCharacteristicImage: item.image_sifat_hujan,
-		rainfallImage: item.image_curah_hujan,
-		predictedProductionMwh: item.prediksi_produksi_mwh,
-		targetProductionMwh: item.target_produksi_mwh,
-		previousAchievementMwh: item.pencapaian_sd_prev_mwh,
-		predictedPreviousAchievementMwh: item.prediksi_pencapaian_sd_prev_mwh,
-		targetPreviousAchievementMwh: item.target_pencapaian_sd_prev_mwh,
-		achievementPercentage: item.prosentase_pencapaian
+		hydrologyActual: item.realisasi_hidrologi,
+		images: {
+			prediksi_sifat_hujan: item.image_prediksi_sifat_hujan,
+			prediksi_curah_hujan: item.image_prediksi_curah_hujan,
+			realisasi_sifat_hujan: item.image_realisasi_sifat_hujan,
+			realisasi_curah_hujan: item.image_realisasi_curah_hujan
+		},
+		predictedProductionMwh: item.prediksi_ketersediaan_energi_primer,
+		targetProductionMwh: item.target_produksi_energi_listrik,
+		actualProductionMwh: item.realisasi_produksi_energi_listrik,
+		predictedAccumulatedMwh: item.prediksi_akumulasi_ketersediaan_energi_primer,
+		targetAccumulatedMwh: item.target_akumulasi_produksi_energi_listrik,
+		actualAccumulatedMwh: item.realisasi_akumulasi_produksi_energi_listrik,
+		monthlyAchievement: {
+			percentage:
+				item.prosentase_prediksi_ketersediaan_energi_primer_vs_target_produksi_energi_listrik,
+			status: mapAchievementStatus(item.status_pencapaian_target_produksi_energi_listrik)
+		},
+		accumulatedAchievement: {
+			percentage:
+				item.prosentase_prediksi_akumulasi_ketersediaan_energi_primer_vs_target_akumulasi_produksi_energi_listrik,
+			status: mapAchievementStatus(item.status_pencapaian_target_akumulasi_produksi_energi_listrik)
+		}
+	};
+}
+
+/** Kunci query rentang; kosong dibuang supaya server memakai aturan bawaannya. */
+function periodQuery(period: HydrologyPeriod) {
+	return {
+		tahun: period.year,
+		bulan: period.month,
+		tahun_akhir: period.endYear,
+		bulan_akhir: period.endMonth
+	};
+}
+
+function mapChart(chart: ApiMonthlyChart): MonthlyAccumulationChart {
+	return {
+		pltaId: chart.plta_id,
+		registeredPlantCount: chart.jumlah_plta,
+		points: chart.seri.map((point) => ({
+			period: point.periode,
+			year: point.tahun,
+			month: point.bulan,
+			targetMwh: point.target_akumulasi_produksi_energi_listrik,
+			actualMwh: point.realisasi_akumulasi_produksi_energi_listrik,
+			targetPlantCount: point.n_target,
+			actualPlantCount: point.n_realisasi,
+			throughLabel: point.sd_bulan
+		}))
+	};
+}
+
+function mapVisibility(visibility: ApiDailyVisibility): DailyVisibility {
+	return {
+		pltaId: visibility.plta_id,
+		hiddenCount: visibility.jumlah_tersembunyi,
+		// Urutan larik = urutan efektif per panel (dijamin server); `urutan`
+		// sendiri tidak dibawa supaya tidak ada dua sumber urutan.
+		metrics: visibility.metrik.map(({ key, panel, label, hidden, urutan_diatur }) => ({
+			key,
+			panel,
+			label,
+			hidden,
+			isCustomOrder: urutan_diatur
+		}))
 	};
 }
 
@@ -63,34 +143,48 @@ function mapExcelResult(result: ApiMonthlyHydrologyExcelResult): MonthlyHydrolog
 	};
 }
 
+/** Kunci `rerata` di server = nama field bulanan; sisi kiri adalah kunci model. */
+const OVERVIEW_AVERAGE_KEYS: Record<OverviewAverageKey, string> = {
+	predictedProductionMwh: 'prediksi_ketersediaan_energi_primer',
+	targetProductionMwh: 'target_produksi_energi_listrik',
+	actualProductionMwh: 'realisasi_produksi_energi_listrik',
+	predictedAccumulatedMwh: 'prediksi_akumulasi_ketersediaan_energi_primer',
+	targetAccumulatedMwh: 'target_akumulasi_produksi_energi_listrik',
+	actualAccumulatedMwh: 'realisasi_akumulasi_produksi_energi_listrik'
+};
+
+function mapOverviewAchievement(
+	block: ApiMonthlyHydrologyOverview['bulanan']
+): OverviewAchievement {
+	return {
+		averagePercent: { value: block.prosentase_rata2, count: block.prosentase_rata2_n },
+		aggregatePercent: block.prosentase_agregat,
+		totalPredictedMwh: block.total_prediksi,
+		totalTargetMwh: block.total_target,
+		achievedCount: block.jumlah_tercapai,
+		notAchievedCount: block.jumlah_tidak_tercapai,
+		unassessedCount: block.jumlah_belum_dinilai,
+		periodStart: block.periode_awal,
+		periodEnd: block.periode_akhir
+	};
+}
+
 function mapOverview(overview: ApiMonthlyHydrologyOverview): MonthlyHydrologyOverview {
-	const average = (item: { rata2: number | null; n: number }) => ({
-		value: item.rata2,
-		count: item.n
-	});
+	const averages = Object.fromEntries(
+		Object.entries(OVERVIEW_AVERAGE_KEYS).map(([key, apiKey]) => {
+			const item = overview.rerata[apiKey];
+			return [key, { value: item?.rata2 ?? null, count: item?.n ?? 0 }];
+		})
+	) as MonthlyHydrologyOverview['averages'];
 
 	return {
 		year: overview.tahun,
 		month: overview.bulan,
 		rowCount: overview.jumlah_baris,
 		plantCount: overview.jumlah_plta,
-		averageAchievementPercent: {
-			value: overview.prosentase_pencapaian_rata2,
-			count: overview.prosentase_pencapaian_rata2_n
-		},
-		aggregateAchievementPercent: overview.prosentase_pencapaian_agregat,
-		totalPredictedAchievementMwh: overview.total_prediksi_pencapaian_sd_prev_mwh,
-		totalTargetAchievementMwh: overview.total_target_pencapaian_sd_prev_mwh,
-		achievedCount: overview.jumlah_tercapai,
-		notAchievedCount: overview.jumlah_tidak_tercapai,
-		unassessedCount: overview.jumlah_belum_dinilai,
-		averages: {
-			predictedProductionMwh: average(overview.rerata.prediksi_produksi_mwh),
-			targetProductionMwh: average(overview.rerata.target_produksi_mwh),
-			previousAchievementMwh: average(overview.rerata.pencapaian_sd_prev_mwh),
-			predictedPreviousAchievementMwh: average(overview.rerata.prediksi_pencapaian_sd_prev_mwh),
-			targetPreviousAchievementMwh: average(overview.rerata.target_pencapaian_sd_prev_mwh)
-		}
+		monthly: mapOverviewAchievement(overview.bulanan),
+		accumulated: mapOverviewAchievement(overview.akumulasi),
+		averages
 	};
 }
 
@@ -145,6 +239,34 @@ export const httpHydrologyRepository: HydrologyRepository = {
 				dmnMw: item.dmn_mw
 			}))
 		};
+	},
+
+	async getDailyVisibility(pltaId, options) {
+		const endpoint = `/api/v1/dashboard/plta/${encodeURIComponent(pltaId)}/daily/visibility`;
+		const payload = await apiRequest<unknown>(endpoint, {
+			method: 'GET',
+			cache: 'no-store',
+			signal: options?.signal
+		});
+
+		return mapVisibility(parseResponse(payload, apiDailyVisibilitySchema, endpoint));
+	},
+
+	async setDailyVisibility(pltaId, changes) {
+		const endpoint = `/api/v1/dashboard/plta/${encodeURIComponent(pltaId)}/daily/visibility`;
+		const payload = await apiRequest<unknown>(endpoint, {
+			method: 'PUT',
+			// Bagian yang kosong tidak dikirim: keduanya opsional di server, dan
+			// `urutan: {}` tidak perlu ikut dicatat sebagai perubahan.
+			json: {
+				...(changes.hidden && Object.keys(changes.hidden).length > 0
+					? { metrik: changes.hidden }
+					: {}),
+				...(changes.order && Object.keys(changes.order).length > 0 ? { urutan: changes.order } : {})
+			}
+		});
+
+		return mapVisibility(parseResponse(payload, apiDailyVisibilitySchema, endpoint));
 	},
 
 	async getMonthlyPanel(pltaId, year, month, options) {
@@ -226,30 +348,44 @@ export const httpHydrologyRepository: HydrologyRepository = {
 		return payload;
 	},
 
-	async getMonthlyOverview(year, month, options) {
+	async getMonthlyOverview(period, options) {
 		const endpoint = '/api/v1/hydrology/monthly/overview';
 		const payload = await apiRequest<unknown>(endpoint, {
 			method: 'GET',
 			cache: 'no-store',
 			signal: options?.signal,
-			query: { tahun: year, bulan: month }
+			query: periodQuery(period)
 		});
 
 		return mapOverview(parseResponse(payload, apiMonthlyHydrologyOverviewSchema, endpoint));
 	},
 
-	downloadDailyTemplate(from, to) {
+	async getMonthlyChart(period, pltaId, options) {
+		const endpoint = '/api/v1/hydrology/monthly/chart';
+		const payload = await apiRequest<unknown>(endpoint, {
+			method: 'GET',
+			cache: 'no-store',
+			signal: options?.signal,
+			query: { ...periodQuery(period), plta_id: pltaId }
+		});
+
+		return mapChart(parseResponse(payload, apiMonthlyChartSchema, endpoint));
+	},
+
+	downloadDailyTemplate(from, to, options) {
 		return downloadXlsx(
 			'/api/v1/hydrology/daily/template.xlsx',
-			{ tanggal: from, sampai: to },
+			{ tanggal: from, sampai: to, per_jam: options?.perHour ? 'true' : undefined },
 			'Respons template hidrologi harian tidak valid'
 		);
 	},
 
-	async uploadDailyExcel(file): Promise<DailyHydrologyExcelResult> {
+	async uploadDailyExcel(file, options): Promise<DailyHydrologyExcelResult> {
 		const endpoint = '/api/v1/hydrology/daily/excel';
 		const formData = new FormData();
 		formData.set('file', file);
+		// Bawaan server `lewati`; hanya dikirim bila operator memilih mewarisi.
+		if (options?.emptyCells === 'carry-forward') formData.set('isi_kosong', 'bawa_terakhir');
 
 		const payload = await apiRequest<unknown>(endpoint, {
 			method: 'POST',
@@ -261,6 +397,7 @@ export const httpHydrologyRepository: HydrologyRepository = {
 		return {
 			processedRows: result.baris_diproses,
 			writtenPoints: result.titik_ditulis,
+			inheritedPoints: result.titik_diwarisi,
 			pltaCodes: result.plta ?? [],
 			periods: result.periode ?? []
 		};
@@ -269,7 +406,15 @@ export const httpHydrologyRepository: HydrologyRepository = {
 	downloadMonthlyReport(scope) {
 		return downloadXlsx(
 			'/api/v1/hydrology/monthly/report.xlsx',
-			{ tahun: scope.year, bulan: scope.month, plta_id: scope.pltaId },
+			{
+				...periodQuery({
+					year: scope.year,
+					month: scope.month,
+					endYear: scope.endYear,
+					endMonth: scope.endMonth
+				}),
+				plta_id: scope.pltaId
+			},
 			'Respons laporan hidrologi bulanan tidak valid'
 		);
 	},
@@ -306,12 +451,13 @@ export const httpHydrologyRepository: HydrologyRepository = {
 				tahun: input.year,
 				bulan: input.month,
 				prediksi_hidrologi: input.hydrologyPrediction,
-				aktual_hidrologi: input.hydrologyActual,
-				prediksi_produksi_mwh: input.predictedProductionMwh,
-				target_produksi_mwh: input.targetProductionMwh,
-				pencapaian_sd_prev_mwh: input.previousAchievementMwh,
-				prediksi_pencapaian_sd_prev_mwh: input.predictedPreviousAchievementMwh,
-				target_pencapaian_sd_prev_mwh: input.targetPreviousAchievementMwh
+				realisasi_hidrologi: input.hydrologyActual,
+				prediksi_ketersediaan_energi_primer: input.predictedProductionMwh,
+				target_produksi_energi_listrik: input.targetProductionMwh,
+				realisasi_produksi_energi_listrik: input.actualProductionMwh,
+				prediksi_akumulasi_ketersediaan_energi_primer: input.predictedAccumulatedMwh,
+				target_akumulasi_produksi_energi_listrik: input.targetAccumulatedMwh,
+				realisasi_akumulasi_produksi_energi_listrik: input.actualAccumulatedMwh
 			}
 		});
 

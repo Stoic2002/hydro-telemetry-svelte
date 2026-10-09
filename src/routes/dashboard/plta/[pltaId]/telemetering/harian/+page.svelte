@@ -3,15 +3,26 @@
 	import { page } from '$app/state';
 	import IconRefresh from '~icons/ph/arrow-clockwise';
 	import IconClock from '~icons/ph/clock';
+	import IconSliders from '~icons/ph/sliders-horizontal';
 	import IconWarning from '~icons/ph/warning';
 
 	import SourceMarker from '$components/controls/SourceMarker.svelte';
 	import Banner from '$components/ui/Banner.svelte';
 	import PageHeader from '$components/ui/PageHeader.svelte';
 	import { authStore, canEditHydrologyData } from '$features/auth';
-	import { createDailyHydrologyQuery, getHydrologyErrorMessage } from '$features/hydrology';
+	import {
+		createDailyHydrologyQuery,
+		getHydrologyErrorMessage,
+		type DailyReportPanel
+	} from '$features/hydrology';
+	import DailyVisibilitySheet from '$features/hydrology/components/DailyVisibilitySheet.svelte';
 	import { createMonitoringStream, createPLTALatestQuery } from '$features/monitoring';
-	import { createPLTATagsQuery, getActivePLTA } from '$features/plta';
+	import {
+		HYDROLOGY_ZONE_PRESENTATION,
+		createPLTATagsQuery,
+		getActivePLTA,
+		type HydrologyZone
+	} from '$features/plta';
 	import PlantSwitcher from '$features/plta/components/PlantSwitcher.svelte';
 	import type { DailyTelemetryUploadTarget } from '$features/telemetry-upload';
 	import TelemetryUploadSheet from '$features/telemetry-upload/components/TelemetryUploadSheet.svelte';
@@ -42,6 +53,16 @@
 	const pltaId = $derived(activePLTA.pltaId);
 
 	let dailyUploadTarget = $state<DailyTelemetryUploadTarget | null>(null);
+	/** Panel yang tata letaknya sedang diatur; `null` = sheet tertutup. */
+	let layoutPanel = $state<DailyReportPanel | null>(null);
+
+	// Satu sheet per panel, dibuka dari ikon di sebelah judul kartunya: operator
+	// mengatur panel yang sedang dilihatnya, bukan mencari di daftar 69 metrik.
+	const ZONE_PANEL: Record<HydrologyZone, DailyReportPanel> = {
+		upstream: 'hulu',
+		dam: 'dam',
+		downstream: 'hilir'
+	};
 
 	/**
 	 * Penyebut DMN disimpan di query string, bukan state komponen: operator
@@ -212,6 +233,44 @@
 		staleMetricRows([...upstreamSections, ...damSections, ...downstreamSections])
 	);
 
+	/**
+	 * Banner sensor basi bisa ditutup — operator sudah tahu, dan badge merah di
+	 * tiap baris tetap tampil. Yang diingat adalah DAFTAR sensornya, per PLTA:
+	 * begitu ada sensor lain yang ikut berhenti (atau yang lama pulih), banner
+	 * muncul lagi. Disimpan di sessionStorage, jadi tab baru menampilkannya
+	 * kembali.
+	 */
+	const STALE_DISMISS_KEY = 'hidrologi-harian:sensor-basi-ditutup';
+	const staleSignature = $derived(
+		staleRows
+			.map((row) => row.key)
+			.sort()
+			.join(',')
+	);
+	let dismissedStale = $state<Record<string, string>>(readDismissedStale());
+	const isStaleBannerVisible = $derived(
+		staleRows.length > 0 && dismissedStale[pltaId] !== staleSignature
+	);
+
+	function readDismissedStale(): Record<string, string> {
+		try {
+			const raw = sessionStorage.getItem(STALE_DISMISS_KEY);
+			const parsed: unknown = raw ? JSON.parse(raw) : {};
+			return parsed && typeof parsed === 'object' ? (parsed as Record<string, string>) : {};
+		} catch {
+			return {};
+		}
+	}
+
+	function dismissStaleBanner() {
+		dismissedStale = { ...dismissedStale, [pltaId]: staleSignature };
+		try {
+			sessionStorage.setItem(STALE_DISMISS_KEY, JSON.stringify(dismissedStale));
+		} catch {
+			// Penyimpanan diblokir: banner tetap tertutup sampai halaman dimuat ulang.
+		}
+	}
+
 	function scrollToMetric(key: string | undefined) {
 		if (!key) return;
 		document
@@ -222,9 +281,9 @@
 
 <div class="flex flex-1 flex-col gap-6">
 	<PageHeader
-		eyebrow="Telemetering"
-		title="Hidrologi Harian"
-		description={`Kondisi hulu, bendungan, dan hilir PLTA ${displayName} hari ini`}
+		eyebrow="Telemetering · Hidrologi Harian"
+		title={displayName}
+		description="Kondisi hulu, bendungan, dan hilir hari ini"
 	>
 		{#snippet actions()}
 			{#if daily}
@@ -304,8 +363,13 @@
 		</Banner>
 	{/if}
 
-	{#if staleRows.length > 0}
-		<Banner tone="danger" title={`${staleRows.length} sensor tidak diperbarui`}>
+	{#if isStaleBannerVisible}
+		<Banner
+			tone="danger"
+			title={`${staleRows.length} sensor tidak diperbarui`}
+			onDismiss={dismissStaleBanner}
+			dismissLabel="Tutup peringatan sensor"
+		>
 			<span class="flex flex-wrap items-center gap-x-3 gap-y-1">
 				Angka di baris ini adalah pembacaan terakhir, bukan kondisi saat ini:
 				{#each staleRows as row (row.key)}
@@ -332,8 +396,23 @@
 	<!--
 		Pemilih penyebut DMN menempel pada zona Hulu, bukan di kartu tersendiri di
 		atas: seluruh metrik yang dipengaruhinya — DMN Beban Penuh, Service Hour
-		Full Load, dan keluarga "thd target" — ada di zona itu.
+		Full Load, dan keluarga "thd target" — ada di zona itu. Letaknya tepat di
+		bawah baris Service Hour Full Load (7 Okt 2026), atau di bawah judul Hulu
+		bila baris itu sedang tidak tampil.
 	-->
+	{#snippet layoutAction(zone: HydrologyZone)}
+		{@const title = HYDROLOGY_ZONE_PRESENTATION[zone].title}
+		<button
+			type="button"
+			onclick={() => (layoutPanel = ZONE_PANEL[zone])}
+			aria-label={`Atur tampilan ${title}`}
+			title={`Atur tampilan ${title}`}
+			class="flex size-7 cursor-pointer items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-surface-overlay hover:text-brand-primary-strong"
+		>
+			<IconSliders class="size-4" aria-hidden="true" />
+		</button>
+	{/snippet}
+
 	{#snippet dmnPicker()}
 		<DmnUnitPicker
 			units={dmnUnits}
@@ -351,9 +430,21 @@
 		{damSections}
 		{downstreamSections}
 		zoneControls={{ upstream: dmnPicker }}
+		zoneControlAfterKeys={{ upstream: 'service_hour_full_load' }}
+		zoneAction={canEditData ? layoutAction : undefined}
 		onUpload={canEditData ? (target) => (dailyUploadTarget = target) : undefined}
 	/>
 </div>
+
+{#if canEditData && layoutPanel}
+	<DailyVisibilitySheet
+		isOpen
+		{pltaId}
+		panel={layoutPanel}
+		plantName={displayName}
+		onClose={() => (layoutPanel = null)}
+	/>
+{/if}
 
 {#if canEditData && dailyUploadTarget}
 	<TelemetryUploadSheet

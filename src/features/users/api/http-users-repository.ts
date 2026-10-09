@@ -119,5 +119,12 @@ export const httpUsersRepository: UsersRepository = {
 			method: 'DELETE',
 			cache: 'no-store'
 		});
+	},
+
+	async revokeSessions(userId: string): Promise<void> {
+		await apiRequest<unknown>(`/api/v1/users/${encodeURIComponent(userId)}/revoke-sessions`, {
+			method: 'POST',
+			cache: 'no-store'
+		});
 	}
 };

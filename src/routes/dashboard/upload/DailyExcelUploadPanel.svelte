@@ -7,6 +7,8 @@
 	import IconWarning from '~icons/ph/warning';
 
 	import Input from '$components/controls/Input.svelte';
+	import SegmentedControl from '$components/controls/SegmentedControl.svelte';
+	import StatusToggle from '$components/controls/StatusToggle.svelte';
 	import Banner from '$components/ui/Banner.svelte';
 	import UploadHistoryPanel from '$features/audit/components/UploadHistoryPanel.svelte';
 	import {
@@ -14,6 +16,7 @@
 		createUploadDailyHydrologyExcelMutation,
 		getMonthlyExcelErrorMessage,
 		getMonthlyExcelRowErrors,
+		type DailyEmptyCellMode,
 		type DailyHydrologyExcelResult,
 		type MonthlyHydrologyExcelRowError
 	} from '$features/hydrology';
@@ -50,10 +53,28 @@
 	const today = toISODateWIB(new Date());
 	let fromDate = $state(today);
 	let toDate = $state(today);
+	// Dua pilihan, dua-duanya bawaan server bila tidak disentuh: template satu
+	// baris per tanggal, dan sel kosong dilewati.
+	let perHour = $state(false);
+	let emptyCells = $state<DailyEmptyCellMode>('skip');
 	let isDragging = $state(false);
 	let fileInput = $state<HTMLInputElement | null>(null);
 
 	const isUploading = $derived(uploadMutation.isPending);
+
+	const resultTiles = $derived(
+		result
+			? [
+					{ label: 'Baris diproses', value: result.processedRows },
+					{ label: 'Nilai tersimpan', value: result.writtenPoints },
+					// Hanya muncul bila ada yang diwarisi: pada mode bawaan angkanya selalu nol.
+					...(result.inheritedPoints > 0
+						? [{ label: 'Diisi nilai lama', value: result.inheritedPoints }]
+						: []),
+					{ label: 'PLTA', value: result.pltaCodes.length }
+				]
+			: []
+	);
 
 	/** Pesan rentang yang pasti ditolak server, supaya tombol unduh tidak dicoba sia-sia. */
 	const rangeError = $derived(dailyTemplateRangeError(fromDate, toDate));
@@ -94,9 +115,10 @@
 			if (rangeError) return;
 			const blob = await templateMutation.mutateAsync({
 				from: fromDate,
-				to: toDate === fromDate ? undefined : toDate
+				to: toDate === fromDate ? undefined : toDate,
+				perHour
 			});
-			downloadBlob(blob, dailyTemplateFilename(fromDate, toDate));
+			downloadBlob(blob, dailyTemplateFilename(fromDate, toDate, perHour));
 		} catch (error) {
 			notificationStore.addToast({ type: 'error', message: getMonthlyExcelErrorMessage(error) });
 		}
@@ -106,14 +128,18 @@
 		if (!selectedFile || selectionError) return;
 
 		try {
-			const uploaded = await uploadMutation.mutateAsync(selectedFile);
+			const uploaded = await uploadMutation.mutateAsync({ file: selectedFile, emptyCells });
 			result = uploaded;
 			rowErrors = [];
 			errorMessage = null;
 			clearSelection();
 			notificationStore.addToast({
 				type: 'success',
-				message: `${uploaded.writtenPoints} nilai dari ${uploaded.processedRows} baris tersimpan untuk ${uploaded.pltaCodes.length} PLTA.`
+				message: `${uploaded.writtenPoints} nilai dari ${uploaded.processedRows} baris tersimpan untuk ${uploaded.pltaCodes.length} PLTA${
+					uploaded.inheritedPoints > 0
+						? `, termasuk ${uploaded.inheritedPoints} sel kosong yang diisi nilai sebelumnya`
+						: ''
+				}.`
 			});
 		} catch (error) {
 			result = null;
@@ -226,6 +252,26 @@
 							</button>
 						</p>
 					{:else}
+						<div class="mt-3 flex flex-col gap-1.5">
+							<p class="field-label">Sel kosong di berkas</p>
+							<SegmentedControl
+								ariaLabel="Perlakuan sel kosong"
+								value={emptyCells}
+								onChange={(next) => (emptyCells = next)}
+								options={[
+									{ value: 'skip', label: 'Dilewati' },
+									{ value: 'carry-forward', label: 'Isi nilai terakhir' }
+								]}
+							/>
+							<p class="text-xs leading-relaxed text-text-muted">
+								{#if emptyCells === 'skip'}
+									Sel kosong tidak mengubah apa pun; nilai lama tetap.
+								{:else}
+									Sel kosong diisi nilai terisi terakhir pada kolom dan PLTA yang sama, diurut
+									waktu. Nilai yang diisi ini tersimpan sebagai data.
+								{/if}
+							</p>
+						</div>
 						<button
 							type="button"
 							onclick={() => void uploadWorkbook()}
@@ -239,7 +285,7 @@
 							<p class="text-xs leading-relaxed text-text-muted">
 								Berkas langsung tersimpan begitu dikirim — tidak ada tahap pratinjau. Bila ada satu
 								baris bermasalah, seluruh berkas ditolak dan tidak ada data yang berubah. Sel kosong
-								dilewati dan tidak menghapus nilai lama; tanggal yang sama menimpa nilai sebelumnya.
+								tidak pernah menghapus nilai lama; tanggal yang sama menimpa nilai sebelumnya.
 							</p>
 						</div>
 					{/if}
@@ -286,8 +332,12 @@
 				<section>
 					<h2 class="section-title">Hasil unggahan</h2>
 
-					<div class="mt-3 grid grid-cols-3 gap-px overflow-hidden rounded-xl bg-border-subtle">
-						{#each [{ label: 'Baris diproses', value: result.processedRows }, { label: 'Nilai tersimpan', value: result.writtenPoints }, { label: 'PLTA', value: result.pltaCodes.length }] as item (item.label)}
+					<div
+						class={`mt-3 grid gap-px overflow-hidden rounded-xl bg-border-subtle ${
+							resultTiles.length > 3 ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-3'
+						}`}
+					>
+						{#each resultTiles as item (item.label)}
 							<div class="bg-surface-raised px-4 py-3">
 								<p class="table-head-cell">{item.label}</p>
 								<p class="metric-value mt-1 text-xl font-semibold">{item.value}</p>
@@ -354,6 +404,16 @@
 				error={rangeError ?? undefined}
 			/>
 
+			<StatusToggle
+				label="Baris per jam"
+				activeLabel="Per jam"
+				align="stretch"
+				inactiveLabel="Harian"
+				isActive={perHour}
+				disabled={templateMutation.isPending}
+				onChange={(next) => (perHour = next)}
+			/>
+
 			<button
 				type="button"
 				onclick={() => void downloadTemplate()}
@@ -365,8 +425,13 @@
 			</button>
 
 			<p class="text-xs leading-relaxed text-text-muted">
-				Satu baris per PLTA per tanggal, maksimal {MAX_DAILY_TEMPLATE_RANGE_DAYS} hari. Nilai yang sudah
-				tersimpan sudah terisi, jadi tinggal dikoreksi.
+				{#if perHour}
+					24 baris per PLTA per tanggal, satu per jam 0–23.
+				{:else}
+					Satu baris per PLTA per tanggal, kolom jam kosong.
+				{/if}
+				Maksimal {MAX_DAILY_TEMPLATE_RANGE_DAYS} hari. Nilai yang sudah tersimpan sudah terisi, jadi tinggal
+				dikoreksi.
 			</p>
 
 			<div class="flex flex-col gap-2 border-t border-border-subtle pt-2.5">

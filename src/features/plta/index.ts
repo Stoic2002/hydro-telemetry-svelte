@@ -5,6 +5,7 @@ export {
 	createPLTATagsQuery,
 	createPlantCatalogQuery,
 	createRiverBasinsQuery,
+	createUpdateTagBoundsMutation,
 	ensurePlantCatalog,
 	ensurePlantDetail,
 	pickDefaultPlant
@@ -21,5 +22,6 @@ export {
 	isValidPLTAId
 } from './routing';
 export type { HydrologyZone } from './dam-imagery';
-export type { Plant, PlantTag, PlantTagListParams, PlantTagProtocol } from './model';
+export { describeTagBounds, parseTagBounds } from './tag-bounds';
+export type { Plant, PlantTag, PlantTagListParams, PlantTagProtocol, TagBounds } from './model';
 export type { PLTADashboardPage, UploadTab } from './routing';

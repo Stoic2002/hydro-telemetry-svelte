@@ -9,6 +9,9 @@ import {
 import { authRepository } from './api/repository';
 import { mapAuthUserToUIUser } from './model';
 
+/** Batas tunggu pencabutan token saat keluar; sesudahnya halaman tetap berpindah. */
+const LOGOUT_REVOKE_TIMEOUT_MS = 3_000;
+
 /**
  * Sesi pengguna. Pengganti store Zustand di versi React.
  *
@@ -145,8 +148,38 @@ class AuthStore {
 		}
 	}
 
-	/** Tidak ada endpoint logout di backend — keluar murni sisi klien. */
-	logout(): void {
+	/**
+	 * Keluar dari sesi ini. Sesi lokal dibersihkan LEBIH DULU supaya keluar
+	 * terasa seketika dan tidak bisa gagal; sesudahnya token yang tadi dipakai
+	 * dicabut di server (`POST /auth/logout`). Dulu keluar murni sisi klien —
+	 * refresh token yang sempat tersalin tetap hidup sampai 7 hari.
+	 *
+	 * Pencabutan dibatasi waktu dan galatnya diabaikan: server selalu membalas
+	 * 204, dan jaringan yang putus tidak boleh menahan pengguna di layar.
+	 */
+	async logout(): Promise<void> {
+		const tokens = getAuthTokens();
+		this.clearLocalSession();
+		if (!tokens) return;
+
+		await Promise.race([
+			authRepository.logout(tokens).catch(() => undefined),
+			new Promise<void>((resolve) => setTimeout(resolve, LOGOUT_REVOKE_TIMEOUT_MS))
+		]);
+	}
+
+	/**
+	 * Keluar dari SEMUA perangkat. Berbeda dengan `logout`, pencabutan di server
+	 * harus berhasil dulu: kalau gagal, sesi lokal dipertahankan dan galatnya
+	 * dilempar, supaya pengguna tidak mengira tokennya sudah dicabut padahal
+	 * belum.
+	 */
+	async logoutAll(): Promise<void> {
+		await authRepository.logoutAll();
+		this.clearLocalSession();
+	}
+
+	private clearLocalSession(): void {
 		clearAuthTokens({ broadcast: true });
 		this.user = null;
 		this.isAuthenticated = false;

@@ -101,7 +101,9 @@
 
 	async function handleLogout() {
 		isLogoutDialogOpen = false;
-		authStore.logout();
+		// Sesi lokal sudah bersih begitu `logout()` dipanggil; pencabutan token di
+		// server berjalan di belakang (SPA tidak membatalkannya saat pindah halaman).
+		void authStore.logout();
 		await goto('/login', { replaceState: true });
 	}
 </script>
@@ -179,7 +181,7 @@
 			<NavGroup
 				label="Telemetering"
 				{collapsed}
-				href={dashboardPath('telemetering/harian')}
+				href={dashboardPath('telemetering/bulanan')}
 				isActive={isTelemeteringActive}
 			>
 				{#snippet icon()}<IconActivity class="size-[18px]" />{/snippet}

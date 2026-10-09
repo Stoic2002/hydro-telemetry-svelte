@@ -1,27 +1,10 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
-	import { page } from '$app/state';
-	import { Popover } from 'bits-ui';
 	import IconArrowRight from '~icons/ph/arrow-right';
-	import IconCaretDown from '~icons/ph/caret-down';
 
 	import Badge from '$components/controls/Badge.svelte';
-	import Select from '$components/controls/Select.svelte';
-	import {
-		createMonthlyHydrologyOverviewQuery,
-		getHydrologyErrorMessage,
-		type MonthlyHydrologyOverview
-	} from '$features/hydrology';
 	import { formatNumber } from '$shared/utils/number';
-	import {
-		ALL_MONTHS,
-		isFleetAchieved,
-		missingPlantCount,
-		parseReportMonth,
-		parseReportYear,
-		reportPeriodLabel
-	} from '../hydrology-report';
-	import { MONTHS } from '../plta/[pltaId]/telemetering/presentation';
+	import { reportPeriodLabel } from '../hydrology-report';
+	import { createFleetSummary } from './fleet-summary.svelte';
 
 	interface Props {
 		/** Jumlah PLTA terdaftar, untuk menunjukkan cakupan ringkasan. `null` bila belum dimuat. */
@@ -29,249 +12,150 @@
 	}
 
 	/**
-	 * Ringkasan armada dari `GET /hydrology/monthly/overview` — dulu bagian atas
-	 * Telemetering › Rekap Hidrologi, kini satu baris di kepala halaman Overview.
+	 * Kartu ringkasan seluruh PLTA dari `GET /hydrology/monthly/overview`,
+	 * menempel di dasar peta Overview seperti kartu Awan Hujan dan Legenda —
+	 * dulu bagian atas Telemetering › Rekap Hidrologi.
 	 *
-	 * Satu baris, bukan kolom di samping peta: kolom 300px membuat gambar peta
-	 * 15–20% lebih kecil, sedangkan kepala halaman punya ruang mendatar yang
-	 * kosong. Angka utama tetap terlihat; tabel rata-rata dan pemilih periode ada
-	 * di balik "Detail", satu klik jauhnya.
+	 * Riwayat penempatan: kolom 300px di samping peta (mengecilkan peta 15–20%),
+	 * lalu strip di kanan judul (dinilai kurang terlihat, 7 Okt 2026). Bagian
+	 * bawah peta adalah laut di selatan Jawa, jadi kartu di sana tidak menutupi
+	 * satu PLTA pun. Pemilih periodenya tetap di kepala halaman
+	 * (`FleetSummaryControls`).
 	 *
 	 * Angka utamanya **pencapaian agregat** (total prediksi ÷ total target) —
-	 * menurut backend itulah angka armada sesungguhnya. Rata-rata antar-PLTA
+	 * menurut backend itulah angka gabungan sesungguhnya. Rata-rata antar-PLTA
 	 * tetap ditampilkan, tapi sebagai pembanding: ia memberi bobot sama pada PLTA
-	 * 1 MW dan 179 MW. Setiap rata-rata membawa jumlah baris yang ikut dihitung,
+	 * 1 MW dan 179 MW. Setiap rata-rata membawa jumlah data yang ikut dihitung,
 	 * karena rata-rata atas 2 dari 13 PLTA tidak boleh terbaca sebagai angka
-	 * armada.
+	 * gabungan.
 	 */
 	let { registeredPlantCount }: Props = $props();
 
-	const CURRENT_YEAR = new Date().getFullYear();
-	const MONTH_OPTIONS = [
-		{ value: ALL_MONTHS, label: 'Sepanjang tahun' },
-		...MONTHS.map((label, index) => ({ value: String(index + 1), label }))
-	];
-	const YEAR_OPTIONS = Array.from({ length: 6 }, (_, index) => CURRENT_YEAR + 1 - index).map(
-		(value) => ({ value: String(value), label: String(value) })
-	);
-
-	const AVERAGE_ROWS: {
-		key: keyof MonthlyHydrologyOverview['averages'];
-		label: string;
-	}[] = [
-		{ key: 'predictedProductionMwh', label: 'Prediksi produksi' },
-		{ key: 'targetProductionMwh', label: 'Target produksi' },
-		{ key: 'previousAchievementMwh', label: 'Pencapaian s.d. bulan sebelumnya' },
-		{ key: 'predictedPreviousAchievementMwh', label: 'Prediksi pencapaian' },
-		{ key: 'targetPreviousAchievementMwh', label: 'Target pencapaian' }
-	];
-
-	const year = $derived(parseReportYear(page.url.searchParams.get('tahun'), CURRENT_YEAR));
-	/** `undefined` = sepanjang tahun. Tanpa `?bulan=` sama sekali, bulan berjalan. */
-	const month = $derived(
-		parseReportMonth(page.url.searchParams.get('bulan'), new Date().getMonth() + 1)
-	);
-	const periodLabel = $derived(reportPeriodLabel(year, month));
-
-	const overviewQuery = createMonthlyHydrologyOverviewQuery(() => ({ year, month }));
-	const overview = $derived(overviewQuery.data);
-
-	const fleetAchieved = $derived(overview ? isFleetAchieved(overview) : null);
-	const plantsWithoutData = $derived(
-		overview ? missingPlantCount(overview, registeredPlantCount) : 0
-	);
-	const needsAttention = $derived(
-		Boolean(overview && (plantsWithoutData > 0 || overview.unassessedCount > 0))
-	);
-
-	/** Laporan Excel periode yang sama, di tab Laporan Hidrologi. */
-	const reportHref = $derived(
-		`/dashboard/laporan?tab=hidrologi&tahun=${year}&bulan=${month ?? ALL_MONTHS}`
-	);
+	const summary = createFleetSummary(() => registeredPlantCount);
+	const overview = $derived(summary.overview);
+	const previousMonth = $derived(summary.previousMonth);
 
 	function formatPercent(value: number | null): string {
 		return value === null ? '—' : `${formatNumber(value, 2)}%`;
 	}
-
-	function setPeriod(key: 'tahun' | 'bulan', value: string) {
-		// Salinan sekali pakai untuk menyusun URL berikutnya; dibuang setelah
-		// `goto`, jadi tidak perlu `SvelteURLSearchParams`.
-		// eslint-disable-next-line svelte/prefer-svelte-reactivity
-		const params = new URLSearchParams(page.url.searchParams);
-		params.set(key, value);
-		void goto(`?${params.toString()}`, { replaceState: true, keepFocus: true, noScroll: true });
-	}
 </script>
 
-{#snippet divider()}
-	<span class="hidden h-4 w-px shrink-0 bg-border-subtle sm:block" aria-hidden="true"></span>
-{/snippet}
-
 <section
-	aria-label={`Ringkasan armada ${periodLabel}`}
-	class="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-border-subtle bg-surface-raised px-3.5 py-2"
+	aria-label={`Ringkasan seluruh PLTA ${summary.periodLabel}`}
+	class="rounded-xl border border-border-subtle bg-surface-raised/95 px-4 py-3 shadow-overlay backdrop-blur-sm"
 >
-	<span class="flex items-baseline gap-1.5 text-xs whitespace-nowrap">
-		<span class="font-medium text-text-secondary">Ringkasan armada</span>
-		<span class="text-text-muted">· {periodLabel}</span>
-	</span>
-	{@render divider()}
-
-	{#if overviewQuery.isLoading}
-		<span role="status" class="flex items-center gap-2">
-			<span class="skeleton-shimmer h-4 w-48 rounded"></span>
-			<span class="sr-only">Memuat ringkasan armada...</span>
+	<p class="text-xs font-medium text-text-secondary">
+		Ringkasan hidrologi seluruh PLTA
+		<span class="font-normal text-text-muted">
+			· {overview && overview.rowCount > 0
+				? `Akumulasi s.d. ${summary.accumulatedThrough}`
+				: summary.periodLabel}
 		</span>
-	{:else if overviewQuery.isError}
-		<span role="alert" class="flex items-center gap-2 text-xs text-status-danger-strong">
-			Ringkasan belum bisa dimuat
+	</p>
+
+	{#if summary.query.isLoading}
+		<div role="status" class="mt-2 grid grid-cols-2 gap-x-5 gap-y-3 md:grid-cols-4">
+			{#each Array.from({ length: 4 }, (_, index) => index) as index (index)}
+				<div>
+					<div class="skeleton-shimmer h-2.5 w-20 rounded"></div>
+					<div class="skeleton-shimmer mt-1.5 h-6 w-24 rounded"></div>
+				</div>
+			{/each}
+			<span class="sr-only">Memuat ringkasan seluruh PLTA...</span>
+		</div>
+	{:else if summary.rangeError}
+		<p role="alert" class="mt-1.5 text-sm text-status-warning-strong">
+			Rentang periode tidak valid — atur di Detail.
+		</p>
+	{:else if summary.query.isError}
+		<p
+			role="alert"
+			class="mt-1.5 flex flex-wrap items-center gap-x-2 text-sm text-status-danger-strong"
+		>
+			Ringkasan belum bisa dimuat.
 			<button
 				type="button"
-				onclick={() => void overviewQuery.refetch()}
-				disabled={overviewQuery.isFetching}
+				onclick={() => void summary.query.refetch()}
+				disabled={summary.query.isFetching}
 				class="cursor-pointer font-medium underline underline-offset-2"
 			>
-				{overviewQuery.isFetching ? 'Mencoba lagi…' : 'Coba lagi'}
+				{summary.query.isFetching ? 'Mencoba lagi…' : 'Coba lagi'}
 			</button>
-		</span>
+		</p>
 	{:else if overview && overview.rowCount === 0}
-		<span class="text-xs text-text-muted">Belum ada data hidrologi bulanan</span>
-	{:else if overview}
-		<span class="flex items-center gap-2" title="Total prediksi ÷ total target seluruh PLTA">
-			<span class="sr-only">Pencapaian armada</span>
-			<span class="metric-value text-base font-semibold text-text-strong">
-				{formatPercent(overview.aggregateAchievementPercent)}
-			</span>
-			{#if fleetAchieved !== null}
-				<Badge tone={fleetAchieved ? 'green' : 'amber'}>
-					{fleetAchieved ? 'Tercapai' : 'Belum tercapai'}
-				</Badge>
-			{/if}
-		</span>
-		{@render divider()}
-		<span class="text-xs whitespace-nowrap text-text-muted">
-			Rata-rata
-			<span class="metric-value font-medium text-text-primary">
-				{formatPercent(overview.averageAchievementPercent.value)}
-			</span>
-		</span>
-		{@render divider()}
-		<span class="flex items-center gap-1.5">
-			<Badge tone="green">{overview.achievedCount} tercapai</Badge>
-			<Badge tone="amber">{overview.notAchievedCount} tidak</Badge>
-		</span>
-		{@render divider()}
-		<span class="text-xs whitespace-nowrap text-text-muted">
-			<span class="metric-value font-medium text-text-primary">
-				{overview.plantCount}{#if registeredPlantCount !== null}/{registeredPlantCount}{/if}
-			</span>
-			PLTA
-		</span>
-	{/if}
-
-	<Popover.Root>
-		<Popover.Trigger
-			class="ml-auto inline-flex cursor-pointer items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-brand-primary-strong transition-colors outline-none hover:bg-surface-overlay focus-visible:ring-2 focus-visible:ring-brand-primary-strong/40 data-[state=open]:bg-surface-overlay"
-		>
-			Detail
-			{#if needsAttention}
-				<!-- Peringatan cakupan ada di dalam; titik ini yang memberi tahu. -->
-				<span class="size-1.5 rounded-full bg-status-warning-strong" aria-hidden="true"></span>
-				<span class="sr-only">(ada peringatan cakupan)</span>
-			{/if}
-			<IconCaretDown class="size-3" aria-hidden="true" />
-		</Popover.Trigger>
-		<Popover.Portal>
-			<Popover.Content
-				side="bottom"
-				align="end"
-				sideOffset={8}
-				class="z-100 w-[340px] max-w-[calc(100vw-2rem)] rounded-xl border border-border-subtle bg-surface-raised p-4 shadow-overlay outline-none"
-			>
-				<p class="card-title">Ringkasan armada</p>
-				<p class="mt-0.5 text-xs text-text-muted">Hidrologi bulanan seluruh PLTA</p>
-
-				<div class="mt-3 grid grid-cols-[1fr_96px] gap-2">
-					<Select
-						ariaLabel="Bulan ringkasan"
-						value={month ? String(month) : ALL_MONTHS}
-						onValueChange={(value) => setPeriod('bulan', value)}
-						options={MONTH_OPTIONS}
-						controlSize="sm"
-					/>
-					<Select
-						ariaLabel="Tahun ringkasan"
-						value={String(year)}
-						onValueChange={(value) => setPeriod('tahun', value)}
-						options={YEAR_OPTIONS}
-						controlSize="sm"
-					/>
-				</div>
-
-				{#if overview && overview.rowCount > 0}
-					<p class="mt-3 text-xs leading-relaxed text-text-muted">
-						<span class="font-medium text-text-secondary">Pencapaian armada</span>
-						{formatNumber(overview.totalPredictedAchievementMwh, 0)} dari
-						{formatNumber(overview.totalTargetAchievementMwh, 0)} MWh target.
-						<span class="font-medium text-text-secondary">Rata-rata antar-PLTA</span>
-						memberi bobot sama pada setiap PLTA ({overview.averageAchievementPercent.count} baris).
-					</p>
-
-					{#if needsAttention}
-						<p
-							class="mt-3 rounded-lg bg-status-warning-soft px-2.5 py-2 text-xs leading-relaxed text-status-warning-strong"
-						>
-							{#if plantsWithoutData > 0}
-								{plantsWithoutData} dari {registeredPlantCount} PLTA belum punya data periode ini.
-							{/if}
-							{#if overview.unassessedCount > 0}
-								{overview.unassessedCount} baris belum bisa dinilai karena prediksi atau targetnya kosong
-								— tidak dihitung "tidak tercapai" dan tidak ikut angka armada.
-							{/if}
-						</p>
-					{/if}
-
-					<table class="mt-3 w-full border-collapse text-left">
-						<caption class="sr-only">Rata-rata energi per PLTA pada {periodLabel}</caption>
-						<thead>
-							<tr class="border-b border-border-subtle">
-								<th class="table-head-cell py-1.5">Rata-rata per PLTA</th>
-								<th class="table-head-cell py-1.5 text-right">MWh</th>
-								<th class="table-head-cell py-1.5 text-right">Baris</th>
-							</tr>
-						</thead>
-						<tbody>
-							{#each AVERAGE_ROWS as row (row.key)}
-								{@const average = overview.averages[row.key]}
-								<tr class="border-b border-surface-overlay last:border-b-0">
-									<td class="py-1.5 text-xs text-text-secondary">{row.label}</td>
-									<td class="metric-value py-1.5 text-right text-xs text-text-primary">
-										{formatNumber(average.value, 2)}
-									</td>
-									<td class="py-1.5 text-right text-xs text-text-muted">{average.count}</td>
-								</tr>
-							{/each}
-						</tbody>
-					</table>
-				{:else if overview}
-					<p class="mt-3 text-xs leading-relaxed text-text-muted">
-						Belum ada data untuk {periodLabel}. Isi lewat Upload › Excel Bulanan untuk seluruh PLTA
-						sekaligus, atau lewat Input data di Hidrologi Bulanan per PLTA.
-					</p>
-				{:else if overviewQuery.isError}
-					<p class="mt-3 text-xs text-status-danger-strong">
-						{getHydrologyErrorMessage(overviewQuery.error)}
-					</p>
-				{/if}
-
-				<a
-					href={reportHref}
-					class="mt-3 flex items-center justify-between gap-2 border-t border-border-subtle pt-3 text-xs font-medium text-brand-primary-strong hover:underline"
+		<p class="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-text-secondary">
+			Belum ada data hidrologi bulanan {summary.periodLabel}.
+			{#if previousMonth}
+				<button
+					type="button"
+					onclick={() =>
+						summary.setPeriods({
+							tahun: String(previousMonth.year),
+							bulan: String(previousMonth.month)
+						})}
+					class="inline-flex cursor-pointer items-center gap-1 font-medium text-brand-primary-strong hover:text-brand-primary-pressed"
 				>
-					Unduh laporan Excel {periodLabel}
-					<IconArrowRight class="size-3.5 shrink-0" aria-hidden="true" />
-				</a>
-			</Popover.Content>
-		</Popover.Portal>
-	</Popover.Root>
+					Lihat {reportPeriodLabel(previousMonth.year, previousMonth.month)}
+					<IconArrowRight class="size-3.5" aria-hidden="true" />
+				</button>
+			{/if}
+		</p>
+	{:else if overview}
+		<dl class="mt-2 grid grid-cols-2 gap-x-5 gap-y-3 md:grid-cols-[repeat(4,auto)]">
+			<div title="Total prediksi ÷ total target seluruh PLTA">
+				<dt class="text-[11px] font-medium text-text-muted">Pencapaian seluruh PLTA</dt>
+				<dd class="mt-0.5 flex flex-wrap items-center gap-1.5">
+					<span class="metric-value text-xl font-semibold text-text-strong">
+						{formatPercent(overview.accumulated.aggregatePercent)}
+					</span>
+					{#if summary.fleetAchieved !== null}
+						<Badge tone={summary.fleetAchieved ? 'green' : 'amber'}>
+							{summary.fleetAchieved ? 'Tercapai' : 'Belum tercapai'}
+						</Badge>
+					{/if}
+				</dd>
+				<dd class="mt-0.5 text-[11px] text-text-muted">
+					{formatNumber(overview.accumulated.totalPredictedMwh, 0)} dari
+					{formatNumber(overview.accumulated.totalTargetMwh, 0)} MWh target
+				</dd>
+			</div>
+			<div class="md:border-l md:border-border-subtle md:pl-5">
+				<dt class="text-[11px] font-medium text-text-muted">Rata-rata antar-PLTA</dt>
+				<dd class="metric-value mt-0.5 text-xl font-semibold text-text-strong">
+					{formatPercent(overview.accumulated.averagePercent.value)}
+				</dd>
+				<dd class="mt-0.5 text-[11px] text-text-muted">
+					Bobot sama · {overview.accumulated.averagePercent.count} data
+				</dd>
+			</div>
+			<div class="md:border-l md:border-border-subtle md:pl-5">
+				<dt class="text-[11px] font-medium text-text-muted">Status per PLTA</dt>
+				<dd class="mt-1.5 flex flex-wrap items-center gap-1.5">
+					<Badge tone="green">{overview.accumulated.achievedCount} tercapai</Badge>
+					<Badge tone="amber">{overview.accumulated.notAchievedCount} tidak</Badge>
+				</dd>
+				{#if overview.accumulated.unassessedCount > 0}
+					<dd class="mt-0.5 text-[11px] text-status-warning-strong">
+						{overview.accumulated.unassessedCount} belum dinilai
+					</dd>
+				{/if}
+			</div>
+			<div class="md:border-l md:border-border-subtle md:pl-5">
+				<dt class="text-[11px] font-medium text-text-muted">Cakupan</dt>
+				<dd class="metric-value mt-0.5 text-xl font-semibold text-text-strong">
+					{overview.plantCount}{#if registeredPlantCount !== null}<span
+							class="text-sm font-medium text-text-muted">/{registeredPlantCount}</span
+						>{/if}
+					<span class="text-xs font-medium text-text-muted">PLTA</span>
+				</dd>
+				<dd
+					class={`mt-0.5 text-[11px] ${summary.plantsWithoutData > 0 ? 'text-status-warning-strong' : 'text-text-muted'}`}
+				>
+					{summary.plantsWithoutData > 0
+						? `${summary.plantsWithoutData} PLTA belum punya data`
+						: 'Semua PLTA sudah terisi'}
+				</dd>
+			</div>
+		</dl>
+	{/if}
 </section>

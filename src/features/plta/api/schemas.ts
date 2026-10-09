@@ -48,6 +48,9 @@ export const apiPlantTagSchema = z.object({
 		.optional()
 		.transform((value) => value ?? ''),
 	enabled: z.boolean(),
+	label: z.string().nullable().optional().default(null),
+	min_valid: z.number().nullable().optional().default(null),
+	max_valid: z.number().nullable().optional().default(null),
 	id: z.string().uuid()
 });
 

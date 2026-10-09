@@ -31,5 +31,26 @@ export const httpAuthRepository: AuthRepository = {
 		});
 
 		return parseResponse(payload, authUserResponseSchema, '/api/v1/auth/me');
+	},
+
+	async logout(tokens: AuthTokens): Promise<void> {
+		// Token dikirim eksplisit, bukan dari sesi tersimpan: sesi lokal sudah
+		// dibersihkan lebih dulu supaya keluar terasa seketika. Tidak ada refresh
+		// otomatis — memperpanjang sesi yang sedang dicabut tidak ada gunanya.
+		await apiRequest<unknown>('/api/v1/auth/logout', {
+			method: 'POST',
+			cache: 'no-store',
+			auth: false,
+			retryOnUnauthorized: false,
+			headers: { Authorization: `Bearer ${tokens.access_token}` },
+			json: { refresh_token: tokens.refresh_token }
+		});
+	},
+
+	async logoutAll(): Promise<void> {
+		await apiRequest<unknown>('/api/v1/auth/logout-all', {
+			method: 'POST',
+			cache: 'no-store'
+		});
 	}
 };

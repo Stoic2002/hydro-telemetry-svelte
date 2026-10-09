@@ -1,7 +1,7 @@
 import { redirectToDefaultPLTA } from '$core/guards';
 
 /**
- * Rekap Hidrologi sudah dipecah (29 Sep 2026): ringkasan armada pindah ke
+ * Rekap Hidrologi sudah dipecah (29 Sep 2026): ringkasan seluruh PLTA pindah ke
  * Overview, unduhan laporan ke tab Laporan Hidrologi di menu Laporan. Tautan
  * lama dialihkan ke tab laporan — itu yang paling sering dicari lewat
  * bookmark — beserta `?tahun=`, `?bulan=`, dan `?plta=`-nya.

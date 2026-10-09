@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/svelte';
+import { createRawSnippet } from 'svelte';
 import { describe, expect, it } from 'vitest';
 import HydrologyMetricCard from './HydrologyMetricCard.svelte';
 import type { MetricRow } from './presentation';
@@ -28,5 +29,46 @@ describe('kartu zona dalam tampilan ringkas', () => {
 		expect(screen.getByText('Parameter 7')).toBeInTheDocument();
 		expect(screen.queryByText('Parameter 6')).not.toBeInTheDocument();
 		expect(screen.getByRole('button', { name: 'Lihat semua (7)' })).toBeInTheDocument();
+	});
+});
+
+describe('kontrol zona yang ditempelkan ke sebuah baris', () => {
+	const control = createRawSnippet(() => ({
+		render: () => '<div data-testid="unit-picker">Unit beban penuh</div>'
+	}));
+
+	function precedingLabel() {
+		// Baris tepat sebelum kontrol: pembungkus kontrol bersaudara dengan baris metrik.
+		const wrapper = screen.getByTestId('unit-picker').parentElement;
+		return wrapper?.previousElementSibling?.textContent ?? null;
+	}
+
+	it('tampil tepat di bawah baris tujuannya bila baris itu terlihat', () => {
+		const rows = [1, 2, 3].map((index) => row(index));
+		render(HydrologyMetricCard, {
+			props: {
+				zone: 'upstream',
+				sections: [{ title: 'Hulu', rows }],
+				zoneControl: control,
+				zoneControlAfterKey: 'metric_2'
+			}
+		});
+
+		expect(precedingLabel()).toContain('Parameter 2');
+	});
+
+	it('kembali ke bawah judul bila baris tujuannya terlipat atau tidak ada', () => {
+		const rows = [1, 2, 3, 4, 5, 6, 7].map((index) => row(index));
+		render(HydrologyMetricCard, {
+			props: {
+				zone: 'upstream',
+				sections: [{ title: 'Hulu', rows }],
+				zoneControl: control,
+				zoneControlAfterKey: 'metric_7'
+			}
+		});
+
+		expect(screen.getByTestId('unit-picker')).toBeInTheDocument();
+		expect(precedingLabel()).not.toContain('Parameter');
 	});
 });

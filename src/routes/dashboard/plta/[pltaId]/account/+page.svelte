@@ -3,11 +3,13 @@
 	import { goto } from '$app/navigation';
 	import IconKey from '~icons/ph/key';
 	import IconSave from '~icons/ph/floppy-disk';
+	import IconSignOut from '~icons/ph/sign-out';
 	import IconUser from '~icons/ph/user-circle';
 
 	import { ApiError } from '$api/http';
 	import Button from '$components/controls/Button.svelte';
 	import Input from '$components/controls/Input.svelte';
+	import ConfirmDialog from '$components/ui/ConfirmDialog.svelte';
 	import ErrorState from '$components/ui/ErrorState.svelte';
 	import PageHeader from '$components/ui/PageHeader.svelte';
 	import {
@@ -85,13 +87,38 @@
 					type: 'success',
 					message: 'Password berhasil diubah. Silakan masuk kembali'
 				});
-				authStore.logout();
+				void authStore.logout();
 				await goto('/login', { replaceState: true });
 			} catch (error) {
 				notificationStore.addToast({ type: 'error', message: getAccountErrorMessage(error) });
 			}
 		}
 	});
+
+	let isLogoutAllOpen = $state(false);
+	let isLoggingOutAll = $state(false);
+
+	/**
+	 * Mencabut SEMUA token akun ini di server — semua perangkat, termasuk yang
+	 * ini — untuk token yang dicurigai bocor. Gagal = sesi tetap utuh dan galatnya
+	 * tampil, supaya pengguna tidak mengira tokennya sudah dicabut.
+	 */
+	async function logoutAllDevices() {
+		isLoggingOutAll = true;
+		try {
+			await authStore.logoutAll();
+			isLogoutAllOpen = false;
+			notificationStore.addToast({
+				type: 'success',
+				message: 'Anda sudah keluar dari semua perangkat. Silakan masuk kembali'
+			});
+			await goto('/login', { replaceState: true });
+		} catch (error) {
+			notificationStore.addToast({ type: 'error', message: getAccountErrorMessage(error) });
+		} finally {
+			isLoggingOutAll = false;
+		}
+	}
 
 	// Profil bisa tiba setelah halaman terpasang (mis. saat sesi baru dipulihkan),
 	// jadi nilai awal form mengikuti begitu datanya ada.
@@ -237,5 +264,45 @@
 				</form>
 			</section>
 		</div>
+
+		<section
+			aria-labelledby="sessions-title"
+			class="flex flex-col gap-3 rounded-xl border border-border-subtle bg-surface-raised px-[18px] py-4 sm:flex-row sm:items-center sm:justify-between"
+		>
+			<div class="min-w-0">
+				<h2 id="sessions-title" class="card-title">Sesi di perangkat lain</h2>
+				<p class="mt-1 text-xs leading-relaxed text-text-muted">
+					Bila Anda curiga akun dipakai di perangkat lain, keluarkan semua sesi sekaligus. Semua
+					perangkat, termasuk yang ini, harus masuk kembali.
+				</p>
+			</div>
+			<Button
+				type="button"
+				variant="ghost"
+				size="sm"
+				onclick={() => (isLogoutAllOpen = true)}
+				class="shrink-0 whitespace-nowrap text-status-danger-strong"
+			>
+				{#snippet leftIcon()}<IconSignOut class="size-4" />{/snippet}
+				Keluar dari semua perangkat
+			</Button>
+		</section>
 	{/if}
 </div>
+
+<ConfirmDialog
+	isOpen={isLogoutAllOpen}
+	variant="warning"
+	title="Keluar dari semua perangkat?"
+	confirmLabel={isLoggingOutAll ? 'Mengeluarkan…' : 'Ya, keluar dari semua'}
+	cancelLabel="Batal"
+	isConfirming={isLoggingOutAll}
+	onConfirm={() => void logoutAllDevices()}
+	onClose={() => (isLogoutAllOpen = false)}
+>
+	{#snippet icon()}<IconSignOut class="size-5" />{/snippet}
+	{#snippet description()}
+		Semua sesi akun ini dicabut, termasuk di perangkat ini. Anda dan siapa pun yang memakai akun ini
+		harus masuk kembali.
+	{/snippet}
+</ConfirmDialog>

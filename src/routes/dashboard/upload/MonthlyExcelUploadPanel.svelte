@@ -37,19 +37,24 @@
 		(value) => ({ value: String(value), label: String(value) })
 	);
 
-	/** Urutan kolom template, dipakai sebagai rujukan cepat di panel kanan. */
+	/**
+	 * Urutan kolom template, dipakai sebagai rujukan cepat di panel kanan. Nama
+	 * kontrak 5 Okt 2026; server masih memetakan header lama, tetapi menolak
+	 * berkas yang memuat nama lama dan baru untuk bidang yang sama.
+	 */
 	const TEMPLATE_COLUMNS = [
 		'kode_plta',
 		'nama_plta',
 		'tahun',
 		'bulan',
 		'prediksi_hidrologi',
-		'aktual_hidrologi',
-		'prediksi_produksi_mwh',
-		'target_produksi_mwh',
-		'pencapaian_sd_prev_mwh',
-		'prediksi_pencapaian_sd_prev_mwh',
-		'target_pencapaian_sd_prev_mwh'
+		'realisasi_hidrologi',
+		'prediksi_ketersediaan_energi_primer',
+		'target_produksi_energi_listrik',
+		'realisasi_produksi_energi_listrik',
+		'prediksi_akumulasi_ketersediaan_energi_primer',
+		'target_akumulasi_produksi_energi_listrik',
+		'realisasi_akumulasi_produksi_energi_listrik'
 	];
 
 	const uploadMutation = createUploadMonthlyHydrologyExcelMutation();
@@ -383,10 +388,12 @@
 				<p class="table-head-cell">Kolom template</p>
 				<ul class="mt-1.5 flex flex-col gap-0.5">
 					{#each TEMPLATE_COLUMNS as column (column)}
-						<li class="font-mono text-xs text-text-muted">{column}</li>
+						<li class="font-mono text-xs break-all text-text-muted">{column}</li>
 					{/each}
 				</ul>
 				<p class="mt-2 text-xs leading-relaxed text-text-muted">
+					Baris 1 berkas berisi nama tampilan, baris 2 kunci kolom di atas — jangan ubah baris 2.
+					Kolom akumulasi diisi posisi Januari s.d. bulan barisnya.
 					<span class="font-medium text-text-secondary">kode_plta</span> adalah kuncinya.
 					<span class="font-medium text-text-secondary">nama_plta</span> hanya rujukan dan diabaikan saat
 					impor.

@@ -32,10 +32,10 @@ describe('buildMonthlyHydrologyPayload', () => {
 		// data, jadi tidak boleh ikut terbuang bersama field kosong.
 		const payload = buildMonthlyHydrologyPayload({
 			...createEmptyMonthlyForm(),
-			previousAchievementMwh: 0
+			actualAccumulatedMwh: 0
 		});
 
-		expect(payload.previousAchievementMwh).toBe(0);
+		expect(payload.actualAccumulatedMwh).toBe(0);
 		expect(isEmptyMonthlyHydrologyPayload(payload)).toBe(false);
 	});
 

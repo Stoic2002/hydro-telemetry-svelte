@@ -35,6 +35,18 @@ const apiDashboardMetricSchema = z.object({
 	source: z.enum(['measured', 'derived', 'plan', 'constant']),
 	stations: z.array(apiDashboardStationMetricSchema).nullable().optional().default(null),
 	/**
+	 * Disembunyikan operator untuk PLTA ini. Server tetap mengirim metriknya
+	 * lengkap dengan nilai; layar yang memutuskan tidak menampilkannya.
+	 * Hilang dianggap tampil.
+	 */
+	hidden: z.boolean().optional().default(false),
+	/**
+	 * Posisi di panelnya (0 = teratas) menurut pengaturan PLTA ini. Urutan kunci
+	 * JSON mengikuti skema server, bukan pengaturan ini. Swagger mewajibkannya,
+	 * tetapi hilang tetap diterima: layar jatuh ke urutan bawaannya sendiri.
+	 */
+	urutan: z.number().int().nullable().optional().default(null),
+	/**
 	 * Hanya terisi pada `dmn_beban_penuh`: dari mana penyebutnya berasal —
 	 * `unit` bila dihitung dari unit terpilih, `manual` bila operator mengisi
 	 * DMN sendiri.
@@ -46,6 +58,8 @@ const apiDashboardMetricSchema = z.object({
 
 const apiDashboardMetricGroupSchema = z.record(z.string(), apiDashboardMetricSchema);
 
+export type ApiDashboardMetricGroup = z.infer<typeof apiDashboardMetricGroupSchema>;
+
 export const apiDailyHydrologySchema = z.object({
 	tanggal: z.string(),
 	constants: z.record(z.string(), z.unknown()).nullable().optional().default(null),
@@ -55,21 +69,36 @@ export const apiDailyHydrologySchema = z.object({
 	pending_formulas: z.array(z.string()).optional().default([])
 });
 
+// Field wajib-tapi-boleh-null (sesuai Swagger) sengaja TIDAK diberi `default`:
+// kunci yang hilang berarti kontrak berubah, dan lebih baik layar menampilkan
+// galat kontrak daripada diam-diam menampilkan N/A untuk seluruh angka.
+const requiredNullableNumberSchema = z.number().nullable();
+const requiredNullableStringSchema = z.string().nullable();
+const achievementStatusSchema = z.enum(['tercapai', 'tidak_tercapai']).nullable();
+
 export const apiMonthlyHydrologySchema = z.object({
 	id: z.string().uuid().nullable(),
 	plta_id: z.string().uuid(),
 	tahun: z.number(),
 	bulan: z.number().min(1).max(12),
-	prediksi_hidrologi: nullableStringSchema,
-	aktual_hidrologi: nullableStringSchema,
-	image_sifat_hujan: nullableStringSchema,
-	image_curah_hujan: nullableStringSchema,
-	prediksi_produksi_mwh: nullableNumberSchema,
-	target_produksi_mwh: nullableNumberSchema,
-	pencapaian_sd_prev_mwh: nullableNumberSchema,
-	prediksi_pencapaian_sd_prev_mwh: nullableNumberSchema,
-	target_pencapaian_sd_prev_mwh: nullableNumberSchema,
-	prosentase_pencapaian: nullableNumberSchema
+	prediksi_hidrologi: requiredNullableStringSchema,
+	realisasi_hidrologi: requiredNullableStringSchema,
+	image_prediksi_sifat_hujan: nullableStringSchema,
+	image_prediksi_curah_hujan: nullableStringSchema,
+	image_realisasi_sifat_hujan: nullableStringSchema,
+	image_realisasi_curah_hujan: nullableStringSchema,
+	prediksi_ketersediaan_energi_primer: requiredNullableNumberSchema,
+	target_produksi_energi_listrik: requiredNullableNumberSchema,
+	realisasi_produksi_energi_listrik: requiredNullableNumberSchema,
+	prediksi_akumulasi_ketersediaan_energi_primer: requiredNullableNumberSchema,
+	target_akumulasi_produksi_energi_listrik: requiredNullableNumberSchema,
+	realisasi_akumulasi_produksi_energi_listrik: requiredNullableNumberSchema,
+	prosentase_prediksi_ketersediaan_energi_primer_vs_target_produksi_energi_listrik:
+		requiredNullableNumberSchema,
+	status_pencapaian_target_produksi_energi_listrik: achievementStatusSchema,
+	prosentase_prediksi_akumulasi_ketersediaan_energi_primer_vs_target_akumulasi_produksi_energi_listrik:
+		requiredNullableNumberSchema,
+	status_pencapaian_target_akumulasi_produksi_energi_listrik: achievementStatusSchema
 });
 
 const apiDmnUnitSchema = z.object({
@@ -110,6 +139,7 @@ export const apiMonthlyHydrologyExcelResultSchema = z.object({
 export const apiDailyHydrologyExcelResultSchema = z.object({
 	baris_diproses: z.number(),
 	titik_ditulis: z.number(),
+	titik_diwarisi: z.number().int().nonnegative().optional().default(0),
 	plta: z.array(z.string()).nullable().optional().default([]),
 	periode: z.array(z.string()).nullable().optional().default([])
 });
@@ -140,14 +170,35 @@ export const apiMonthlyHydrologyPageSchema = z.object({
 
 const apiOverviewAverageSchema = z.object({
 	rata2: z.number().nullable(),
-	/** Jumlah baris yang benar-benar ikut dihitung. */
+	/** Jumlah data yang benar-benar ikut dihitung. */
 	n: z.number().int().nonnegative()
+});
+
+/** Satu blok pencapaian: `bulanan` atau `akumulasi`. */
+const apiOverviewAchievementSchema = z.object({
+	prosentase_rata2: z.number().nullable(),
+	prosentase_rata2_n: z.number().int().nonnegative(),
+	prosentase_agregat: z.number().nullable(),
+	total_prediksi: z.number(),
+	total_target: z.number(),
+	jumlah_tercapai: z.number().int().nonnegative(),
+	jumlah_tidak_tercapai: z.number().int().nonnegative(),
+	jumlah_belum_dinilai: z.number().int().nonnegative(),
+	/**
+	 * Bulan pertama/terakhir yang dirangkum blok ini, `YYYY-MM`. Blok `akumulasi`
+	 * hanya memakai SATU bulan — yang terakhir berdata dalam rentang — karena
+	 * nilai akumulasi tiap bulan sudah Januari s.d. bulan itu. Ditambahkan
+	 * backend 6–7 Okt 2026; hilang dianggap tidak diketahui.
+	 */
+	periode_awal: z.string().nullable().optional().default(null),
+	periode_akhir: z.string().nullable().optional().default(null)
 });
 
 /**
  * `GET /hydrology/monthly/overview` — ringkasan satu periode lintas SELURUH
- * PLTA. Swagger hanya menuliskannya sebagai objek bebas; bentuk ini diambil
- * dari respons asli server.
+ * PLTA. `rerata` bertipe objek bebas di Swagger ("kunci = keenam bidang
+ * angka"); kuncinya dibaca satu per satu di mapper, sehingga kunci yang tidak
+ * ada menjadi "tidak ada data", bukan galat kontrak.
  */
 export const apiMonthlyHydrologyOverviewSchema = z.object({
 	tahun: z.number().int(),
@@ -155,23 +206,54 @@ export const apiMonthlyHydrologyOverviewSchema = z.object({
 	periode: z.string(),
 	jumlah_baris: z.number().int().nonnegative(),
 	jumlah_plta: z.number().int().nonnegative(),
-	prosentase_pencapaian_rata2: z.number().nullable(),
-	prosentase_pencapaian_rata2_n: z.number().int().nonnegative(),
-	prosentase_pencapaian_agregat: z.number().nullable(),
-	total_prediksi_pencapaian_sd_prev_mwh: z.number(),
-	total_target_pencapaian_sd_prev_mwh: z.number(),
-	jumlah_tercapai: z.number().int().nonnegative(),
-	jumlah_tidak_tercapai: z.number().int().nonnegative(),
-	jumlah_belum_dinilai: z.number().int().nonnegative(),
-	rerata: z.object({
-		prediksi_produksi_mwh: apiOverviewAverageSchema,
-		target_produksi_mwh: apiOverviewAverageSchema,
-		pencapaian_sd_prev_mwh: apiOverviewAverageSchema,
-		prediksi_pencapaian_sd_prev_mwh: apiOverviewAverageSchema,
-		target_pencapaian_sd_prev_mwh: apiOverviewAverageSchema
-	})
+	bulanan: apiOverviewAchievementSchema,
+	akumulasi: apiOverviewAchievementSchema,
+	rerata: z.record(z.string(), apiOverviewAverageSchema)
 });
 
+/** `GET /hydrology/monthly/chart`. Bulan yang belum diisi bernilai `null`, bukan 0. */
+export const apiMonthlyChartSchema = z.object({
+	plta_id: z.string().uuid().nullable(),
+	jumlah_plta: z.number().int().nonnegative(),
+	seri: z.array(
+		z.object({
+			periode: z.string(),
+			tahun: z.number().int(),
+			bulan: z.number().int().min(1).max(12),
+			target_akumulasi_produksi_energi_listrik: z.number().nullable(),
+			realisasi_akumulasi_produksi_energi_listrik: z.number().nullable(),
+			n_target: z.number().int().nonnegative(),
+			n_realisasi: z.number().int().nonnegative(),
+			/** `s.d. Bulan Maret 2026`: nilai titik ini = posisi Januari s.d. bulan itu. */
+			sd_bulan: z.string().nullable().optional().default(null)
+		})
+	)
+});
+
+export type ApiMonthlyChart = z.infer<typeof apiMonthlyChartSchema>;
+
+/**
+ * `GET`/`PUT /dashboard/plta/{id}/daily/visibility` — tata letak panel harian:
+ * status sembunyi dan urutan. `metrik` sudah dalam urutan EFEKTIF per panel.
+ */
+export const apiDailyVisibilitySchema = z.object({
+	plta_id: z.string().uuid(),
+	jumlah_tersembunyi: z.number().int().nonnegative(),
+	metrik: z.array(
+		z.object({
+			key: z.string().min(1),
+			panel: z.enum(['hulu', 'dam', 'hilir']),
+			label: z.string(),
+			hidden: z.boolean(),
+			/** Posisi efektif di panelnya (0 = teratas). */
+			urutan: z.number().int().nullable().optional().default(null),
+			/** `false` = masih posisi bawaan, belum pernah diurutkan untuk PLTA ini. */
+			urutan_diatur: z.boolean().optional().default(false)
+		})
+	)
+});
+
+export type ApiDailyVisibility = z.infer<typeof apiDailyVisibilitySchema>;
 export type ApiMonthlyHydrologyOverview = z.infer<typeof apiMonthlyHydrologyOverviewSchema>;
 export type ApiMonthlyHydrologyExcelResult = z.infer<typeof apiMonthlyHydrologyExcelResultSchema>;
 export type ApiDailyHydrology = z.infer<typeof apiDailyHydrologySchema>;

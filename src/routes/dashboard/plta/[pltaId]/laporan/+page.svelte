@@ -35,6 +35,7 @@
 	} from '$shared/lib/date';
 	import { notificationStore } from '$shared/lib/notification.svelte';
 	import HydrologyReportDownloads from './HydrologyReportDownloads.svelte';
+	import TimeseriesQuickDownload from './TimeseriesQuickDownload.svelte';
 
 	const PAGE_LIMIT = 10;
 
@@ -313,6 +314,13 @@
 		{#if activeTab === 'hidrologi'}
 			<HydrologyReportDownloads />
 		{:else}
+			{#key pltaId}
+				<TimeseriesQuickDownload
+					{pltaId}
+					plantCode={activePLTA.plant?.code ?? pltaId}
+					plantName={displayName}
+				/>
+			{/key}
 			<div
 				class="flex flex-col gap-2.5 border-b border-border-subtle pb-4 sm:flex-row sm:items-center"
 			>
@@ -401,6 +409,11 @@
 										</td>
 										<td class="px-4 py-2.5 font-mono text-xs text-text-secondary tabular-nums">
 											{formatDayMonthYearTimeWIB(report.createdAt)}
+											<span class="mt-0.5 block font-sans text-xs text-text-muted">
+												{report.requestedBy
+													? `oleh ${report.requestedBy}`
+													: 'pembuat tidak diketahui'}
+											</span>
 										</td>
 										<td class="px-4 py-2.5">
 											<Badge tone={statusMeta.tone} spinning={report.status === 'processing'}>

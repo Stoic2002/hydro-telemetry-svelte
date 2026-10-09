@@ -12,7 +12,9 @@ const reportSchema = z.object({
 	period_end: z.string(),
 	file_path: z.string().nullable(),
 	error: z.string().nullable(),
-	created_at: z.string()
+	created_at: z.string(),
+	/** Nama akun pemintanya; `null` bila akunnya sudah dihapus atau laporan lama. */
+	requested_by_username: z.string().nullable().optional().default(null)
 });
 
 export const apiReportSchema = reportSchema;

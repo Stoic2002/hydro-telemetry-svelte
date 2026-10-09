@@ -26,6 +26,7 @@ function mapSeries(series: ApiTrendSeries): TrendSeries {
 		parameter: series.parameter,
 		station: series.station,
 		resolution: series.resolution,
+		aggregatedStations: series.aggregated_stations ?? [],
 		points: plausiblePoints.map((point) => ({
 			time: point.time,
 			value: point.value,

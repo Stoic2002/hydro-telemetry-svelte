@@ -3,7 +3,7 @@ import type { DashboardMetric, MonthlyHydrology } from '$features/hydrology';
 import type { MonitoringParameterLatest } from '$features/monitoring';
 import type { PlantTag } from '$features/plta';
 import {
-	buildMonthlyForecastRows,
+	buildMonthlyComparison,
 	buildUploadTarget,
 	currentWibDate,
 	dashboardMetricRows,
@@ -24,7 +24,9 @@ const measuredMetric: DashboardMetric = {
 	time: '2026-08-10T08:00:00Z',
 	source: 'measured',
 	stations: null,
-	input: null
+	input: null,
+	hidden: false,
+	order: null
 };
 
 const monthlyRecord: MonthlyHydrology = {
@@ -34,14 +36,20 @@ const monthlyRecord: MonthlyHydrology = {
 	month: 8,
 	hydrologyPrediction: 'Normal',
 	hydrologyActual: null,
-	rainfallCharacteristicImage: null,
-	rainfallImage: null,
+	images: {
+		prediksi_sifat_hujan: null,
+		prediksi_curah_hujan: null,
+		realisasi_sifat_hujan: null,
+		realisasi_curah_hujan: null
+	},
 	predictedProductionMwh: 1200.5,
 	targetProductionMwh: 1300,
-	previousAchievementMwh: 6400,
-	predictedPreviousAchievementMwh: 7600.5,
-	targetPreviousAchievementMwh: 7800,
-	achievementPercentage: 97.44
+	actualProductionMwh: 1180,
+	predictedAccumulatedMwh: 7600.5,
+	targetAccumulatedMwh: 7800,
+	actualAccumulatedMwh: 6400,
+	monthlyAchievement: { percentage: 92.35, status: 'not-achieved' },
+	accumulatedAchievement: { percentage: 97.44, status: 'not-achieved' }
 };
 
 function monitoringReading(
@@ -105,7 +113,10 @@ describe('telemetering presentation', () => {
 			scale: 1,
 			offset: 0,
 			unit: 'mdpl',
-			enabled: true
+			enabled: true,
+			label: null,
+			minValid: null,
+			maxValid: null
 		};
 		const target = buildUploadTarget(
 			[baseTag, { ...baseTag, id: 'tag-2', enabled: false }],
@@ -117,18 +128,153 @@ describe('telemetering presentation', () => {
 		expect(target?.tags.map((tag) => tag.id)).toEqual(['tag-1']);
 	});
 
-	it('maps monthly data into stable display rows and unavailable states', () => {
-		const rows = buildMonthlyForecastRows(monthlyRecord, 'Agustus');
+	it('memasangkan target, prediksi, dan realisasi dalam satu baris per parameter', () => {
+		const { rows } = buildMonthlyComparison(monthlyRecord, 'Agustus');
 
-		expect(rows).toHaveLength(8);
-		expect(rows[0]).toMatchObject({ value: 'Normal', sourceType: 'api' });
-		expect(rows[1]).toMatchObject({ value: 'N/A', sourceType: 'unavailable' });
-		expect(rows[2]).toMatchObject({ value: '1.200,5', unit: 'MWh' });
-		expect(rows[7]).toMatchObject({ value: '97,4', unit: '%', source: 'Formulasi' });
+		expect(rows.map((row) => row.label)).toEqual([
+			'Kondisi hidrologi',
+			'Energi Agustus',
+			'Energi akumulasi s.d. Agustus'
+		]);
+
+		const [hydrology, production, cumulative] = rows;
+		expect(hydrology.cells.target).toBeUndefined();
+		expect(hydrology.cells.prediction).toMatchObject({ value: 'Normal', sourceType: 'api' });
+		expect(hydrology.cells.actual).toMatchObject({ value: 'N/A', sourceType: 'unavailable' });
+
+		expect(production.unit).toBe('MWh');
+		expect(production.cells.target).toMatchObject({ value: '1.300', sourceType: 'input' });
+		expect(production.cells.prediction).toMatchObject({ value: '1.200,5', sourceType: 'api' });
+		expect(production.cells.actual).toMatchObject({ value: '1.180', sourceType: 'api' });
+
+		expect(cumulative.cells.target).toMatchObject({ value: '7.800' });
+		expect(cumulative.cells.prediction).toMatchObject({ value: '7.600,5' });
+		expect(cumulative.cells.actual).toMatchObject({ value: '6.400' });
+	});
+
+	it('memasangkan persentase dan status dari server ke baris pasangannya', () => {
+		const [hydrology, production, cumulative] = buildMonthlyComparison(
+			monthlyRecord,
+			'Agustus'
+		).rows;
+
+		expect(hydrology.achievement).toBeUndefined();
+		expect(production.achievement).toEqual({
+			value: '92,4',
+			status: 'not-achieved',
+			isAvailable: true
+		});
+		expect(cumulative.achievement).toEqual({
+			value: '97,4',
+			status: 'not-achieved',
+			isAvailable: true
+		});
+	});
+
+	it('memakai status server, bukan menghitung ulang dari persentase yang dibulatkan', () => {
+		const [, production] = buildMonthlyComparison(
+			{
+				...monthlyRecord,
+				monthlyAchievement: { percentage: 100, status: 'not-achieved' }
+			},
+			'Agustus'
+		).rows;
+
+		expect(production.achievement).toMatchObject({ value: '100', status: 'not-achieved' });
+	});
+
+	it('menandai sel yang seharusnya ada tetapi belum terisi sebagai tidak tersedia', () => {
+		const { rows } = buildMonthlyComparison(undefined, 'Agustus');
+
+		expect(rows[1].cells.target).toMatchObject({ value: 'N/A', sourceType: 'unavailable' });
+		expect(rows[2].cells.actual).toMatchObject({ value: 'N/A', sourceType: 'unavailable' });
+		expect(rows[1].achievement).toMatchObject({ value: 'N/A', status: null, isAvailable: false });
 	});
 
 	it('calculates the calendar date in WIB deterministically', () => {
 		expect(currentWibDate(new Date('2026-08-09T18:00:00Z'))).toBe('2026-08-10');
+	});
+});
+
+describe('urutan metrik panel harian', () => {
+	const metric = (order: number | null) => ({ ...measuredMetric, order });
+
+	it('mengikuti urutan dari server, bukan urutan bawaan layar', () => {
+		const rows = dashboardMetricRows(
+			{ target_tma: metric(2), tma_waduk: metric(0), inflow: metric(1) },
+			false,
+			{},
+			{},
+			['target_tma', 'tma_waduk', 'inflow']
+		);
+
+		expect(rows.map((row) => row.key)).toEqual(['tma_waduk', 'inflow', 'target_tma']);
+	});
+
+	it('memakai urutan bawaan layar bila server belum mengirim urutan', () => {
+		const rows = dashboardMetricRows(
+			{ inflow: metric(null), tma_waduk: metric(null), target_tma: metric(null) },
+			false,
+			{},
+			{},
+			['target_tma', 'tma_waduk']
+		);
+
+		expect(rows.map((row) => row.key)).toEqual(['target_tma', 'tma_waduk', 'inflow']);
+	});
+
+	it('tidak mencampur dua sumber urutan dalam satu panel', () => {
+		const rows = dashboardMetricRows(
+			{ inflow: metric(0), tma_waduk: metric(null), target_tma: metric(1) },
+			false,
+			{},
+			{},
+			['target_tma', 'tma_waduk', 'inflow']
+		);
+
+		expect(rows.map((row) => row.key)).toEqual(['target_tma', 'tma_waduk', 'inflow']);
+	});
+
+	it('menghitung urutan setelah metrik tersembunyi dibuang', () => {
+		const rows = dashboardMetricRows(
+			{
+				tma_waduk: metric(1),
+				ph_hulu: { ...metric(null), hidden: true },
+				inflow: metric(0)
+			},
+			false
+		);
+
+		expect(rows.map((row) => row.key)).toEqual(['inflow', 'tma_waduk']);
+	});
+});
+
+describe('metrik yang disembunyikan operator', () => {
+	it('tidak dirender walau server tetap mengirimnya', () => {
+		const rows = dashboardMetricRows(
+			{
+				tma_waduk: measuredMetric,
+				ph_hulu: { ...measuredMetric, label: 'pH Hulu', hidden: true }
+			},
+			false
+		);
+
+		expect(rows.map((row) => row.key)).toEqual(['tma_waduk']);
+	});
+
+	it('tidak ikut ringkasan sensor basi', () => {
+		const stale = { ...measuredMetric, time: '2026-08-10T00:00:00Z' };
+		const now = Date.parse('2026-08-10T08:00:00Z');
+		const rows = dashboardMetricRows(
+			{ tma_waduk: stale, ph_hulu: { ...stale, hidden: true } },
+			false,
+			{},
+			{},
+			[],
+			now
+		);
+
+		expect(staleMetricRows([{ title: 'Hulu', rows }]).map((row) => row.key)).toEqual(['tma_waduk']);
 	});
 });
 
@@ -143,7 +289,9 @@ describe('sub-parameter per stasiun', () => {
 			{ station: 'SKW', label: 'Pos Sokawera', value: 15.2, time: null },
 			{ station: 'WND', label: 'Pos Wanadadi', value: 9.6, time: null }
 		],
-		input: null
+		input: null,
+		hidden: false,
+		order: null
 	};
 
 	it('memunculkan tiap stasiun sebagai sub-baris dengan satuan induknya', () => {
@@ -182,7 +330,9 @@ describe('penanda konstanta yang bisa diunggah', () => {
 		time: null,
 		source: 'constant',
 		stations: null,
-		input: null
+		input: null,
+		hidden: false,
+		order: null
 	};
 
 	function constantTag(parameter: string, enabled = true): PlantTag {
@@ -199,7 +349,10 @@ describe('penanda konstanta yang bisa diunggah', () => {
 			scale: 1,
 			offset: 0,
 			unit: 'm dpl',
-			enabled
+			enabled,
+			label: null,
+			minValid: null,
+			maxValid: null
 		};
 	}
 
@@ -283,12 +436,25 @@ describe('tombol Input data otomatis per baris', () => {
 			scale: 1,
 			offset: 0,
 			unit: 'm3/s',
-			enabled: true
+			enabled: true,
+			label: null,
+			minValid: null,
+			maxValid: null
 		};
 	}
 
 	function planMetric(label: string, input: DashboardMetric['input'] = null): DashboardMetric {
-		return { label, value: null, unit: 'm³/s', time: null, source: 'plan', stations: null, input };
+		return {
+			label,
+			value: null,
+			unit: 'm³/s',
+			time: null,
+			source: 'plan',
+			stations: null,
+			input,
+			hidden: false,
+			order: null
+		};
 	}
 
 	it('memetakan rencana baru ke parameter unggahnya dengan label dari API', () => {
@@ -375,7 +541,10 @@ describe('tujuan isian dari server (`metric.input`)', () => {
 			scale: 1,
 			offset: 0,
 			unit: 'm3/s',
-			enabled: true
+			enabled: true,
+			label: null,
+			minValid: null,
+			maxValid: null
 		};
 	}
 
@@ -387,7 +556,9 @@ describe('tujuan isian dari server (`metric.input`)', () => {
 			time: null,
 			source: 'measured',
 			stations: null,
-			input
+			input,
+			hidden: false,
+			order: null
 		};
 	}
 

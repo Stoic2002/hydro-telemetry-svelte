@@ -13,6 +13,7 @@
 	} from '../api/queries';
 	import { getHydrologyErrorMessage } from '../error';
 	import type { MonthlyHydrologyImageKind } from '../model';
+	import { MONTHLY_IMAGE_KIND_LABEL } from '../monthly-image';
 
 	interface Props {
 		isOpen: boolean;
@@ -21,7 +22,7 @@
 	}
 
 	/**
-	 * Menghapus satu gambar prakiraan hujan untuk seluruh PLTA.
+	 * Menghapus satu gambar hujan untuk seluruh PLTA.
 	 *
 	 * Gambar periode yang dipilih ditampilkan lebih dulu: penghapusan tidak dapat
 	 * dibatalkan dan berlaku untuk semua PLTA, jadi operator harus melihat persis
@@ -53,11 +54,6 @@
 		(value) => ({ value: String(value), label: String(value) })
 	);
 
-	const IMAGE_KIND_LABEL: Record<MonthlyHydrologyImageKind, string> = {
-		curah_hujan: 'Prakiraan Curah Hujan',
-		sifat_hujan: 'Prakiraan Sifat Hujan'
-	};
-
 	let month = $state(String(new Date().getMonth() + 1));
 	let year = $state(String(CURRENT_YEAR));
 	let isConfirmOpen = $state(false);
@@ -72,7 +68,7 @@
 	const deleteMutation = createDeleteMonthlyHydrologyImageMutation();
 
 	const monthLabel = $derived(MONTH_LABELS[Number(month) - 1]);
-	const imageLabel = $derived(IMAGE_KIND_LABEL[kind]);
+	const imageLabel = $derived(MONTHLY_IMAGE_KIND_LABEL[kind]);
 	const isPending = $derived(deleteMutation.isPending);
 	const isMissing = $derived(
 		imageQuery.isError && ApiError.isApiError(imageQuery.error) && imageQuery.error.status === 404
@@ -175,7 +171,7 @@
 >
 	{#snippet icon()}<IconTrash class="size-5" />{/snippet}
 	{#snippet description()}
-		Gambar hilang dari panel Prakiraan Hujan <strong>seluruh PLTA</strong> dan tidak dapat dikembalikan.
+		Gambar hilang dari panel Gambar Hujan <strong>seluruh PLTA</strong> dan tidak dapat dikembalikan.
 		Penghapusan tercatat di riwayat unggah.
 	{/snippet}
 </ConfirmDialog>

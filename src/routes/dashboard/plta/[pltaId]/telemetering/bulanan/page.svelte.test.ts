@@ -15,7 +15,8 @@ import Harness from './MonthlyPage.test-harness.svelte';
 vi.mock('$features/hydrology/api/repository', () => ({
 	hydrologyRepository: {
 		getMonthlyPanel: vi.fn(),
-		getMonthlyImage: vi.fn()
+		getMonthlyImage: vi.fn(),
+		getMonthlyChart: vi.fn()
 	}
 }));
 
@@ -60,6 +61,11 @@ beforeEach(() => {
 	vi.clearAllMocks();
 	repository.getMonthlyPanel.mockResolvedValue(null);
 	repository.getMonthlyImage.mockRejectedValue(new Error('tidak dipakai'));
+	repository.getMonthlyChart.mockResolvedValue({
+		pltaId: PLANT.id,
+		registeredPlantCount: 13,
+		points: []
+	});
 });
 
 describe('isian ringkasan bulanan per peran', () => {
@@ -68,7 +74,7 @@ describe('isian ringkasan bulanan per peran', () => {
 
 		renderPage();
 
-		await screen.findByText('Hidrologi Bulanan');
+		await screen.findByText('Telemetering · Hidrologi Bulanan');
 		expect(screen.queryByRole('button', { name: /^(Input|Edit) data$/ })).not.toBeInTheDocument();
 	});
 

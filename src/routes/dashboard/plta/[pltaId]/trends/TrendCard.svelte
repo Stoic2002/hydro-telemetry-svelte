@@ -18,9 +18,9 @@
 
 	import Banner from '$components/ui/Banner.svelte';
 	import ErrorState from '$components/ui/ErrorState.svelte';
-	import type { TrendSeries } from '$features/trends';
-	import { formatDayMonthTimeWIB, formatDayMonthWIB } from '$shared/lib/date';
-	import { chartValueDomain } from '$shared/utils/chart';
+	import { describeSeriesSource, type TrendSeries } from '$features/trends';
+	import { formatDayMonthTimeWIB } from '$shared/lib/date';
+	import { chartValueDomain, timeAxisFormatter, valueAxisTicks } from '$shared/utils/chart';
 	import { formatNumber } from '$shared/utils/number';
 	import { averageOf, mergeWithComparison, type TrendChartDatum } from './comparison';
 
@@ -87,6 +87,15 @@
 	// tinggi atau lebih rendah terpotong di tepi grafik.
 	const yDomain = $derived(
 		chartValueDomain([...values, ...comparisonPoints.map((point) => point.value)])
+	);
+
+	const yAxis = $derived(valueAxisTicks(yDomain));
+	const formatTimeTick = $derived(
+		timeAxisFormatter(
+			chartData.length > 1
+				? chartData[chartData.length - 1].time.getTime() - chartData[0].time.getTime()
+				: 0
+		)
 	);
 
 	const changeClass = $derived(
@@ -213,13 +222,15 @@
 								placement="left"
 								rule={false}
 								grid={{ class: 'stroke-chart-grid' }}
-								format={(value: number) => formatNumber(value, Math.abs(value) >= 100 ? 0 : 1)}
+								ticks={yAxis.ticks}
+								format={(value: number) => formatNumber(value, yAxis.fractionDigits)}
 								classes={{ tickLabel: 'fill-chart-axis text-[11px]' }}
 							/>
 							<Axis
 								placement="bottom"
 								rule={false}
-								format={(value: Date) => formatDayMonthWIB(value.toISOString())}
+								format={formatTimeTick}
+								ticks={6}
 								classes={{ tickLabel: 'fill-chart-axis text-[11px]' }}
 							/>
 
@@ -341,8 +352,10 @@
 						<span>Arahkan kursor ke grafik untuk melihat detail nilai.</span>
 					{/if}
 					<span>
-						{chartData.length.toLocaleString('id-ID')} titik · resolusi {series?.resolution} · agregasi
-						lintas stasiun
+						<!-- Spasi di dalam ekspresi: Svelte membuang spasi di awal blok `{#if}`. -->
+						{chartData.length.toLocaleString('id-ID')} titik · resolusi {series?.resolution}{series
+							? ` · ${describeSeriesSource(series)}`
+							: ''}
 					</span>
 				</div>
 			</div>

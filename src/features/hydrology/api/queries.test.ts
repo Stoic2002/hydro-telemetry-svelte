@@ -38,7 +38,10 @@ describe('hydrologyQueryKeys', () => {
 		// Unggahan gambar menyentuh seluruh PLTA, jadi mutation-nya menginvalidasi
 		// `all` — gambar dan panel keduanya harus ikut tercakup.
 		expect(
-			isCoveredBy(hydrologyQueryKeys.monthlyImage(2026, 9, 'curah_hujan'), hydrologyQueryKeys.all)
+			isCoveredBy(
+				hydrologyQueryKeys.monthlyImage(2026, 9, 'prediksi_curah_hujan'),
+				hydrologyQueryKeys.all
+			)
 		).toBe(true);
 		expect(
 			isCoveredBy(hydrologyQueryKeys.monthlyPanel(PLTA_ID, 2026, 9), hydrologyQueryKeys.all)
@@ -56,36 +59,50 @@ describe('hydrologyQueryKeys', () => {
 	});
 
 	it('memisahkan gambar per periode dan jenis', () => {
-		expect(hydrologyQueryKeys.monthlyImage(2026, 9, 'curah_hujan')).not.toEqual(
-			hydrologyQueryKeys.monthlyImage(2026, 9, 'sifat_hujan')
+		expect(hydrologyQueryKeys.monthlyImage(2026, 9, 'prediksi_curah_hujan')).not.toEqual(
+			hydrologyQueryKeys.monthlyImage(2026, 9, 'prediksi_sifat_hujan')
 		);
-		expect(hydrologyQueryKeys.monthlyImage(2026, 9, 'curah_hujan')).not.toEqual(
-			hydrologyQueryKeys.monthlyImage(2026, 10, 'curah_hujan')
+		expect(hydrologyQueryKeys.monthlyImage(2026, 9, 'prediksi_curah_hujan')).not.toEqual(
+			hydrologyQueryKeys.monthlyImage(2026, 10, 'prediksi_curah_hujan')
 		);
 	});
 });
 
 /**
  * Excel harian menulis nilai lintas banyak PLTA dan banyak parameter sekaligus,
- * jadi panel harian mana pun bisa berubah. Kunci ringkasan armada sengaja ikut
+ * jadi panel harian mana pun bisa berubah. Kunci ringkasan seluruh PLTA sengaja ikut
  * bersarang di bawah akar hidrologi supaya satu invalidasi menyegarkan semuanya
- * — kalau suatu saat dipindah keluar, angka armada akan tertinggal basi setelah
+ * — kalau suatu saat dipindah keluar, angka gabungan akan tertinggal basi setelah
  * unggahan tanpa ada uji lain yang gagal.
  */
 describe('cakupan invalidasi setelah unggahan', () => {
-	it('menyegarkan panel harian, ringkasan armada, dan daftar bulanan sekaligus', () => {
+	it('menyegarkan panel harian, ringkasan seluruh PLTA, dan daftar bulanan sekaligus', () => {
 		const root = hydrologyQueryKeys.all;
 
 		expect(isCoveredBy(hydrologyQueryKeys.daily(PLTA_ID), root)).toBe(true);
-		expect(isCoveredBy(hydrologyQueryKeys.monthlyOverview(2026, undefined), root)).toBe(true);
+		expect(isCoveredBy(hydrologyQueryKeys.monthlyOverview({ year: 2026 }), root)).toBe(true);
 		expect(isCoveredBy(hydrologyQueryKeys.monthly(PLTA_ID, 2026), root)).toBe(true);
 	});
 
 	it('memisahkan ringkasan per periode', () => {
 		// Sepanjang tahun dan satu bulan adalah angka berbeda; keduanya tidak boleh
 		// berbagi satu entri cache.
-		expect(hydrologyQueryKeys.monthlyOverview(2026, undefined)).not.toEqual(
-			hydrologyQueryKeys.monthlyOverview(2026, 9)
+		expect(hydrologyQueryKeys.monthlyOverview({ year: 2026 })).not.toEqual(
+			hydrologyQueryKeys.monthlyOverview({ year: 2026, month: 9 })
 		);
+	});
+
+	it('memisahkan periode yang sama awalnya tetapi berbeda akhir rentangnya', () => {
+		expect(hydrologyQueryKeys.monthlyOverview({ year: 2026, month: 1 })).not.toEqual(
+			hydrologyQueryKeys.monthlyOverview({ year: 2026, month: 1, endYear: 2026, endMonth: 9 })
+		);
+	});
+
+	it('menyegarkan grafik akumulasi satu PLTA saat isian bulanannya berubah', () => {
+		// Mengubah isian bulanan menginvalidasi `dashboardRoot(pltaId)`.
+		const chart = hydrologyQueryKeys.monthlyChart(PLTA_ID, { year: 2026 });
+
+		expect(isCoveredBy(chart, hydrologyQueryKeys.dashboardRoot(PLTA_ID))).toBe(true);
+		expect(isCoveredBy(chart, hydrologyQueryKeys.all)).toBe(true);
 	});
 });

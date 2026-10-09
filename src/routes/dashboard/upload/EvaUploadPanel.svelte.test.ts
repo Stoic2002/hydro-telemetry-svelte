@@ -16,6 +16,19 @@ vi.mock('$features/audit/components/UploadHistoryPanel.svelte', async () => ({
 	default: (await import('./UploadHistoryPanelStub.test-harness.svelte')).default
 }));
 
+// Status dan daftar kurva memanggil API EVA; dibiarkan menunggu agar test ini
+// tidak menembak jaringan. Pengelolaannya diuji di ElevationCurveList.
+vi.mock('$features/uploads/api/repository', () => ({
+	uploadsRepository: {
+		getElevationStatus: vi.fn(() => new Promise(() => {})),
+		listElevationCurves: vi.fn(() => new Promise(() => {})),
+		downloadElevationTemplate: vi.fn(),
+		uploadElevationExcel: vi.fn(),
+		setElevationCurveStatus: vi.fn(),
+		deleteElevationCurve: vi.fn()
+	}
+}));
+
 function plant(id: string): Plant {
 	return { id, code: id.toUpperCase(), name: `PLTA ${id}`, isActive: true } as Plant;
 }

@@ -17,6 +17,10 @@
 		onUpload?: (target: DailyTelemetryUploadTarget) => void;
 		/** Kontrol tambahan pada zona tertentu; zona lain tidak terpengaruh. */
 		zoneControls?: Partial<Record<HydrologyZone, Snippet>>;
+		/** Kunci metrik tempat kontrol zona ditempelkan; lihat `HydrologyMetricCard`. */
+		zoneControlAfterKeys?: Partial<Record<HydrologyZone, string>>;
+		/** Aksi di sebelah judul tiap kartu zona; menerima zona kartunya. */
+		zoneAction?: Snippet<[HydrologyZone]>;
 	}
 
 	let {
@@ -26,7 +30,9 @@
 		damSections,
 		downstreamSections,
 		onUpload,
-		zoneControls
+		zoneControls,
+		zoneControlAfterKeys,
+		zoneAction
 	}: Props = $props();
 
 	let activeZone = $state<HydrologyZone | null>(null);
@@ -66,6 +72,9 @@
 
 {#snippet zoneCards()}
 	{#each HYDROLOGY_ZONES as zone (zone)}
+		{#snippet headerAction()}
+			{@render zoneAction?.(zone)}
+		{/snippet}
 		<HydrologyMetricCard
 			bind:element={cardElements[zone]}
 			{zone}
@@ -73,6 +82,8 @@
 			onHighlightChange={(isHighlighted) => changeHighlight(zone, isHighlighted)}
 			sections={sectionsByZone[zone]}
 			zoneControl={zoneControls?.[zone]}
+			zoneControlAfterKey={zoneControlAfterKeys?.[zone]}
+			headerAction={zoneAction ? headerAction : undefined}
 			{onUpload}
 		/>
 	{/each}

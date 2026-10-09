@@ -13,9 +13,10 @@ export interface MonthlyHydrologyFormValues {
 	hydrologyActual: string;
 	predictedProductionMwh: number | null;
 	targetProductionMwh: number | null;
-	previousAchievementMwh: number | null;
-	predictedPreviousAchievementMwh: number | null;
-	targetPreviousAchievementMwh: number | null;
+	actualProductionMwh: number | null;
+	predictedAccumulatedMwh: number | null;
+	targetAccumulatedMwh: number | null;
+	actualAccumulatedMwh: number | null;
 }
 
 export function createEmptyMonthlyForm(): MonthlyHydrologyFormValues {
@@ -24,9 +25,10 @@ export function createEmptyMonthlyForm(): MonthlyHydrologyFormValues {
 		hydrologyActual: '',
 		predictedProductionMwh: null,
 		targetProductionMwh: null,
-		previousAchievementMwh: null,
-		predictedPreviousAchievementMwh: null,
-		targetPreviousAchievementMwh: null
+		actualProductionMwh: null,
+		predictedAccumulatedMwh: null,
+		targetAccumulatedMwh: null,
+		actualAccumulatedMwh: null
 	};
 }
 
@@ -44,8 +46,10 @@ export type MonthlyHydrologyPayload = Omit<
 >;
 
 /**
- * Field kosong dibuang, bukan dikirim sebagai null: server melakukan upsert
- * parsial, jadi mengirim null akan menghapus nilai yang sudah tersimpan.
+ * Field kosong dibuang, bukan dikirim sebagai null. Server melakukan upsert
+ * parsial — field yang tidak dikirim atau `null` tidak menimpa nilai tersimpan —
+ * sehingga mengosongkan isian di form tidak menghapus data; itu memang
+ * perilaku server, bukan sesuatu yang bisa dilakukan lewat form ini.
  */
 export function buildMonthlyHydrologyPayload(
 	values: MonthlyHydrologyFormValues
@@ -55,9 +59,10 @@ export function buildMonthlyHydrologyPayload(
 		hydrologyActual: optionalText(values.hydrologyActual),
 		predictedProductionMwh: optionalNumber(values.predictedProductionMwh),
 		targetProductionMwh: optionalNumber(values.targetProductionMwh),
-		previousAchievementMwh: optionalNumber(values.previousAchievementMwh),
-		predictedPreviousAchievementMwh: optionalNumber(values.predictedPreviousAchievementMwh),
-		targetPreviousAchievementMwh: optionalNumber(values.targetPreviousAchievementMwh)
+		actualProductionMwh: optionalNumber(values.actualProductionMwh),
+		predictedAccumulatedMwh: optionalNumber(values.predictedAccumulatedMwh),
+		targetAccumulatedMwh: optionalNumber(values.targetAccumulatedMwh),
+		actualAccumulatedMwh: optionalNumber(values.actualAccumulatedMwh)
 	};
 }
 

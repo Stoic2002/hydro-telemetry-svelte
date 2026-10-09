@@ -4,17 +4,35 @@
 		onChange: (isActive: boolean) => void;
 		label?: string;
 		disabled?: boolean;
+		/** Teks keadaan; bawaannya Aktif/Nonaktif untuk status akun. */
+		activeLabel?: string;
+		inactiveLabel?: string;
+		/**
+		 * `end` (bawaan): rata kanan selebar isinya, untuk form user. `stretch`:
+		 * selebar wadahnya, untuk daftar sakelar dan panel samping.
+		 */
+		align?: 'end' | 'stretch';
 	}
 
-	let { isActive, onChange, label = 'Status akun', disabled = false }: Props = $props();
+	let {
+		isActive,
+		onChange,
+		label = 'Status akun',
+		disabled = false,
+		activeLabel = 'Aktif',
+		inactiveLabel = 'Nonaktif',
+		align = 'end'
+	}: Props = $props();
 
-	const statusLabel = $derived(isActive ? 'Aktif' : 'Nonaktif');
+	const statusLabel = $derived(isActive ? activeLabel : inactiveLabel);
 </script>
 
 <div
-	class="flex h-10 items-center justify-between gap-3 self-end rounded-lg border border-border-subtle px-3"
+	class={`flex h-10 items-center justify-between gap-3 rounded-lg border border-border-subtle px-3 ${
+		align === 'end' ? 'self-end' : 'self-stretch'
+	}`}
 >
-	<span class="text-sm text-text-secondary">{label}</span>
+	<span class="min-w-0 truncate text-sm text-text-secondary" title={label}>{label}</span>
 	<button
 		type="button"
 		role="switch"

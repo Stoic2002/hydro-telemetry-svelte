@@ -1,15 +1,21 @@
 <script lang="ts">
 	import IconBuilding from '~icons/ph/buildings';
 	import IconDatabase from '~icons/ph/database';
+	import IconPencil from '~icons/ph/pencil-line';
 	import IconTag from '~icons/ph/tag';
 	import Badge from '$components/controls/Badge.svelte';
+	import Button from '$components/controls/Button.svelte';
 	import Select from '$components/controls/Select.svelte';
+	import { authStore, canEditTagBounds } from '$features/auth';
 	import {
 		createPLTATagsQuery,
 		createPlantCatalogQuery,
+		describeTagBounds,
 		getPLTAErrorMessage,
+		type PlantTag,
 		type PlantTagProtocol
 	} from '$features/plta';
+	import TagBoundsSheet from '$features/plta/components/TagBoundsSheet.svelte';
 	import CatalogTable from './CatalogTable.svelte';
 	import { PAGE_LIMIT, TAG_PROTOCOLS } from './model';
 
@@ -23,6 +29,9 @@
 	let search = $state('');
 	let protocol = $state('');
 	let enabled = $state('');
+	let editingTag = $state<PlantTag | null>(null);
+
+	const canEdit = $derived(canEditTagBounds(authStore.user));
 
 	const plantsCatalogQuery = createPlantCatalogQuery();
 	const plants = $derived(plantsCatalogQuery.data ?? []);
@@ -83,10 +92,12 @@
 		{ key: 'protocol', label: 'Protokol', class: 'w-28' },
 		{ key: 'address', label: 'Alamat', class: 'min-w-60' },
 		{ key: 'calibration', label: 'Scale / Offset', class: 'w-36' },
+		{ key: 'bounds', label: 'Batas valid', class: 'w-36' },
 		{ key: 'unit', label: 'Satuan', class: 'w-28' },
-		{ key: 'status', label: 'Status', class: 'w-28' }
+		{ key: 'status', label: 'Status', class: 'w-28' },
+		...(canEdit ? [{ key: 'actions', label: 'Aksi', class: 'w-28' }] : [])
 	]}
-	minWidthClass="min-w-[1120px]"
+	minWidthClass={canEdit ? 'min-w-[1380px]' : 'min-w-[1260px]'}
 	{searchInput}
 	searchPlaceholder="Cari parameter, stasiun, protokol, atau alamat..."
 	onSearchInputChange={(value) => (searchInput = value)}
@@ -171,6 +182,9 @@
 			>
 				<td class="px-3.5 py-2.5">
 					<span class="font-mono text-xs font-medium text-text-primary">{tag.parameter}</span>
+					{#if tag.label}
+						<span class="mt-0.5 block text-xs text-text-muted">{tag.label}</span>
+					{/if}
 				</td>
 				<td class="px-3.5 py-2.5 text-sm text-text-secondary">{tag.station || '—'}</td>
 				<td class="px-3.5 py-2.5">
@@ -184,6 +198,9 @@
 				<td class="px-3.5 py-2.5 font-mono text-xs text-text-secondary tabular-nums">
 					{tag.scale} / {tag.offset}
 				</td>
+				<td class="px-3.5 py-2.5 font-mono text-xs text-text-secondary tabular-nums">
+					{describeTagBounds(tag) ?? '—'}
+				</td>
 				<td class="px-3.5 py-2.5 text-sm text-text-secondary">{tag.unit || '—'}</td>
 				<td class="px-3.5 py-2.5">
 					<span class="inline-flex items-center gap-1.5 text-xs font-medium text-text-secondary">
@@ -193,7 +210,26 @@
 						{tag.enabled ? 'Aktif' : 'Nonaktif'}
 					</span>
 				</td>
+				{#if canEdit}
+					<td class="px-3.5 py-2.5">
+						<Button
+							type="button"
+							size="sm"
+							variant="ghost"
+							onclick={() => (editingTag = tag)}
+							aria-label={`Atur batas valid ${[tag.parameter, tag.station].filter(Boolean).join(' ')}`}
+							class="whitespace-nowrap text-brand-primary-strong"
+						>
+							{#snippet leftIcon()}<IconPencil class="size-3" />{/snippet}
+							Atur batas
+						</Button>
+					</td>
+				{/if}
 			</tr>
 		{/each}
 	{/snippet}
 </CatalogTable>
+
+{#if canEdit && editingTag}
+	<TagBoundsSheet isOpen tag={editingTag} onClose={() => (editingTag = null)} />
+{/if}

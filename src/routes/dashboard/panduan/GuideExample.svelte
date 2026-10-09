@@ -218,7 +218,7 @@
 					items={[
 						{ value: 'excel', label: 'Excel Bulanan' },
 						{ value: 'harian', label: 'Excel Harian' },
-						{ value: 'prakiraan', label: 'Prakiraan Hujan' },
+						{ value: 'prakiraan', label: 'Gambar Hujan' },
 						{ value: 'eva', label: 'Input EVA' }
 					]}
 					activeValue="excel"
@@ -226,7 +226,7 @@
 				/>
 				<div class="flex flex-wrap items-center gap-2">
 					<Badge tone="cyan">Berlaku untuk semua PLTA</Badge>
-					<span class="text-xs text-text-muted">Excel Bulanan, Excel Harian, Prakiraan Hujan</span>
+					<span class="text-xs text-text-muted">Excel Bulanan, Excel Harian, Gambar Hujan</span>
 				</div>
 				<div class="flex flex-wrap items-center gap-2">
 					<Badge tone="slate">Per PLTA</Badge>

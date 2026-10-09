@@ -6,22 +6,32 @@
 	import UploadHistoryPanel from '$features/audit/components/UploadHistoryPanel.svelte';
 	import HydrologyImageDeleteSheet from '$features/hydrology/components/HydrologyImageDeleteSheet.svelte';
 	import HydrologyImageUploadSheet from '$features/hydrology/components/HydrologyImageUploadSheet.svelte';
-	import type { MonthlyHydrologyImageKind } from '$features/hydrology';
+	import { MONTHLY_IMAGE_KIND_LABEL, type MonthlyHydrologyImageKind } from '$features/hydrology';
 
 	/**
-	 * Unggah gambar prakiraan hujan ada di sini, bukan di Hidrologi Bulanan: satu
+	 * Unggah gambar hujan (prakiraan dan realisasi) ada di sini, bukan di Hidrologi Bulanan: satu
 	 * gambar berlaku untuk seluruh PLTA, jadi menaruhnya di halaman yang ter-scope
 	 * satu PLTA menyiratkan cakupan yang tidak benar.
 	 *
 	 * Periode tidak dipilih di panel ini melainkan di dalam sheet, karena bulan
 	 * yang dituju baru relevan pada saat berkasnya dipilih.
 	 */
-	const IMAGE_KINDS: { kind: MonthlyHydrologyImageKind; title: string; description: string }[] = [
-		{ kind: 'curah_hujan', title: 'Curah Hujan', description: 'Peta jumlah hujan bulanan.' },
+	const IMAGE_KINDS: { kind: MonthlyHydrologyImageKind; description: string }[] = [
 		{
-			kind: 'sifat_hujan',
-			title: 'Sifat Hujan',
-			description: 'Peta sifat hujan terhadap normalnya.'
+			kind: 'prediksi_curah_hujan',
+			description: 'Peta prakiraan jumlah hujan bulanan.'
+		},
+		{
+			kind: 'prediksi_sifat_hujan',
+			description: 'Peta prakiraan sifat hujan terhadap normalnya.'
+		},
+		{
+			kind: 'realisasi_curah_hujan',
+			description: 'Peta analisis jumlah hujan setelah bulannya berjalan.'
+		},
+		{
+			kind: 'realisasi_sifat_hujan',
+			description: 'Peta analisis sifat hujan setelah bulannya berjalan.'
 		}
 	];
 
@@ -39,6 +49,7 @@
 
 		<div class="mt-3 grid gap-3 sm:grid-cols-2">
 			{#each IMAGE_KINDS as item (item.kind)}
+				{@const title = MONTHLY_IMAGE_KIND_LABEL[item.kind]}
 				<article
 					class="flex items-center justify-between gap-3 rounded-xl border border-border-subtle bg-surface-raised px-4 py-3.5"
 				>
@@ -49,7 +60,7 @@
 							<IconCloudRain class="size-4.5" />
 						</span>
 						<div class="min-w-0">
-							<p class="truncate text-sm font-medium text-text-primary">{item.title}</p>
+							<p class="truncate text-sm font-medium text-text-primary">{title}</p>
 							<p class="truncate text-xs text-text-muted">{item.description}</p>
 						</div>
 					</div>
@@ -69,7 +80,7 @@
 							size="sm"
 							variant="ghost"
 							onclick={() => (deleteKind = item.kind)}
-							aria-label={`Hapus gambar ${item.title}`}
+							aria-label={`Hapus gambar ${title}`}
 							class="whitespace-nowrap text-status-danger-strong"
 						>
 							{#snippet leftIcon()}<IconTrash class="size-3" />{/snippet}
@@ -82,10 +93,10 @@
 	</section>
 
 	<UploadHistoryPanel
-		title="Riwayat prakiraan hujan"
+		title="Riwayat gambar hujan"
 		description="Gambar yang pernah diunggah atau dihapus, terbaru lebih dulu."
 		kind="monthly_image"
-		emptyDescription="Gambar prakiraan hujan yang diunggah akan tercatat di sini."
+		emptyDescription="Gambar hujan yang diunggah akan tercatat di sini."
 	/>
 </div>
 

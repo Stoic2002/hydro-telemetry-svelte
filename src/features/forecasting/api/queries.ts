@@ -1,10 +1,11 @@
 import { createQuery } from '@tanstack/svelte-query';
-import type { ForecastQueryInput } from '../model';
+import type { ForecastAccuracyInput, ForecastQueryInput } from '../model';
 import { forecastingRepository } from './repository';
 
 export const forecastQueryKeys = {
 	all: ['forecasts'] as const,
-	series: (input: ForecastQueryInput) => [...forecastQueryKeys.all, input] as const
+	series: (input: ForecastQueryInput) => [...forecastQueryKeys.all, input] as const,
+	accuracy: (input: ForecastAccuracyInput) => [...forecastQueryKeys.all, 'accuracy', input] as const
 };
 
 /**
@@ -23,6 +24,22 @@ export function createForecastQuery(input: () => ForecastQueryInput) {
 				forecastingRepository.getLatest(value, { signal }),
 			enabled: Boolean(value.pltaId),
 			staleTime: 60_000,
+			refetchOnWindowFocus: false
+		};
+	});
+}
+
+/** Akurasi prediksi yang sudah tersaji; dihitung server dari data yang ada, tidak memicu run. */
+export function createForecastAccuracyQuery(input: () => ForecastAccuracyInput) {
+	return createQuery(() => {
+		const value = input();
+
+		return {
+			queryKey: forecastQueryKeys.accuracy(value),
+			queryFn: ({ signal }: { signal: AbortSignal }) =>
+				forecastingRepository.getAccuracy(value, { signal }),
+			enabled: Boolean(value.pltaId),
+			staleTime: 5 * 60_000,
 			refetchOnWindowFocus: false
 		};
 	});

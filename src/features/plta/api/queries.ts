@@ -1,5 +1,11 @@
-import { createQuery, keepPreviousData, type QueryClient } from '@tanstack/svelte-query';
-import type { ListParams, Plant, PlantTagListParams } from '../model';
+import {
+	createMutation,
+	createQuery,
+	keepPreviousData,
+	useQueryClient,
+	type QueryClient
+} from '@tanstack/svelte-query';
+import type { ListParams, Plant, PlantTagListParams, TagBounds } from '../model';
 import { pltaRepository } from './repository';
 
 /**
@@ -165,4 +171,17 @@ export async function ensurePlantDetail(queryClient: QueryClient, pltaId: string
 		queryFn: () => pltaRepository.getById(pltaId),
 		staleTime: CATALOG_STALE_TIME
 	});
+}
+
+/** Daftar tag PLTA itu diambil ulang agar kolom batas valid langsung menyesuaikan. */
+export function createUpdateTagBoundsMutation() {
+	const queryClient = useQueryClient();
+
+	return createMutation(() => ({
+		mutationFn: ({ tagId, bounds }: { tagId: string; bounds: TagBounds }) =>
+			pltaRepository.updateTagBounds(tagId, bounds),
+		onSuccess: async (tag) => {
+			await queryClient.invalidateQueries({ queryKey: pltaQueryKeys.detail(tag.pltaId) });
+		}
+	}));
 }

@@ -53,6 +53,8 @@ export interface TrendSeries {
 	station: string | null;
 	resolution: string;
 	points: TrendPoint[];
+	/** Station yang ikut dihitung saat `station` null; kosong untuk seri tunggal. */
+	aggregatedStations: string[];
 	/** Pembacaan yang nilainya di luar batas wajar dan tidak ikut ditampilkan. */
 	discardedPoints: number;
 }

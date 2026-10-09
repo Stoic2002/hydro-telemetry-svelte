@@ -1,6 +1,6 @@
 import { createMutation, useQueryClient } from '@tanstack/svelte-query';
-import { invalidateUploadAudit } from '../../audit/api/queries';
-import type { UploadElevationExcelInput } from '../model';
+import type { ElevationCurveStatus, UploadElevationExcelInput } from '../model';
+import { invalidateElevationCurves } from './queries';
 import { uploadsRepository } from './repository';
 
 export function createDownloadElevationTemplateMutation() {
@@ -15,6 +15,25 @@ export function createUploadElevationExcelMutation() {
 
 	return createMutation(() => ({
 		mutationFn: (input: UploadElevationExcelInput) => uploadsRepository.uploadElevationExcel(input),
-		onSuccess: () => invalidateUploadAudit(queryClient)
+		onSuccess: () => invalidateElevationCurves(queryClient)
+	}));
+}
+
+export function createSetElevationCurveStatusMutation() {
+	const queryClient = useQueryClient();
+
+	return createMutation(() => ({
+		mutationFn: ({ curveId, status }: { curveId: string; status: ElevationCurveStatus }) =>
+			uploadsRepository.setElevationCurveStatus(curveId, status),
+		onSuccess: () => invalidateElevationCurves(queryClient)
+	}));
+}
+
+export function createDeleteElevationCurveMutation() {
+	const queryClient = useQueryClient();
+
+	return createMutation(() => ({
+		mutationFn: (curveId: string) => uploadsRepository.deleteElevationCurve(curveId),
+		onSuccess: () => invalidateElevationCurves(queryClient)
 	}));
 }

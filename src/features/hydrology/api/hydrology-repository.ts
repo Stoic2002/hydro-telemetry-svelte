@@ -1,8 +1,14 @@
 import type {
+	DailyExcelUploadOptions,
+	DailyTemplateOptions,
+	DailyLayoutChanges,
+	DailyVisibility,
 	DailyHydrologyPanel,
 	DailyHydrologyExcelResult,
 	DailyHydrologyReportScope,
-	HydrologyReportScope,
+	HydrologyPeriod,
+	MonthlyAccumulationChart,
+	MonthlyReportScope,
 	MonthlyHydrologyOverview,
 	DailyHydrologyParams,
 	MonthlyHydrology,
@@ -28,6 +34,15 @@ export interface HydrologyRepository {
 		params?: DailyHydrologyParams,
 		options?: HydrologyRequestOptions
 	): Promise<DailyHydrologyPanel>;
+	/** Seluruh metrik panel harian satu PLTA beserta status sembunyinya. */
+	getDailyVisibility(pltaId: string, options?: HydrologyRequestOptions): Promise<DailyVisibility>;
+	/**
+	 * Mengubah tata letak panel harian: status sembunyi (`true` = sembunyikan)
+	 * dan/atau urutan per panel. Atomik di server: satu kunci tak dikenal,
+	 * kunci panel lain, atau kunci ganda menolak seluruh permintaan dan tidak
+	 * ada yang tersimpan.
+	 */
+	setDailyVisibility(pltaId: string, changes: DailyLayoutChanges): Promise<DailyVisibility>;
 	/** Panel satu bulan. Bulan yang belum diisi tetap balik dengan `id` null. */
 	getMonthlyPanel(
 		pltaId: string,
@@ -57,18 +72,26 @@ export interface HydrologyRepository {
 		month: number,
 		options?: HydrologyRequestOptions
 	): Promise<Blob>;
-	/** Ringkasan seluruh PLTA. `month` kosong = sepanjang tahun. */
+	/** Ringkasan seluruh PLTA untuk satu periode atau rentang. `month` kosong = sepanjang tahun. */
 	getMonthlyOverview(
-		year: number,
-		month: number | undefined,
+		period: HydrologyPeriod,
 		options?: HydrologyRequestOptions
 	): Promise<MonthlyHydrologyOverview>;
 	/**
-	 * Laporan Excel hidrologi bulanan: lembar DATA per (PLTA, bulan) dan lembar
-	 * RINGKASAN rata-rata armada. Angkanya dihitung server dengan kode yang sama
-	 * dengan ringkasan armada di layar.
+	 * Target vs realisasi akumulasi per bulan. Setiap bulan dalam rentang muncul,
+	 * yang belum diisi bernilai `null`. Tanpa `pltaId`: jumlah seluruh PLTA.
 	 */
-	downloadMonthlyReport(scope: HydrologyReportScope): Promise<Blob>;
+	getMonthlyChart(
+		period: HydrologyPeriod,
+		pltaId?: string,
+		options?: HydrologyRequestOptions
+	): Promise<MonthlyAccumulationChart>;
+	/**
+	 * Laporan Excel hidrologi bulanan: lembar DATA per (PLTA, bulan) dan lembar
+	 * RINGKASAN rata-rata seluruh PLTA. Angkanya dihitung server dengan kode yang sama
+	 * dengan ringkasan seluruh PLTA di layar.
+	 */
+	downloadMonthlyReport(scope: MonthlyReportScope): Promise<Blob>;
 	/** Laporan Excel hidrologi harian, satu lembar per panel Hulu/Bendungan/Hilir. */
 	downloadDailyReport(scope: DailyHydrologyReportScope): Promise<Blob>;
 	/**
@@ -76,9 +99,12 @@ export interface HydrologyRepository {
 	 * berprotokol `upload`, nilai tersimpan sudah dipra-isi. `to` kosong = hanya
 	 * `from`; rentang maksimal 92 hari.
 	 */
-	downloadDailyTemplate(from: string, to?: string): Promise<Blob>;
+	downloadDailyTemplate(from: string, to?: string, options?: DailyTemplateOptions): Promise<Blob>;
 	/** Impor nilai harian manual seluruh PLTA. Atomik, sel kosong dilewati. */
-	uploadDailyExcel(file: File): Promise<DailyHydrologyExcelResult>;
+	uploadDailyExcel(
+		file: File,
+		options?: DailyExcelUploadOptions
+	): Promise<DailyHydrologyExcelResult>;
 	/** Impor satu berkas untuk seluruh PLTA sekaligus. Bersifat atomik. */
 	uploadMonthlyExcel(file: File): Promise<MonthlyHydrologyExcelResult>;
 	upsertMonthly(input: UpsertMonthlyHydrologyInput): Promise<MonthlyHydrology>;

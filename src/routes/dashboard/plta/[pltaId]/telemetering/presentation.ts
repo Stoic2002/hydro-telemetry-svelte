@@ -1,6 +1,8 @@
 import type {
+	AchievementStatus,
 	DashboardMetric,
 	DashboardMetricGroup,
+	MonthlyAchievement,
 	MonthlyHydrology,
 	NullableMetric
 } from '$features/hydrology';
@@ -323,11 +325,24 @@ export function dashboardMetricRows(
 	now?: number
 ): MetricRow[] {
 	const priority = new Map(preferredKeys.map((key, index) => [key, index]));
-	const entries = Object.entries(group ?? {}).sort(([firstKey], [secondKey]) => {
-		const firstPriority = priority.get(firstKey) ?? Number.MAX_SAFE_INTEGER;
-		const secondPriority = priority.get(secondKey) ?? Number.MAX_SAFE_INTEGER;
-		return firstPriority - secondPriority;
-	});
+	const byPriority = (firstKey: string, secondKey: string) =>
+		(priority.get(firstKey) ?? Number.MAX_SAFE_INTEGER) -
+		(priority.get(secondKey) ?? Number.MAX_SAFE_INTEGER);
+
+	// Metrik yang disembunyikan operator tetap dikirim server; yang
+	// menyembunyikannya adalah layar ini, termasuk dari ringkasan sensor basi.
+	const visible = Object.entries(group ?? {}).filter(([, metric]) => !metric.hidden);
+
+	// Urutan dari server (diatur per PLTA lewat Atur tampilan) menang. Hanya bila
+	// SELURUH metrik membawanya: mencampur dua sumber urutan dalam satu panel
+	// menghasilkan susunan yang tidak dimaksud siapa pun. `preferredKeys` tinggal
+	// cadangan untuk backend yang belum mengirim `urutan`.
+	const hasServerOrder = visible.every(([, metric]) => metric.order !== null);
+	const entries = visible.sort(([firstKey, first], [secondKey, second]) =>
+		hasServerOrder
+			? (first.order as number) - (second.order as number) || byPriority(firstKey, secondKey)
+			: byPriority(firstKey, secondKey)
+	);
 
 	if (entries.length === 0) {
 		return [dashboardMetricRow('Parameter dashboard', undefined, isLoading)];
@@ -488,6 +503,50 @@ export function resolveMetricUploadTargets(
 	return targets;
 }
 
+/**
+ * Satu sel pada tabel pembanding bulanan. Hanya yang dibutuhkan tampilan:
+ * nilai terformat dan penanda sumbernya.
+ */
+export type MonthlyCell = Pick<MetricRow, 'value' | 'source' | 'sourceType'>;
+
+export type MonthlyColumn = 'target' | 'prediction' | 'actual';
+
+export const MONTHLY_COLUMNS: { key: MonthlyColumn; label: string }[] = [
+	{ key: 'target', label: 'Target' },
+	{ key: 'prediction', label: 'Prediksi' },
+	{ key: 'actual', label: 'Realisasi' }
+];
+
+/**
+ * Satu parameter dengan pasangan target / prediksi / realisasinya. Kolom yang
+ * tidak punya padanan **tidak diisi** (bukan `N/A`): "tidak ada" berarti
+ * parameter itu memang tidak dikenal untuk kolom tersebut, sedangkan `N/A`
+ * berarti seharusnya ada tetapi belum terisi.
+ */
+export interface MonthlyComparisonRow {
+	label: string;
+	unit?: string;
+	cells: Partial<Record<MonthlyColumn, MonthlyCell>>;
+	/** Prediksi ÷ target pasangan ini; hanya baris yang punya target dan prediksi angka. */
+	achievement?: MonthlyAchievementView;
+}
+
+/**
+ * Persentase pencapaian beserta status dari server. Statusnya **tidak**
+ * dihitung ulang di sini: `prosentase` dibulatkan, sehingga 99,996% terbaca
+ * 100 padahal belum tercapai — server menilai dari angka mentahnya.
+ */
+export interface MonthlyAchievementView {
+	value: string;
+	/** `null` = server belum bisa menilai. */
+	status: AchievementStatus;
+	isAvailable: boolean;
+}
+
+export interface MonthlyComparison {
+	rows: MonthlyComparisonRow[];
+}
+
 function monthlyMetricRow(
 	label: string,
 	value: NullableMetric,
@@ -507,62 +566,63 @@ function monthlyMetricRow(
 	};
 }
 
-export function buildMonthlyForecastRows(
+function monthlyCell(value: NullableMetric, sourceType: 'api' | 'input'): MonthlyCell {
+	const { value: text, source, sourceType: type } = monthlyMetricRow('', value, sourceType, '');
+	return { value: text, source, sourceType: type };
+}
+
+function monthlyTextCell(value: string | null | undefined): MonthlyCell {
+	return {
+		value: value || 'N/A',
+		source: value ? 'Data bulanan' : 'Belum tersedia',
+		sourceType: value ? 'api' : 'unavailable'
+	};
+}
+
+function achievementView(achievement: MonthlyAchievement | undefined): MonthlyAchievementView {
+	const percentage = achievement?.percentage ?? null;
+	const isAvailable = percentage !== null && Number.isFinite(percentage);
+
+	return {
+		value: formatHydrologyMetric(percentage, 1),
+		status: isAvailable ? (achievement?.status ?? null) : null,
+		isAvailable
+	};
+}
+
+export function buildMonthlyComparison(
 	record: MonthlyHydrology | undefined,
 	monthLabel: string
-): MetricRow[] {
-	const apiSource = 'Data bulanan';
-
-	return [
-		{
-			label: 'Prediksi hidrologi',
-			value: record?.hydrologyPrediction || 'N/A',
-			source: record?.hydrologyPrediction ? apiSource : 'Belum tersedia',
-			sourceType: record?.hydrologyPrediction ? 'api' : 'unavailable'
-		},
-		{
-			label: 'Aktual hidrologi',
-			value: record?.hydrologyActual || 'N/A',
-			source: record?.hydrologyActual ? apiSource : 'Belum tersedia',
-			sourceType: record?.hydrologyActual ? 'api' : 'unavailable'
-		},
-		monthlyMetricRow(
-			`Prediksi kemampuan produksi energi ${monthLabel}`,
-			record?.predictedProductionMwh ?? null,
-			'api',
-			'MWh'
-		),
-		monthlyMetricRow(
-			`Target produksi energi listrik ${monthLabel}`,
-			record?.targetProductionMwh ?? null,
-			'input',
-			'MWh'
-		),
-		monthlyMetricRow(
-			'Pencapaian energi s.d. bulan sebelumnya',
-			record?.previousAchievementMwh ?? null,
-			'api',
-			'MWh'
-		),
-		monthlyMetricRow(
-			`Prediksi pencapaian energi s.d. ${monthLabel}`,
-			record?.predictedPreviousAchievementMwh ?? null,
-			'api',
-			'MWh'
-		),
-		monthlyMetricRow(
-			`Target pencapaian energi s.d. ${monthLabel}`,
-			record?.targetPreviousAchievementMwh ?? null,
-			'input',
-			'MWh'
-		),
-		monthlyMetricRow(
-			'Persentase pencapaian',
-			record?.achievementPercentage ?? null,
-			'formula',
-			'%',
-			1,
-			'Formulasi'
-		)
-	];
+): MonthlyComparison {
+	return {
+		rows: [
+			{
+				label: 'Kondisi hidrologi',
+				cells: {
+					prediction: monthlyTextCell(record?.hydrologyPrediction),
+					actual: monthlyTextCell(record?.hydrologyActual)
+				}
+			},
+			{
+				label: `Energi ${monthLabel}`,
+				unit: 'MWh',
+				cells: {
+					target: monthlyCell(record?.targetProductionMwh ?? null, 'input'),
+					prediction: monthlyCell(record?.predictedProductionMwh ?? null, 'api'),
+					actual: monthlyCell(record?.actualProductionMwh ?? null, 'api')
+				},
+				achievement: achievementView(record?.monthlyAchievement)
+			},
+			{
+				label: `Energi akumulasi s.d. ${monthLabel}`,
+				unit: 'MWh',
+				cells: {
+					target: monthlyCell(record?.targetAccumulatedMwh ?? null, 'input'),
+					prediction: monthlyCell(record?.predictedAccumulatedMwh ?? null, 'api'),
+					actual: monthlyCell(record?.actualAccumulatedMwh ?? null, 'api')
+				},
+				achievement: achievementView(record?.accumulatedAchievement)
+			}
+		]
+	};
 }

@@ -26,7 +26,8 @@ function mapReport(report: ApiReport): Report {
 		periodEnd: report.period_end,
 		filePath: report.file_path,
 		error: report.error,
-		createdAt: report.created_at
+		createdAt: report.created_at,
+		requestedBy: report.requested_by_username
 	};
 }
 
@@ -90,6 +91,24 @@ export const httpReportsRepository: ReportsRepository = {
 		});
 		if (!(payload instanceof Blob)) {
 			throw new ApiError('File laporan dari server tidak valid', {
+				status: 502,
+				statusText: 'Invalid API Response',
+				url: endpoint
+			});
+		}
+		return payload;
+	},
+
+	async downloadTimeseriesExcel(pltaId, start, end) {
+		const endpoint = `/api/v1/dashboard/plta/${encodeURIComponent(pltaId)}/timeseries.xlsx`;
+		const payload = await apiRequest<unknown>(endpoint, {
+			method: 'GET',
+			cache: 'no-store',
+			headers: { Accept: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' },
+			query: { start, end }
+		});
+		if (!(payload instanceof Blob)) {
+			throw new ApiError('File Excel time-series dari server tidak valid', {
 				status: 502,
 				statusText: 'Invalid API Response',
 				url: endpoint

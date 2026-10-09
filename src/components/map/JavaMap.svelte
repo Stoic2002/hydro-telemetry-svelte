@@ -1,4 +1,5 @@
 <script lang="ts">
+	import type { Snippet } from 'svelte';
 	import { geoMercator, geoPath } from 'd3-geo';
 	import type { FeatureCollection, Geometry, GeoJsonProperties, LineString } from 'geojson';
 	import IconCloudRain from '~icons/ph/cloud-rain';
@@ -23,9 +24,28 @@
 		onPLTAClick: (pltaId: string) => void;
 		showPrecipitation?: boolean;
 		projectionConfig?: { center?: [number, number]; scale?: number };
+		/**
+		 * Kartu yang menempel di dasar peta, kiri kolom Awan Hujan/Legenda — di
+		 * Overview: ringkasan hidrologi seluruh PLTA. Bagian bawah peta adalah laut
+		 * di selatan Jawa. Hanya dari `lg`: di layar sempit kartu menutupi peta,
+		 * jadi pemanggil menaruhnya di bawah peta.
+		 */
+		bottomOverlay?: Snippet;
+		/**
+		 * Kartu tambahan di kolom kanan, di antara Awan Hujan dan Legenda — di
+		 * Overview: Detail ringkasan hidrologi. Kolomnya bergulir bila isinya
+		 * melebihi tinggi peta.
+		 */
+		rightPanel?: Snippet;
 	}
 
-	let { onPLTAClick, showPrecipitation = false, projectionConfig }: Props = $props();
+	let {
+		onPLTAClick,
+		showPrecipitation = false,
+		projectionConfig,
+		bottomOverlay,
+		rightPanel
+	}: Props = $props();
 
 	/**
 	 * `react-simple-maps` tidak punya padanan Svelte, jadi `d3-geo` dipakai
@@ -583,6 +603,19 @@
 			</div>
 		{/if}
 
+		{#if bottomOverlay}
+			<div
+				class="pointer-events-none absolute right-[calc(212px+1.5rem)] bottom-3 left-3 z-10 hidden lg:block xl:right-[calc(212px+2rem)] xl:bottom-4 xl:left-4"
+			>
+				<!--
+					Selebar isinya, rata kiri — bukan merentang sampai kolom kanan. Kartu
+					yang merentang menutupi penanda di pantai selatan (Wonogiri, x ≈ 75%
+					lebar peta); isi kartunya hanya ±640px.
+				-->
+				<div class="pointer-events-auto w-fit max-w-full">{@render bottomOverlay()}</div>
+			</div>
+		{/if}
+
 		<!--
 			Panel Awan Hujan dan legenda berbagi satu kolom kanan. Dulu keduanya
 			diposisikan absolut sendiri-sendiri (atas dan bawah), dan begitu panelnya
@@ -719,6 +752,8 @@
 					{/if}
 				</div>
 			{/if}
+
+			{@render rightPanel?.()}
 
 			<div
 				class="pointer-events-auto mt-auto flex shrink-0 flex-col gap-2 rounded-xl border border-border-subtle bg-surface-raised/95 px-3 py-2.5 shadow-overlay backdrop-blur-sm sm:px-3.5"

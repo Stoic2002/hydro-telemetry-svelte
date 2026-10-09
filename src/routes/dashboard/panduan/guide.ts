@@ -123,7 +123,10 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
 					'Pilih **Keluar**.',
 					'Tekan **Ya, Keluar** pada kotak konfirmasi.'
 				],
-				notes: ['Keluar dari satu tab juga mengakhiri sesi di tab lain pada browser yang sama.']
+				notes: [
+					'Keluar dari satu tab juga mengakhiri sesi di tab lain pada browser yang sama.',
+					'Keluar mencabut sesi di server, jadi sesi itu tidak bisa dipakai lagi walau tokennya sempat tersalin. Perangkat lain tidak ikut keluar — untuk itu pakai **Keluar dari semua perangkat** di **Profil Saya**.'
+				]
 			}
 		]
 	},
@@ -131,7 +134,7 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
 		id: 'overview',
 		title: 'Overview',
 		summary:
-			'Peta sebaran PLTA di Jawa Tengah, citra awan hujan terkini, dan ringkasan hidrologi armada.',
+			'Peta sebaran PLTA di Jawa Tengah, citra awan hujan terkini, dan ringkasan hidrologi seluruh PLTA.',
 		blocks: [
 			{
 				title: 'Membaca peta',
@@ -167,16 +170,19 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
 				]
 			},
 			{
-				title: 'Ringkasan armada',
+				title: 'Ringkasan hidrologi seluruh PLTA',
 				steps: [
-					'Baris **Ringkasan armada** ada di kanan atas halaman Overview — di layar kecil, di bawah judul.',
-					'Tekan **Detail** untuk memilih bulan — atau **Sepanjang tahun** — dan tahun, serta melihat rata-rata per PLTA.',
-					'Untuk laporan Excel periode yang sama, tekan **Unduh laporan Excel** di dasar panel Detail.'
+					'Kartu **Ringkasan hidrologi seluruh PLTA** menempel di dasar peta Overview — di layar kecil, di bawah peta. Bawaannya bulan berjalan.',
+					'Pilih bulan — atau **Sepanjang tahun** — dan tahun di kanan atas halaman. Bila bulan itu belum ada datanya, tekan **Lihat** bulan sebelumnya di kartu.',
+					'Buka kartu **Detail ringkasan** di kolom kanan peta (di bawah Awan Hujan) untuk melihat rata-rata per PLTA.',
+					'Di kartu yang sama, isi **Sampai (opsional)** untuk merangkum beberapa bulan sekaligus, misalnya Januari sampai September. Kosongkan (—) untuk satu periode saja; tekan **Hapus rentang** untuk kembali.',
+					'Untuk laporan Excel periode yang sama, tekan **Unduh laporan Excel** di dasar kartu Detail ringkasan.'
 				],
 				notes: [
-					'**Pencapaian armada** adalah total prediksi dibagi total target seluruh PLTA — angka yang dipakai untuk melaporkan kinerja gabungan. **Rata-rata antar-PLTA** memberi bobot sama pada setiap PLTA, besar maupun kecil.',
-					'Baris yang prediksi atau targetnya belum diisi tidak dihitung sebagai "tidak tercapai" dan tidak ikut angka armada.',
-					'Titik jingga di sebelah **Detail** berarti ringkasan belum mencakup seluruh PLTA — penjelasannya ada di dalam panel.'
+					'**Pencapaian seluruh PLTA** adalah total prediksi dibagi total target seluruh PLTA — angka yang dipakai untuk melaporkan kinerja gabungan. **Rata-rata antar-PLTA** memberi bobot sama pada setiap PLTA, besar maupun kecil.',
+					'Data yang prediksi atau targetnya belum diisi tidak dihitung sebagai "tidak tercapai" dan tidak ikut angka gabungan.',
+					'Rentang maksimal 60 bulan, dan akhirnya tidak boleh sebelum awal. Bila tidak memenuhi, kartu ringkasan menampilkan "Rentang periode tidak valid" dan tidak meminta data ke server.',
+					'Titik jingga di sebelah **Detail ringkasan** berarti ringkasan belum mencakup seluruh PLTA — penjelasannya ada di dalam kartunya.'
 				]
 			}
 		]
@@ -191,7 +197,13 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
 				steps: [
 					'Buka **Telemetering › Hidrologi Bulanan**.',
 					'Pilih **Bulan** dan **Tahun** pada bagian **Periode**.',
-					'Baca prediksi dan realisasi di bagian **Ringkasan**, serta gambar **Curah Hujan** dan **Sifat Hujan** di bagian **Prakiraan Hujan**.'
+					'Baca tabel di bagian **Ringkasan**: tiap parameter punya kolom **Target**, **Prediksi**, dan **Realisasi**. Tanda hubung (—) berarti parameter itu tidak punya nilai untuk kolom tersebut; **N/A** berarti seharusnya ada tetapi belum diisi.',
+					'Pada baris energi, kolom **Prediksi** adalah **prognosa ketersediaan energi primer**, sedangkan target dan realisasi adalah produksi energi listrik. **Prognosa pencapaian** adalah prognosa dibagi target, dan badge **Tercapai** / **Belum tercapai** adalah kesimpulannya.',
+					'Lihat juga peta **Curah Hujan** dan **Sifat Hujan** di bagian **Gambar Hujan**: baris **Prediksi** di atas, **Realisasi** di bawahnya. Klik gambar untuk memperbesar.'
+				],
+				notes: [
+					'Bulan dan tahun yang dipilih tetap terbawa saat Anda berpindah PLTA lewat pemilih PLTA.',
+					'Bagian **Akumulasi produksi** di bawah tabel menggambar **target** (garis putus-putus) dan **realisasi** (garis tebal) akumulasi sepanjang tahun yang dipilih, untuk PLTA yang sedang dibuka. Bulan yang belum diisi memutus garis — bukan bernilai nol.'
 				]
 			},
 			{
@@ -200,12 +212,12 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
 				access: 'dataTools',
 				steps: [
 					'Pada bagian **Ringkasan**, tekan **Input data** — atau **Edit data** bila periode itu sudah terisi.',
-					'Isi kondisi hidrologi dan energi produksi (dalam MWh).',
+					'Isi kondisi hidrologi (prediksi dan realisasi) serta energi bulan ini dan energi akumulasi (dalam MWh): target, prognosa ketersediaan energi primer, dan realisasi.',
 					'Tekan **Simpan Data**.'
 				],
 				notes: [
 					'Field yang dikosongkan tidak menimpa data yang sudah tersimpan.',
-					'Persentase pencapaian dihitung otomatis oleh server.',
+					'Prognosa pencapaian beserta kesimpulan **Tercapai** / **Belum tercapai** dihitung otomatis oleh server.',
 					'Untuk mengisi seluruh PLTA sekaligus, gunakan menu **Upload** tab **Excel Bulanan**.'
 				]
 			},
@@ -219,12 +231,29 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
 				]
 			},
 			{
+				title: 'Menyembunyikan dan mengurutkan parameter',
+				access: 'dataTools',
+				steps: [
+					'Di Hidrologi Harian, tekan ikon pengatur di sebelah judul panel yang ingin diatur — **Hulu**, **Bendungan**, atau **Hilir**. Setiap panel diatur sendiri-sendiri.',
+					'Matikan sakelar parameter yang tidak ingin ditampilkan — misalnya pH di PLTA yang tidak punya sensornya.',
+					'Untuk mengubah urutan, seret baris parameter ke atas atau ke bawah. Di tablet atau HP, seret lewat pegangan titik-titik di kiri baris. Dengan keyboard: fokuskan pegangannya, lalu tekan panah atas atau bawah.',
+					'Tekan **Simpan**.'
+				],
+				notes: [
+					'Pengaturan berlaku untuk **PLTA yang sedang dibuka** dan terlihat oleh semua pengguna PLTA itu. PLTA lain tidak terpengaruh.',
+					'Parameter yang disembunyikan tidak dihapus: datanya tetap tersimpan dan bisa ditampilkan kembali kapan saja.',
+					'Parameter hanya bisa diurutkan di dalam panelnya sendiri (Hulu, Bendungan dan pelepasan, Hilir), tidak bisa dipindah ke panel lain.',
+					'**Urutan bawaan** muncul pada panel yang pernah diurutkan; tekan lalu **Simpan** untuk mengembalikan urutan aslinya.'
+				]
+			},
+			{
 				title: 'Umur pembacaan sensor',
 				notes: [
 					'**Realtime aktif** tidak menjamin setiap sensor masih mengirim. Nilai sensor yang lama tidak diperbarui diberi badge umur di sebelah angkanya, misalnya **32 mnt lalu**.',
 					'Badge kuning: pembacaan terlambat. Badge merah: sensor kemungkinan berhenti mengirim, dan angkanya diredupkan — itu pembacaan terakhir, bukan kondisi saat ini.',
 					'Kebanyakan sensor mengirim tiap beberapa menit: kuning setelah 30 menit, merah setelah 1 jam. Curah hujan dan elevasi sedimen mengirim sekali per jam: kuning setelah 1,5 jam, merah setelah 3 jam.',
 					'Bila ada badge merah, di atas halaman muncul ringkasan **sensor tidak diperbarui**. Klik nama parameternya untuk melompat ke barisnya.',
+					'Ringkasan itu bisa ditutup dengan tanda silang di kanannya; badge merah di barisnya tetap tampil. Ringkasan muncul lagi bila daftar sensor yang berhenti berubah — misalnya ada sensor lain yang ikut berhenti — atau saat halaman dibuka di tab baru.',
 					'Arahkan kursor ke badge untuk melihat waktu ukur persisnya.',
 					'Nilai formula, rencana, konstanta, dan data yang diisi manual tidak diberi badge umur — nilainya memang hanya berubah sekali sehari.'
 				]
@@ -233,7 +262,7 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
 				title: 'Mengatur unit beban penuh',
 				example: 'dmn-picker',
 				steps: [
-					'Di zona hulu, cari bagian **Unit beban penuh**.',
+					'Di zona hulu, cari bagian **Unit beban penuh** — tepat di bawah baris **Service Hour Full Load**. Bila baris itu disembunyikan atau terlipat, bagian ini ada di bawah judul **Hulu**.',
 					'Klik unit untuk menyalakan atau mematikannya. Nilai DMN di kanan menyesuaikan.',
 					'Untuk nilai tertentu, buka **DMN manual**, isi nilai dalam MW, lalu tekan **Terapkan**.'
 				],
@@ -287,6 +316,14 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
 					'Bagian **Kelayakan Prediksi** menunjukkan seberapa dapat diandalkan model saat ini.',
 					'Bila muncul peringatan **Akurasi model belum layak jadi acuan tunggal**, gunakan prediksi bersama data aktual dan pertimbangan operator.'
 				]
+			},
+			{
+				title: 'Akurasi prediksi yang tersaji',
+				notes: [
+					'Bagian **Akurasi prediksi yang tersaji** di dasar halaman membandingkan prediksi yang sudah jatuh tempo dalam 30 hari terakhir dengan realisasinya — angka yang benar-benar dilihat operator, bukan angka saat model dilatih.',
+					'**Galat rata-rata (MAE)** dan **RMSE** dalam satuan parameternya; **Akurasi** = 100 dikurangi galat relatif. Saat inflow mendekati nol, bacalah MAE, karena persentasenya bisa menyesatkan.',
+					'Tabel per versi model menunjukkan apakah mutu turun setelah model baru dipakai. Baris **Tanpa model (fallback)** adalah prediksi yang dibuat tanpa model ML.'
+				]
 			}
 		]
 	},
@@ -311,7 +348,8 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
 					'Baris di atas grafik berisi **Rata-rata**, **Minimum**, **Maksimum**, dan **Perubahan periode**.',
 					'Garis putus-putus yang lurus mendatar adalah nilai rata-rata periode.',
 					'Curah hujan digambar sebagai batang dan dijumlahkan; parameter lain dirata-rata.',
-					'Nilai yang jauh di luar batas wajar tidak ikut digambar, dan jumlahnya disebutkan di atas grafik.'
+					'Nilai yang jauh di luar batas wajar tidak ikut digambar, dan jumlahnya disebutkan di atas grafik.',
+					'Di bawah grafik tertulis sumber seri yang sungguh dibaca server: **tingkat pembangkit**, satu **stasiun**, atau **agregasi** beberapa stasiun beserta daftar stasiunnya.'
 				]
 			},
 			{
@@ -354,6 +392,17 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
 				notes: ['Laporan diproses di server dan langsung muncul di daftar.']
 			},
 			{
+				title: 'Unduh langsung Excel per jam',
+				steps: [
+					'Di tab **Laporan Time Series**, bagian **Unduh langsung: Excel per jam**, isi **Dari** dan **Sampai**.',
+					'Tekan **Unduh Excel**.'
+				],
+				notes: [
+					'Berkasnya langsung terunduh, tanpa antrean: 13 kolom rata-rata per jam (TMA waduk, inflow, debit turbin 1–3, spillway, irigasi, DDC, delta head, TMA tailrace, head, dan efisiensi turbin 1–3).',
+					'Rentang maksimal 62 hari.'
+				]
+			},
+			{
 				title: 'Mengunduh laporan',
 				example: 'report-status',
 				steps: [
@@ -362,7 +411,8 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
 				],
 				notes: [
 					'Bila statusnya **Gagal**, buat ulang laporannya. Bila tetap gagal, hubungi administrator.',
-					'Gunakan kotak pencarian untuk menemukan laporan lama.'
+					'Gunakan kotak pencarian untuk menemukan laporan lama.',
+					'Kolom **Dibuat** juga menyebut akun yang membuat laporan.'
 				]
 			},
 			{
@@ -370,10 +420,12 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
 				steps: [
 					'Buka menu **Laporan**, tab **Laporan Hidrologi**.',
 					'Pilih **Bulan** — atau **Sepanjang tahun** — dan **Tahun**.',
+					'Untuk **Laporan Hidrologi Bulanan**, isi **Sampai (opsional)** bila ingin beberapa bulan dalam satu berkas.',
 					'Unduh **Laporan Hidrologi Bulanan** atau **Laporan Hidrologi Harian** dengan **Unduh Excel**.'
 				],
 				notes: [
 					'Laporan ini langsung diunduh, tanpa antrean.',
+					'Rentang hanya berlaku untuk laporan **bulanan** (maksimal 60 bulan). Laporan harian memakai bulan awal yang dipilih.',
 					'Pilih **Cakupan PLTA** untuk mempersempit laporan ke satu PLTA, dan pilih panel Hulu, Bendungan, atau Hilir untuk laporan harian.'
 				]
 			}
@@ -382,14 +434,14 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
 	{
 		id: 'upload',
 		title: 'Upload',
-		summary: 'Excel ringkasan bulanan, gambar prakiraan hujan, dan kurva EVA per PLTA.',
+		summary: 'Excel ringkasan bulanan, gambar hujan, dan kurva EVA per PLTA.',
 		access: 'dataTools',
 		blocks: [
 			{
 				title: 'Empat jenis unggahan',
 				example: 'upload-tabs',
 				notes: [
-					'**Excel Bulanan**, **Excel Harian**, dan **Prakiraan Hujan** berlaku untuk **seluruh PLTA** sekaligus.',
+					'**Excel Bulanan**, **Excel Harian**, dan **Gambar Hujan** berlaku untuk **seluruh PLTA** sekaligus.',
 					'**Input EVA** berlaku untuk **satu PLTA** yang dipilih di tab itu.',
 					'Setiap tab punya riwayat unggahan di bagian bawah.'
 				]
@@ -415,20 +467,22 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
 				steps: [
 					'Buka **Upload**, tab **Excel Harian**.',
 					'Isi rentang tanggal **Dari** dan **Sampai** (maksimal 92 hari), lalu tekan **Unduh Template**.',
+					'Nyalakan **Baris per jam** bila ingin 24 baris per PLTA per tanggal (satu per jam 0–23); tanpa itu, template satu baris per tanggal.',
 					'Isi template: satu baris per PLTA per tanggal. Biarkan kosong sel yang berlatar gelap.',
-					'Tarik berkas ke kotak unggah, lalu tekan **Unggah sekarang**.'
+					'Tarik berkas ke kotak unggah. Pilih perlakuan **Sel kosong di berkas**, lalu tekan **Unggah sekarang**.'
 				],
 				notes: [
 					'Template sudah terisi nilai yang tersimpan, jadi cukup dikoreksi. Sel kosong tidak menghapus nilai lama.',
+					'**Dilewati** (bawaan): sel kosong tidak mengubah apa pun. **Isi nilai terakhir**: sel kosong diisi nilai terisi terakhir pada kolom dan PLTA yang sama, diurut waktu — nilai yang diisi itu tersimpan sebagai data, dan jumlahnya tampil di hasil unggahan sebagai **Diisi nilai lama**.',
 					'Bila satu baris bermasalah, **seluruh berkas ditolak** dan tabel **Baris bermasalah** menunjukkan barisnya.',
 					'Konstanta seperti batas TMA dan SWC tidak ada di template — isi lewat **Input data** di Hidrologi Harian.'
 				]
 			},
 			{
-				title: 'Prakiraan Hujan',
+				title: 'Gambar Hujan',
 				steps: [
-					'Buka **Upload**, tab **Prakiraan Hujan**.',
-					'Tekan **Unggah** pada **Curah Hujan** atau **Sifat Hujan**.',
+					'Buka **Upload**, tab **Gambar Hujan**.',
+					'Tekan **Unggah** pada salah satu dari empat gambar: **Prakiraan Curah Hujan**, **Prakiraan Sifat Hujan**, **Realisasi Curah Hujan**, atau **Realisasi Sifat Hujan**.',
 					'Pilih **Bulan**, **Tahun**, dan berkas gambarnya.',
 					'Tekan **Unggah Gambar**.'
 				],
@@ -449,7 +503,23 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
 					'Tekan **Unggah ke Server**.'
 				],
 				notes: [
-					'Mengganti PLTA setelah memilih berkas akan mengosongkan pilihan berkas, supaya berkas tidak terunggah ke PLTA yang salah.'
+					'Mengganti PLTA setelah memilih berkas akan mengosongkan pilihan berkas, supaya berkas tidak terunggah ke PLTA yang salah.',
+					'Kurva yang diunggah tanpa centang publish tersimpan sebagai **Draft** dan belum dipakai menghitung volume waduk.'
+				]
+			},
+			{
+				title: 'Status dan publish kurva EVA',
+				steps: [
+					'Di tab **Input EVA**, tabel **Status kurva seluruh PLTA** menunjukkan setiap PLTA: **Siap** (kurva dipakai perhitungan), **Draft** (sudah diunggah, belum dipakai), atau **Belum ada**.',
+					'Klik nama PLTA di tabel itu untuk membukanya di panel unggah.',
+					'Di bagian **Kurva** PLTA itu, tekan **Publish** pada kurva draft agar dipakai menghitung volume waduk.',
+					'Untuk menarik kurva dari perhitungan, tekan **Jadikan draft**. Kurva draft yang salah unggah bisa dihapus dengan ikon tempat sampah.'
+				],
+				notes: [
+					'Tanpa kurva yang **Berlaku**, volume waduk dan turunannya di Hidrologi Harian (volume efektif, ketersediaan energi, Service Hour, inflow) kosong.',
+					'Kurva lama tetap berlaku sampai ada kurva published yang lebih baru: kurva 2024 bisa masih **Berlaku** di 2026.',
+					'Publish ditolak bila titik kurvanya identik dengan kurva PLTA lain — tanda berkas PLTA lain terunggah ke sini. Peringatannya tampil di baris kurva itu.',
+					'Hanya kurva draft yang bisa dihapus, dan penghapusan tidak dapat dibatalkan. Kurva published harus dijadikan draft dulu.'
 				]
 			}
 		]
@@ -469,6 +539,19 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
 				],
 				notes: [
 					'Satu Wilayah Sungai bisa menaungi beberapa PLTA, tetapi setiap PLTA hanya berada di satu Wilayah Sungai.'
+				]
+			},
+			{
+				title: 'Mengatur batas valid tag',
+				steps: [
+					'Di tab **Tag & Parameter**, tekan **Atur batas** pada tag yang dimaksud.',
+					'Isi **Batas bawah** dan/atau **Batas atas**. Biarkan kosong bila tidak ada batas di sisi itu.',
+					'Tekan **Simpan**.'
+				],
+				notes: [
+					'Pembacaan di luar rentang tetap disimpan apa adanya, tetapi ditandai tidak mungkin dan tidak ikut parameter turunan, agregat, maupun akurasi.',
+					'Batas berlaku **ke depan**: pembacaan yang sudah tersimpan tidak dinilai ulang.',
+					'Mengosongkan **kedua** batas mencabut pembatasan untuk tag itu. Batas bawah harus lebih kecil dari batas atas.'
 				]
 			}
 		]
@@ -497,7 +580,8 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
 					'Klik **Aktif** atau **Nonaktif** di kolom **Status** untuk mengubah status akun. Pengguna nonaktif tidak bisa masuk.',
 					'Tekan ikon edit untuk mengubah nama, email, peran, atau status.',
 					'Tekan ikon hapus lalu konfirmasi untuk menghapus akun.',
-					'Akun Anda sendiri tidak bisa dinonaktifkan atau dihapus dari sini; kelola lewat **Profil Saya**.'
+					'Tekan ikon keluar (di antara ikon edit dan hapus) lalu **Ya, cabut sesi** untuk mengeluarkan pengguna dari semua perangkatnya — misalnya bila akunnya dicurigai dipakai orang lain. Akunnya tetap aktif dan bisa masuk kembali.',
+					'Akun Anda sendiri tidak bisa dinonaktifkan, dicabut sesinya, atau dihapus dari sini; kelola lewat **Profil Saya**.'
 				]
 			}
 		]
@@ -505,7 +589,8 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
 	{
 		id: 'profil',
 		title: 'Profil Saya',
-		summary: 'Mengubah data diri dan password akun sendiri.',
+		summary:
+			'Mengubah data diri dan password akun sendiri, serta mengeluarkan sesi di perangkat lain.',
 		blocks: [
 			{
 				title: 'Mengubah profil',
@@ -521,6 +606,17 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
 					'Di bagian **Ganti Password**, isi **Password Saat Ini**.',
 					'Isi **Password Baru** dan ulangi di **Konfirmasi Password Baru**.',
 					'Tekan **Ubah Password**.'
+				]
+			},
+			{
+				title: 'Keluar dari semua perangkat',
+				steps: [
+					'Di bagian **Sesi di perangkat lain**, tekan **Keluar dari semua perangkat**.',
+					'Tekan **Ya, keluar dari semua** pada kotak konfirmasi.'
+				],
+				notes: [
+					'Semua sesi akun Anda dicabut, termasuk di perangkat ini, sehingga semua perangkat harus masuk kembali.',
+					'Pakai ini bila Anda curiga akun dipakai di perangkat lain atau lupa keluar di komputer bersama.'
 				]
 			}
 		]

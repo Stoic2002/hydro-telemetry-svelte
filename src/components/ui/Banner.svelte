@@ -4,6 +4,7 @@
 
 <script lang="ts">
 	import type { Snippet } from 'svelte';
+	import IconX from '~icons/ph/x';
 
 	interface Props {
 		tone: BannerTone;
@@ -13,9 +14,20 @@
 		/** Mengganti penanda bulat bawaan, misalnya dengan ikon. */
 		icon?: Snippet;
 		class?: string;
+		/** Bila diisi, banner punya tombol tutup. Yang menyimpan status tertutupnya pemanggil. */
+		onDismiss?: () => void;
+		dismissLabel?: string;
 	}
 
-	let { tone, title, children, icon, class: className = '' }: Props = $props();
+	let {
+		tone,
+		title,
+		children,
+		icon,
+		class: className = '',
+		onDismiss,
+		dismissLabel = 'Tutup pesan'
+	}: Props = $props();
 
 	const TONE_CONFIG: Record<
 		BannerTone,
@@ -68,4 +80,15 @@
 			{@render children()}
 		</div>
 	</div>
+	{#if onDismiss}
+		<button
+			type="button"
+			onclick={onDismiss}
+			aria-label={dismissLabel}
+			title={dismissLabel}
+			class={`-mt-0.5 -mr-1 flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-md transition-colors hover:bg-black/5 ${config.title}`}
+		>
+			<IconX class="size-3.5" aria-hidden="true" />
+		</button>
+	{/if}
 </div>

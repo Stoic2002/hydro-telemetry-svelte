@@ -33,3 +33,25 @@ export const apiForecastSeriesSchema = z.object({
 });
 
 export type ApiForecastSeries = z.infer<typeof apiForecastSeriesSchema>;
+
+const optionalMetric = z.number().nullable().optional().default(null);
+
+const apiAccuracyMetricsSchema = z.object({
+	n: z.number().int().nonnegative().optional().default(0),
+	mae: optionalMetric,
+	rmse: optionalMetric,
+	galat_relatif: optionalMetric,
+	akurasi: optionalMetric
+});
+
+/**
+ * `GET /forecasts/accuracy`. Swagger menuliskannya sebagai objek bebas; bentuk
+ * ini mengikuti deskripsinya (`n`, `mae`, `rmse`, `galat_relatif`, `akurasi`,
+ * `per_versi`). Respons tanpa prediksi jatuh tempo: `{n: 0, per_versi: {}}`,
+ * jadi metriknya boleh hilang.
+ */
+export const apiForecastAccuracySchema = apiAccuracyMetricsSchema.extend({
+	per_versi: z.record(z.string(), apiAccuracyMetricsSchema).optional().default({})
+});
+
+export type ApiForecastAccuracy = z.infer<typeof apiForecastAccuracySchema>;

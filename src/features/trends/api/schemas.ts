@@ -12,7 +12,12 @@ export const apiTrendSeriesSchema = z.object({
 	parameter: z.string().min(1),
 	station: z.string().nullable().optional().default(null),
 	resolution: z.string(),
-	points: z.array(apiTrendPointSchema)
+	points: z.array(apiTrendPointSchema),
+	/**
+	 * Station yang ikut diagregasi; terisi hanya bila `station` null (agregat
+	 * lintas station).
+	 */
+	aggregated_stations: z.array(z.string()).nullable().optional().default(null)
 });
 
 export type ApiTrendSeries = z.infer<typeof apiTrendSeriesSchema>;

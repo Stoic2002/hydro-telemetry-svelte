@@ -24,6 +24,13 @@ export interface DashboardMetric {
 	time: string | null;
 	source: DashboardMetricSource;
 	stations: DashboardStationMetric[] | null;
+	/** `true` = disembunyikan operator untuk PLTA ini; tidak boleh dirender. */
+	hidden: boolean;
+	/**
+	 * Posisi di panelnya (0 = teratas) menurut pengaturan PLTA ini. `null` bila
+	 * server tidak mengirimnya; layar lalu memakai urutan bawaannya sendiri.
+	 */
+	order: number | null;
 	/**
 	 * Hanya dibawa metrik penyebut (`dmn_beban_penuh`), bukan seluruh metrik —
 	 * karena itu opsional. `unit` bila dihitung dari unit terpilih, `manual`
@@ -69,6 +76,25 @@ export interface DailyHydrology {
 	pendingFormulas: string[];
 }
 
+/**
+ * Empat gambar peta BMKG per bulan. Prediksi = prakiraan BMKG; realisasi =
+ * analisis BMKG sesudah bulannya berjalan.
+ */
+export type MonthlyHydrologyImageKind =
+	| 'prediksi_sifat_hujan'
+	| 'prediksi_curah_hujan'
+	| 'realisasi_sifat_hujan'
+	| 'realisasi_curah_hujan';
+
+/** `null` = server belum bisa menilai (prediksi atau targetnya kosong). */
+export type AchievementStatus = 'achieved' | 'not-achieved' | null;
+
+export interface MonthlyAchievement {
+	/** Prediksi ÷ target × 100, dihitung server. */
+	percentage: NullableMetric;
+	status: AchievementStatus;
+}
+
 export interface MonthlyHydrology {
 	id: string | null;
 	pltaId: string;
@@ -76,30 +102,65 @@ export interface MonthlyHydrology {
 	month: number;
 	hydrologyPrediction: string | null;
 	hydrologyActual: string | null;
-	rainfallCharacteristicImage: string | null;
-	rainfallImage: string | null;
+	/** Path gambar per jenis; terisi bila gambarnya sudah diunggah. */
+	images: Record<MonthlyHydrologyImageKind, string | null>;
+	/** Energi bulan berjalan: prediksi ketersediaan energi primer, target, realisasi. */
 	predictedProductionMwh: NullableMetric;
 	targetProductionMwh: NullableMetric;
-	previousAchievementMwh: NullableMetric;
-	predictedPreviousAchievementMwh: NullableMetric;
-	targetPreviousAchievementMwh: NullableMetric;
-	achievementPercentage: NullableMetric;
+	actualProductionMwh: NullableMetric;
+	/** Akumulasi: prediksi, target, dan realisasi. */
+	predictedAccumulatedMwh: NullableMetric;
+	targetAccumulatedMwh: NullableMetric;
+	actualAccumulatedMwh: NullableMetric;
+	/** Pasangan bulan berjalan: prediksi produksi ÷ target produksi. */
+	monthlyAchievement: MonthlyAchievement;
+	/** Pasangan akumulasi: prediksi akumulasi ÷ target akumulasi. */
+	accumulatedAchievement: MonthlyAchievement;
 }
-
-export type MonthlyHydrologyImageKind = 'sifat_hujan' | 'curah_hujan';
 
 export interface OverviewAverage {
 	value: number | null;
-	/** Jumlah baris yang ikut dihitung — rata-rata atas sedikit baris bukan angka armada. */
+	/** Jumlah data yang ikut dihitung — rata-rata atas sedikit data bukan angka gabungan. */
 	count: number;
 }
 
 /**
- * Ringkasan hidrologi bulanan SELURUH PLTA untuk satu periode.
- *
- * Dua persentase sengaja disimpan terpisah: `aggregateAchievementPercent`
- * (total prediksi ÷ total target) adalah angka armada sesungguhnya, sedangkan
- * `averageAchievementPercent` memberi bobot sama pada PLTA 1 MW dan 179 MW.
+ * Satu blok pencapaian overview. Dua persentase sengaja disimpan terpisah:
+ * `aggregatePercent` (total prediksi ÷ total target) adalah angka gabungan
+ * sesungguhnya, sedangkan `averagePercent` memberi bobot sama pada PLTA 1 MW
+ * dan 179 MW.
+ */
+export interface OverviewAchievement {
+	averagePercent: OverviewAverage;
+	aggregatePercent: number | null;
+	totalPredictedMwh: number;
+	totalTargetMwh: number;
+	achievedCount: number;
+	notAchievedCount: number;
+	/** Data yang prediksi/targetnya belum diisi. Bukan "tidak tercapai". */
+	unassessedCount: number;
+	/**
+	 * Bulan pertama/terakhir yang dirangkum, `YYYY-MM`; `null` bila server tidak
+	 * menyebutnya. Blok akumulasi = satu bulan (yang terakhir berdata), jadi
+	 * awal = akhir, walau periode yang diminta sebuah rentang.
+	 */
+	periodStart: string | null;
+	periodEnd: string | null;
+}
+
+/** Keenam angka energi yang dirata-ratakan overview. */
+export type OverviewAverageKey =
+	| 'predictedProductionMwh'
+	| 'targetProductionMwh'
+	| 'actualProductionMwh'
+	| 'predictedAccumulatedMwh'
+	| 'targetAccumulatedMwh'
+	| 'actualAccumulatedMwh';
+
+/**
+ * Ringkasan hidrologi bulanan SELURUH PLTA untuk satu periode, dalam dua blok
+ * berbentuk sama: `monthly` (produksi bulan berjalan) dan `accumulated`
+ * (akumulasi).
  */
 export interface MonthlyHydrologyOverview {
 	year: number;
@@ -107,21 +168,76 @@ export interface MonthlyHydrologyOverview {
 	month: number | null;
 	rowCount: number;
 	plantCount: number;
-	averageAchievementPercent: OverviewAverage;
-	aggregateAchievementPercent: number | null;
-	totalPredictedAchievementMwh: number;
-	totalTargetAchievementMwh: number;
-	achievedCount: number;
-	notAchievedCount: number;
-	/** Baris yang prediksi/targetnya belum diisi. Bukan "tidak tercapai". */
-	unassessedCount: number;
-	averages: {
-		predictedProductionMwh: OverviewAverage;
-		targetProductionMwh: OverviewAverage;
-		previousAchievementMwh: OverviewAverage;
-		predictedPreviousAchievementMwh: OverviewAverage;
-		targetPreviousAchievementMwh: OverviewAverage;
-	};
+	monthly: OverviewAchievement;
+	accumulated: OverviewAchievement;
+	averages: Record<OverviewAverageKey, OverviewAverage>;
+}
+
+/**
+ * Periode hidrologi bulanan. Aturan rentang mengikuti server: `month` kosong =
+ * Januari; `endYear` kosong = `year`; `endMonth` kosong = `month` (satu
+ * bulan), atau Desember bila `month` juga kosong. Maksimal 60 bulan.
+ */
+export interface HydrologyPeriod {
+	year: number;
+	month?: number;
+	endYear?: number;
+	endMonth?: number;
+}
+
+/** Satu bulan pada grafik akumulasi. Bulan yang belum diisi bernilai `null`, bukan 0. */
+export interface MonthlyAccumulationPoint {
+	/** `YYYY-MM`. */
+	period: string;
+	year: number;
+	month: number;
+	targetMwh: NullableMetric;
+	actualMwh: NullableMetric;
+	/** Berapa PLTA yang menyumbang tiap seri; 0 atau 1 bila grafiknya satu PLTA. */
+	targetPlantCount: number;
+	actualPlantCount: number;
+	/** Teks server, mis. `s.d. Bulan Maret 2026`; untuk tooltip. */
+	throughLabel: string | null;
+}
+
+/**
+ * Target vs realisasi akumulasi produksi per bulan. Tanpa `pltaId`, nilainya
+ * JUMLAH seluruh PLTA — dan `*PlantCount` wajib diperiksa sebelum kedua seri
+ * dibandingkan: realisasi yang baru diisi 10 dari 13 PLTA tampak jauh di bawah
+ * target 13 PLTA padahal hanya belum lengkap.
+ */
+export interface MonthlyAccumulationChart {
+	pltaId: string | null;
+	registeredPlantCount: number;
+	points: MonthlyAccumulationPoint[];
+}
+
+/** Satu metrik panel harian beserta status sembunyi dan urutannya untuk satu PLTA. */
+export interface DailyMetricVisibility {
+	key: string;
+	panel: DailyReportPanel;
+	label: string;
+	hidden: boolean;
+	/** `true` = posisinya pernah diatur untuk PLTA ini; `false` = posisi bawaan. */
+	isCustomOrder: boolean;
+}
+
+/**
+ * Perubahan tata letak panel harian, keduanya parsial. `hidden`: kunci yang
+ * tidak disebut tidak berubah. `order`: urutan per panel dari atas ke bawah;
+ * panel yang tidak disebut tidak berubah, `[]` mengembalikan panel itu ke
+ * urutan bawaan server.
+ */
+export interface DailyLayoutChanges {
+	hidden?: Record<string, boolean>;
+	order?: Partial<Record<DailyReportPanel, string[]>>;
+}
+
+/** Seluruh metrik panel harian satu PLTA, urut seperti tampil di panel. */
+export interface DailyVisibility {
+	pltaId: string;
+	hiddenCount: number;
+	metrics: DailyMetricVisibility[];
 }
 
 /** Hasil unggah Excel harian seluruh PLTA. */
@@ -132,6 +248,24 @@ export interface DailyHydrologyExcelResult {
 	pltaCodes: string[];
 	/** Tanggal-tanggal yang tersentuh, `YYYY-MM-DD`. */
 	periods: string[];
+	/** Sel kosong yang diisi nilai sebelumnya; nol bila mode `skip`. */
+	inheritedPoints: number;
+}
+
+/**
+ * Perlakuan sel kosong saat unggah Excel harian. `skip` (bawaan server): tidak
+ * menimpa apa pun. `carry-forward`: mewarisi nilai terisi terakhir pada kolom
+ * dan PLTA yang sama, diurut waktu.
+ */
+export type DailyEmptyCellMode = 'skip' | 'carry-forward';
+
+export interface DailyTemplateOptions {
+	/** `true` = 24 baris per (PLTA, tanggal), satu per jam 0–23; bawaan satu baris harian. */
+	perHour?: boolean;
+}
+
+export interface DailyExcelUploadOptions {
+	emptyCells?: DailyEmptyCellMode;
 }
 
 /** Panel laporan harian. `dam` = BENDUNGAN di layar. */
@@ -147,6 +281,12 @@ export interface HydrologyReportScope {
 	pltaId?: string;
 }
 
+/** Laporan bulanan mendukung rentang; laporan harian tidak. */
+export interface MonthlyReportScope extends HydrologyReportScope {
+	endYear?: number;
+	endMonth?: number;
+}
+
 export interface DailyHydrologyReportScope extends HydrologyReportScope {
 	/** Kosong = ketiga panel, masing-masing satu lembar. */
 	panel?: DailyReportPanel;
@@ -160,9 +300,10 @@ export interface UpsertMonthlyHydrologyInput {
 	hydrologyActual?: string;
 	predictedProductionMwh?: number;
 	targetProductionMwh?: number;
-	previousAchievementMwh?: number;
-	predictedPreviousAchievementMwh?: number;
-	targetPreviousAchievementMwh?: number;
+	actualProductionMwh?: number;
+	predictedAccumulatedMwh?: number;
+	targetAccumulatedMwh?: number;
+	actualAccumulatedMwh?: number;
 }
 
 /**

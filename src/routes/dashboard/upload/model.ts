@@ -24,8 +24,9 @@ export const UPLOAD_TABS: { value: UploadTab; label: string; description: string
 	},
 	{
 		value: 'prakiraan',
-		label: 'Prakiraan Hujan',
-		description: 'Unggah gambar curah hujan dan sifat hujan bulanan untuk seluruh PLTA'
+		label: 'Gambar Hujan',
+		description:
+			'Unggah gambar prakiraan dan realisasi curah hujan serta sifat hujan bulanan untuk seluruh PLTA'
 	},
 	{
 		value: 'eva',
@@ -80,8 +81,9 @@ export function dailyTemplateRangeError(from: string, to: string): string | null
 }
 
 /** `hidrologi_harian_2026-09-01_sd_2026-09-30.xlsx` — rentangnya terbaca dari nama berkas. */
-export function dailyTemplateFilename(from: string, to: string): string {
-	return to === from ? `hidrologi_harian_${from}.xlsx` : `hidrologi_harian_${from}_sd_${to}.xlsx`;
+export function dailyTemplateFilename(from: string, to: string, perHour = false): string {
+	const range = to === from ? from : `${from}_sd_${to}`;
+	return `hidrologi_harian_${range}${perHour ? '_per-jam' : ''}.xlsx`;
 }
 
 /** Tanggal-tanggal hasil unggah dirangkum jadi satu rentang untuk dibaca operator. */

@@ -1,9 +1,12 @@
 import { createMutation, createQuery, useQueryClient } from '@tanstack/svelte-query';
 import { invalidateUploadAudit } from '../../audit/api/queries';
 import type {
+	DailyEmptyCellMode,
+	DailyLayoutChanges,
 	DailyHydrologyParams,
 	DailyHydrologyReportScope,
-	HydrologyReportScope,
+	HydrologyPeriod,
+	MonthlyReportScope,
 	MonthlyHydrologyImageKind,
 	UpsertMonthlyHydrologyInput,
 	UploadMonthlyHydrologyImageInput
@@ -11,6 +14,16 @@ import type {
 import { hydrologyRepository } from './repository';
 
 const HYDROLOGY_STALE_TIME = 60_000;
+
+/** Bagian kunci untuk periode; yang kosong diberi nama, bukan dibiarkan `undefined`. */
+function periodKey(period: HydrologyPeriod) {
+	return [
+		period.year,
+		period.month ?? 'all-months',
+		period.endYear ?? 'same-year',
+		period.endMonth ?? 'same-month'
+	] as const;
+}
 
 export const hydrologyQueryKeys = {
 	all: ['hydrology'] as const,
@@ -27,6 +40,10 @@ export const hydrologyQueryKeys = {
 			params.units?.length ? params.units.join(',') : 'all-units',
 			params.dmnMw ?? 'auto-dmn'
 		] as const,
+	// Di bawah `dashboardRoot`: mengubah visibilitas menginvalidasi akar itu,
+	// sehingga panel harian ikut diambil ulang dan menyesuaikan diri.
+	dailyVisibility: (pltaId: string) =>
+		[...hydrologyQueryKeys.dashboardRoot(pltaId), 'daily-visibility'] as const,
 	monthlyPanel: (pltaId: string, year: number, month: number) =>
 		[...hydrologyQueryKeys.dashboardRoot(pltaId), 'monthly', year, month] as const,
 	monthly: (pltaId: string, year: number) =>
@@ -36,9 +53,13 @@ export const hydrologyQueryKeys = {
 	monthlyImage: (year: number, month: number, kind: MonthlyHydrologyImageKind) =>
 		[...hydrologyQueryKeys.all, 'monthly-image', year, month, kind] as const,
 	// Di bawah `all`: impor Excel dan isian bulanan menginvalidasi `all`, jadi
-	// ringkasan armada ikut segar tanpa wiring tambahan.
-	monthlyOverview: (year: number, month: number | undefined) =>
-		[...hydrologyQueryKeys.all, 'monthly-overview', year, month ?? 'all-months'] as const
+	// ringkasan seluruh PLTA ikut segar tanpa wiring tambahan.
+	monthlyOverview: (period: HydrologyPeriod) =>
+		[...hydrologyQueryKeys.all, 'monthly-overview', ...periodKey(period)] as const,
+	// Di bawah `dashboardRoot`: grafik ini milik satu PLTA, dan mengubah isian
+	// bulanan PLTA itu sudah menginvalidasi akarnya.
+	monthlyChart: (pltaId: string, period: HydrologyPeriod) =>
+		[...hydrologyQueryKeys.dashboardRoot(pltaId), 'monthly-chart', ...periodKey(period)] as const
 };
 
 export function createDailyHydrologyQuery(
@@ -55,6 +76,23 @@ export function createDailyHydrologyQuery(
 				hydrologyRepository.getDaily(id, value, { signal }),
 			enabled: Boolean(id),
 			staleTime: HYDROLOGY_STALE_TIME,
+			refetchOnWindowFocus: false
+		};
+	});
+}
+
+export function createDailyVisibilityQuery(pltaId: () => string, enabled: () => boolean) {
+	return createQuery(() => {
+		const id = pltaId();
+
+		return {
+			queryKey: hydrologyQueryKeys.dailyVisibility(id),
+			queryFn: ({ signal }: { signal: AbortSignal }) =>
+				hydrologyRepository.getDailyVisibility(id, { signal }),
+			enabled: Boolean(id) && enabled(),
+			// Daftar ini dibaca untuk disunting; pilihan operator lain yang baru
+			// tersimpan tidak boleh tertimpa data basi.
+			staleTime: 0,
 			refetchOnWindowFocus: false
 		};
 	});
@@ -119,16 +157,43 @@ export function createMonthlyHydrologyImageQuery(
 	});
 }
 
+/** `enabled` mencegah rentang yang pasti ditolak server (terbalik / > 60 bulan) dikirim. */
 export function createMonthlyHydrologyOverviewQuery(
-	period: () => { year: number; month: number | undefined }
+	period: () => HydrologyPeriod,
+	enabled: () => boolean = () => true
 ) {
 	return createQuery(() => {
-		const { year, month } = period();
+		const value = period();
 
 		return {
-			queryKey: hydrologyQueryKeys.monthlyOverview(year, month),
+			queryKey: hydrologyQueryKeys.monthlyOverview(value),
 			queryFn: ({ signal }: { signal: AbortSignal }) =>
-				hydrologyRepository.getMonthlyOverview(year, month, { signal }),
+				hydrologyRepository.getMonthlyOverview(value, { signal }),
+			enabled: enabled(),
+			staleTime: HYDROLOGY_STALE_TIME,
+			refetchOnWindowFocus: false
+		};
+	});
+}
+
+/**
+ * `enabled` terpisah dari `pltaId`: rentang yang pasti ditolak server (terbalik
+ * atau lebih dari 60 bulan) tidak boleh dikirim.
+ */
+export function createMonthlyChartQuery(
+	pltaId: () => string,
+	period: () => HydrologyPeriod,
+	enabled: () => boolean = () => true
+) {
+	return createQuery(() => {
+		const id = pltaId();
+		const value = period();
+
+		return {
+			queryKey: hydrologyQueryKeys.monthlyChart(id, value),
+			queryFn: ({ signal }: { signal: AbortSignal }) =>
+				hydrologyRepository.getMonthlyChart(value, id, { signal }),
+			enabled: Boolean(id) && enabled(),
 			staleTime: HYDROLOGY_STALE_TIME,
 			refetchOnWindowFocus: false
 		};
@@ -160,8 +225,8 @@ export function createDownloadMonthlyTemplateMutation() {
 
 export function createDownloadDailyTemplateMutation() {
 	return createMutation(() => ({
-		mutationFn: ({ from, to }: { from: string; to?: string }) =>
-			hydrologyRepository.downloadDailyTemplate(from, to)
+		mutationFn: ({ from, to, perHour }: { from: string; to?: string; perHour?: boolean }) =>
+			hydrologyRepository.downloadDailyTemplate(from, to, { perHour })
 	}));
 }
 
@@ -173,7 +238,8 @@ export function createUploadDailyHydrologyExcelMutation() {
 	const queryClient = useQueryClient();
 
 	return createMutation(() => ({
-		mutationFn: (file: File) => hydrologyRepository.uploadDailyExcel(file),
+		mutationFn: ({ file, emptyCells }: { file: File; emptyCells?: DailyEmptyCellMode }) =>
+			hydrologyRepository.uploadDailyExcel(file, { emptyCells }),
 		onSuccess: async () => {
 			await queryClient.invalidateQueries({ queryKey: hydrologyQueryKeys.all });
 			await invalidateUploadAudit(queryClient);
@@ -183,7 +249,7 @@ export function createUploadDailyHydrologyExcelMutation() {
 
 export function createDownloadMonthlyReportMutation() {
 	return createMutation(() => ({
-		mutationFn: (scope: HydrologyReportScope) => hydrologyRepository.downloadMonthlyReport(scope)
+		mutationFn: (scope: MonthlyReportScope) => hydrologyRepository.downloadMonthlyReport(scope)
 	}));
 }
 
@@ -249,6 +315,21 @@ export function createUploadMonthlyHydrologyImageMutation() {
 		onSuccess: async () => {
 			await queryClient.invalidateQueries({ queryKey: hydrologyQueryKeys.all });
 			await invalidateUploadAudit(queryClient);
+		}
+	}));
+}
+
+/** Tata letak berlaku per PLTA; panel harian PLTA itu diambil ulang sesudahnya. */
+export function createSetDailyVisibilityMutation() {
+	const queryClient = useQueryClient();
+
+	return createMutation(() => ({
+		mutationFn: ({ pltaId, changes }: { pltaId: string; changes: DailyLayoutChanges }) =>
+			hydrologyRepository.setDailyVisibility(pltaId, changes),
+		onSuccess: async (visibility) => {
+			await queryClient.invalidateQueries({
+				queryKey: hydrologyQueryKeys.dashboardRoot(visibility.pltaId)
+			});
 		}
 	}));
 }

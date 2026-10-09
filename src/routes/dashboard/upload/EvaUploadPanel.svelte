@@ -14,6 +14,8 @@
 	} from '$features/uploads';
 	import { downloadBlob } from '$shared/lib/download';
 	import { notificationStore } from '$shared/lib/notification.svelte';
+	import ElevationCurveList from './ElevationCurveList.svelte';
+	import ElevationStatusTable from './ElevationStatusTable.svelte';
 
 	const MAX_FILE_SIZE = 5 * 1024 * 1024;
 	const CURRENT_YEAR = new Date().getFullYear();
@@ -30,11 +32,17 @@
 	}
 
 	/**
-	 * Unggah kurva elevasi–volume (EVA). Satu-satunya tab Upload yang ter-scope
+	 * Unggah dan kelola kurva elevasi–volume (EVA). Satu-satunya tab Upload yang ter-scope
 	 * satu PLTA: Excel bulanan dan prakiraan hujan berlaku untuk seluruh PLTA,
 	 * sedangkan kurva EVA milik satu waduk. Karena itu pemilih PLTA tinggal di
 	 * dalam panel ini, bukan di header halaman — cakupannya tidak ikut terbaca
 	 * berlaku untuk tab lain.
+	 *
+	 * Di atas: kesiapan kurva seluruh PLTA (memilih baris = berpindah PLTA). Di
+	 * kolom kiri, di bawah kotak unggah: kurva PLTA terpilih dengan Publish,
+	 * Jadikan draft, dan Hapus — kurva draft tidak dipakai perhitungan apa pun,
+	 * jadi tanpa langkah publish unggahan tidak berpengaruh. "Berlaku" dinilai
+	 * untuk tahun berjalan.
 	 */
 	let { plant, plants, onPlantChange }: Props = $props();
 
@@ -132,7 +140,10 @@
 			});
 			notificationStore.addToast({
 				type: 'success',
-				message: `${result.points.length} titik elevasi berhasil diterima backend untuk PLTA ${displayName} (${result.status}).`
+				message:
+					result.status === 'published'
+						? `${result.points.length} titik kurva ${year} ${displayName} tersimpan dan di-publish.`
+						: `${result.points.length} titik kurva ${year} ${displayName} tersimpan sebagai draft. Publish di daftar kurva agar dipakai perhitungan.`
 			});
 			clearSelection();
 		} catch (error) {
@@ -142,7 +153,15 @@
 </script>
 
 <div class="flex flex-col gap-6">
-	<section class="w-full">
+	<ElevationStatusTable
+		year={CURRENT_YEAR}
+		selectedPltaId={pltaId}
+		onSelect={(id) => {
+			if (id !== pltaId && !isUploading) onPlantChange(id);
+		}}
+	/>
+
+	<section class="w-full border-t border-border-subtle pt-6">
 		<p class="text-xs text-text-muted">
 			Kurva elevasi dan volume waduk berlaku untuk <strong class="font-medium text-text-secondary"
 				>satu PLTA</strong
@@ -264,6 +283,8 @@
 						{/if}
 					</div>
 				{/if}
+
+				<ElevationCurveList {pltaId} plantName={displayName} year={CURRENT_YEAR} />
 
 				<!--
 					Riwayat dirender di dasar kolom KIRI, bukan setelah grid. Tinggi grid

@@ -31,6 +31,17 @@ export function canEditHydrologyData(user: User | null): boolean {
 }
 
 /**
+ * Menyetel batas kelayakan pembacaan satu tag (Katalog Data). Efeknya server-
+ * wide: pembacaan di luar rentang ditandai `impossible` dan keluar dari
+ * parameter turunan, agregat, dan akurasi. Aturannya kebetulan sama dengan
+ * `canAccessDataTools` — Swagger menyebutnya kegiatan operasional — tetapi
+ * diberi nama sendiri supaya bisa dibatasi tanpa menyentuh menu.
+ */
+export function canEditTagBounds(user: User | null): boolean {
+	return canAccessDataTools(user);
+}
+
+/**
  * Unggah ringkasan hidrologi bulanan: Operator PLTA dan Super Admin.
  * Aturannya kebetulan sama dengan `canAccessDataTools`, tapi sengaja diberi
  * nama sendiri — satu unggahan menimpa data seluruh PLTA sekaligus, jadi kalau

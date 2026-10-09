@@ -4,6 +4,8 @@
 	import PageHeader from '$components/ui/PageHeader.svelte';
 	import { createPlantCatalogQuery, getPLTADashboardPath } from '$features/plta';
 	import FleetSummary from './FleetSummary.svelte';
+	import FleetSummaryControls from './FleetSummaryControls.svelte';
+	import FleetSummaryDetail from './FleetSummaryDetail.svelte';
 
 	const OVERVIEW_MAP_PROJECTION = {
 		center: [110.0, -7.35] as [number, number],
@@ -11,32 +13,37 @@
 	};
 
 	const plantsQuery = createPlantCatalogQuery();
+	const registeredPlantCount = $derived(
+		plantsQuery.isSuccess ? (plantsQuery.data?.length ?? 0) : null
+	);
 </script>
 
 <div class="flex flex-1 flex-col gap-6">
 	<PageHeader title="Overview" description="Peta sebaran PLTA di Jawa Tengah">
 		{#snippet actions()}
-			<!--
-				Ringkasan armada (dulu di Telemetering › Rekap Hidrologi) menempati
-				ruang mendatar yang kosong di kanan judul, bukan kolom di samping peta:
-				kolom itu mengecilkan gambar peta 15–20%. Di bawah `xl` kepala halaman
-				menumpuk, jadi ringkasannya turun ke bawah judul.
-			-->
-			<div class="w-full xl:w-auto">
-				<FleetSummary
-					registeredPlantCount={plantsQuery.isSuccess ? (plantsQuery.data?.length ?? 0) : null}
-				/>
-			</div>
+			<!-- Pemilih periode ringkasan; angkanya di kartu dasar peta, detailnya di kolom kanan peta. -->
+			<FleetSummaryControls {registeredPlantCount} />
 		{/snippet}
 	</PageHeader>
 
-	<div
-		class="mx-auto flex w-full max-w-[1480px] min-w-0 items-center justify-center overflow-hidden"
-	>
-		<JavaMap
-			onPLTAClick={(pltaId) => void goto(getPLTADashboardPath(pltaId, 'telemetering'))}
-			projectionConfig={OVERVIEW_MAP_PROJECTION}
-			showPrecipitation
-		/>
+	<div class="mx-auto flex w-full max-w-[1480px] min-w-0 flex-col gap-3">
+		<div class="flex min-w-0 items-center justify-center overflow-hidden">
+			<JavaMap
+				onPLTAClick={(pltaId) => void goto(getPLTADashboardPath(pltaId, 'telemetering'))}
+				projectionConfig={OVERVIEW_MAP_PROJECTION}
+				showPrecipitation
+			>
+				{#snippet bottomOverlay()}
+					<FleetSummary {registeredPlantCount} />
+				{/snippet}
+				{#snippet rightPanel()}
+					<FleetSummaryDetail {registeredPlantCount} />
+				{/snippet}
+			</JavaMap>
+		</div>
+		<!-- Di layar sempit kartu melayang menutupi peta, jadi turun ke bawahnya. -->
+		<div class="lg:hidden">
+			<FleetSummary {registeredPlantCount} />
+		</div>
 	</div>
 </div>

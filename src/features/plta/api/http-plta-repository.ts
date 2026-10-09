@@ -3,6 +3,7 @@ import type { ListParams, PaginatedResult, Plant, PlantTag, RiverBasin } from '.
 import type { PLTARepository } from './plta-repository';
 import {
 	apiPlantSchema,
+	apiPlantTagSchema,
 	paginatedPlantTagsSchema,
 	paginatedPlantsSchema,
 	paginatedRiverBasinsSchema,
@@ -53,7 +54,10 @@ function mapPlantTag(tag: ApiPlantTag): PlantTag {
 		scale: tag.scale,
 		offset: tag.offset,
 		unit: tag.unit,
-		enabled: tag.enabled
+		enabled: tag.enabled,
+		label: tag.label,
+		minValid: tag.min_valid,
+		maxValid: tag.max_valid
 	};
 }
 
@@ -136,5 +140,18 @@ export const httpPltaRepository: PLTARepository = {
 		const result = parseResponse(payload, paginatedPlantTagsSchema, endpoint);
 
 		return mapPage(result, mapPlantTag);
+	},
+
+	async updateTagBounds(tagId, bounds) {
+		const endpoint = `/api/v1/tags/${encodeURIComponent(tagId)}/bounds`;
+		const payload = await apiRequest<unknown>(endpoint, {
+			method: 'PATCH',
+			// Kedua sisi SELALU dikirim, termasuk `null`: server menganggap badan
+			// permintaan sebagai rentang utuh, dan sisi yang tidak dikirim ikut
+			// terhapus.
+			json: { min_valid: bounds.minValid, max_valid: bounds.maxValid }
+		});
+
+		return mapPlantTag(parseResponse(payload, apiPlantTagSchema, endpoint));
 	}
 };

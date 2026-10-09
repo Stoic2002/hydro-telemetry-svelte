@@ -3,6 +3,7 @@
 	import IconEdit from '~icons/ph/pencil-simple';
 	import IconPlus from '~icons/ph/plus';
 	import IconSearch from '~icons/ph/magnifying-glass';
+	import IconSignOut from '~icons/ph/sign-out';
 	import IconTrash from '~icons/ph/trash';
 
 	import Button from '$components/controls/Button.svelte';
@@ -16,6 +17,7 @@
 	import { getActivePLTAId, getPLTADashboardPath } from '$features/plta';
 	import {
 		createDeleteUserMutation,
+		createRevokeUserSessionsMutation,
 		createToggleUserStatusMutation,
 		createUsersQuery,
 		getUserDisplayName,
@@ -43,6 +45,7 @@
 	let searchInput = $state('');
 	let search = $state('');
 	let userToDelete = $state<UserAccount | null>(null);
+	let userToRevoke = $state<UserAccount | null>(null);
 	let isCreateSheetOpen = $state(false);
 	let userToEdit = $state<UserAccount | null>(null);
 
@@ -53,6 +56,7 @@
 	}));
 	const toggleStatusMutation = createToggleUserStatusMutation();
 	const deleteMutation = createDeleteUserMutation();
+	const revokeMutation = createRevokeUserSessionsMutation();
 
 	const users = $derived(usersQuery.data?.items ?? []);
 	const total = $derived(usersQuery.data?.total ?? 0);
@@ -90,6 +94,28 @@
 				type: 'success',
 				message: `Akun ${user.username} ${user.isActive ? 'dinonaktifkan' : 'diaktifkan'}`
 			});
+		} catch (error) {
+			notificationStore.addToast({
+				type: 'error',
+				message: getUserManagementErrorMessage(error)
+			});
+		}
+	}
+
+	/**
+	 * Mencabut semua token user ini tanpa menonaktifkan akunnya — untuk token yang
+	 * dicurigai bocor. Akun sendiri lewat Profil Saya › Keluar dari semua perangkat.
+	 */
+	async function confirmRevokeSessions() {
+		if (!userToRevoke) return;
+
+		try {
+			await revokeMutation.mutateAsync(userToRevoke.id);
+			notificationStore.addToast({
+				type: 'success',
+				message: `Semua sesi ${userToRevoke.username} telah dicabut`
+			});
+			userToRevoke = null;
 		} catch (error) {
 			notificationStore.addToast({
 				type: 'error',
@@ -168,7 +194,7 @@
 			<div class="table-head-cell flex-1">User</div>
 			<div class="table-head-cell w-[160px] shrink-0">Role</div>
 			<div class="table-head-cell w-[140px] shrink-0">Status</div>
-			<div class="table-head-cell w-24 shrink-0">Aksi</div>
+			<div class="table-head-cell w-[124px] shrink-0">Aksi</div>
 		</div>
 
 		<div class="flex w-full flex-col">
@@ -246,7 +272,7 @@
 							</button>
 						</div>
 
-						<div class="flex w-24 shrink-0 items-center gap-1.5">
+						<div class="flex w-[124px] shrink-0 items-center gap-1.5">
 							<button
 								type="button"
 								onclick={() => void openEditSheet(user)}
@@ -254,6 +280,18 @@
 								class="flex size-[30px] cursor-pointer items-center justify-center rounded-lg border border-border-subtle bg-surface-raised text-brand-primary-strong transition-colors hover:bg-cyan-50"
 							>
 								<IconEdit class="size-3.5" />
+							</button>
+							<button
+								type="button"
+								disabled={revokeMutation.isPending || isSelf}
+								onclick={() => (userToRevoke = user)}
+								aria-label={`Cabut semua sesi ${user.username}`}
+								title={isSelf
+									? 'Sesi sendiri dicabut lewat Profil Saya'
+									: 'Cabut semua sesi (keluarkan dari semua perangkat)'}
+								class="flex size-[30px] cursor-pointer items-center justify-center rounded-lg border border-border-subtle bg-surface-raised text-status-warning-strong transition-colors hover:bg-amber-50 disabled:cursor-not-allowed disabled:bg-surface-base disabled:text-disabled"
+							>
+								<IconSignOut class="size-3.5" />
 							</button>
 							<button
 								type="button"
@@ -299,5 +337,21 @@
 >
 	{#snippet description()}
 		Akun <strong>{userToDelete?.username}</strong> akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.
+	{/snippet}
+</ConfirmDialog>
+
+<ConfirmDialog
+	isOpen={userToRevoke !== null}
+	variant="warning"
+	title="Cabut semua sesi?"
+	confirmLabel={revokeMutation.isPending ? 'Mencabut…' : 'Ya, cabut sesi'}
+	cancelLabel="Batal"
+	isConfirming={revokeMutation.isPending}
+	onConfirm={() => void confirmRevokeSessions()}
+	onClose={() => (userToRevoke = null)}
+>
+	{#snippet description()}
+		<strong>{userToRevoke?.username}</strong> dikeluarkan dari semua perangkat. Akunnya tetap aktif dan
+		bisa masuk kembali dengan password-nya.
 	{/snippet}
 </ConfirmDialog>

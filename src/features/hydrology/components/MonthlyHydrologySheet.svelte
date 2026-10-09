@@ -27,6 +27,41 @@
 
 	let { isOpen, pltaId, plantName, year, month, monthLabel, record, onClose }: Props = $props();
 
+	type EnergyKey = Exclude<
+		keyof MonthlyHydrologyFormValues,
+		'hydrologyPrediction' | 'hydrologyActual'
+	>;
+
+	/**
+	 * Urutan dan istilahnya sama dengan tabel di halaman: Target, Prediksi,
+	 * Realisasi — operator mengisi persis seperti membacanya.
+	 */
+	const ENERGY_GROUPS: {
+		title: string;
+		description: string;
+		fields: { key: EnergyKey; label: string }[];
+	}[] = [
+		{
+			title: 'Energi bulan ini',
+			description:
+				'Semua nilai dalam MWh. Prognosa adalah ketersediaan energi primer; target dan realisasi adalah produksi energi listrik.',
+			fields: [
+				{ key: 'targetProductionMwh', label: 'Target Produksi Energi Listrik' },
+				{ key: 'predictedProductionMwh', label: 'Prognosa Ketersediaan Energi Primer' },
+				{ key: 'actualProductionMwh', label: 'Realisasi Produksi Energi Listrik' }
+			]
+		},
+		{
+			title: 'Energi akumulasi s.d. bulan ini',
+			description: 'Akumulasi sampai bulan ini, dalam MWh.',
+			fields: [
+				{ key: 'targetAccumulatedMwh', label: 'Target Akumulasi Produksi Energi Listrik' },
+				{ key: 'predictedAccumulatedMwh', label: 'Prognosa Akumulasi Ketersediaan Energi Primer' },
+				{ key: 'actualAccumulatedMwh', label: 'Realisasi Akumulasi Produksi Energi Listrik' }
+			]
+		}
+	];
+
 	const upsertMutation = createUpsertMonthlyHydrologyMutation();
 
 	let values = $state<MonthlyHydrologyFormValues>(createEmptyMonthlyForm());
@@ -40,9 +75,10 @@
 			hydrologyActual: record?.hydrologyActual ?? '',
 			predictedProductionMwh: record?.predictedProductionMwh ?? null,
 			targetProductionMwh: record?.targetProductionMwh ?? null,
-			previousAchievementMwh: record?.previousAchievementMwh ?? null,
-			predictedPreviousAchievementMwh: record?.predictedPreviousAchievementMwh ?? null,
-			targetPreviousAchievementMwh: record?.targetPreviousAchievementMwh ?? null
+			actualProductionMwh: record?.actualProductionMwh ?? null,
+			predictedAccumulatedMwh: record?.predictedAccumulatedMwh ?? null,
+			targetAccumulatedMwh: record?.targetAccumulatedMwh ?? null,
+			actualAccumulatedMwh: record?.actualAccumulatedMwh ?? null
 		};
 	});
 
@@ -108,72 +144,41 @@
 			</label>
 
 			<label class="field-label flex flex-col gap-2">
-				Aktual Hidrologi
+				Realisasi Hidrologi
 				<textarea
 					bind:value={values.hydrologyActual}
 					disabled={isPending}
 					rows={3}
-					placeholder="Masukkan kondisi aktual..."
+					placeholder="Masukkan kondisi realisasi..."
 					class="field resize-y font-normal"></textarea>
 			</label>
 		</section>
 
-		<section class="flex flex-col gap-4 border-t border-surface-overlay pt-5">
-			<div>
-				<h3 class="text-sm font-semibold text-text-strong">Energi produksi</h3>
-				<p class="mt-1 text-xs text-text-muted">Semua nilai menggunakan satuan MWh.</p>
-			</div>
+		{#each ENERGY_GROUPS as group (group.title)}
+			<section class="flex flex-col gap-4 border-t border-surface-overlay pt-5">
+				<div>
+					<h3 class="text-sm font-semibold text-text-strong">{group.title}</h3>
+					<p class="mt-1 text-xs text-text-muted">{group.description}</p>
+				</div>
 
-			<Input
-				label="Prediksi Produksi"
-				type="number"
-				min="0"
-				step="any"
-				placeholder="0"
-				disabled={isPending}
-				bind:value={values.predictedProductionMwh}
-			/>
-			<Input
-				label="Target Produksi"
-				type="number"
-				min="0"
-				step="any"
-				placeholder="0"
-				disabled={isPending}
-				bind:value={values.targetProductionMwh}
-			/>
-			<Input
-				label="Pencapaian s.d. Bulan Sebelumnya"
-				type="number"
-				min="0"
-				step="any"
-				placeholder="0"
-				disabled={isPending}
-				bind:value={values.previousAchievementMwh}
-			/>
-			<Input
-				label="Prediksi Pencapaian"
-				type="number"
-				min="0"
-				step="any"
-				placeholder="0"
-				disabled={isPending}
-				bind:value={values.predictedPreviousAchievementMwh}
-			/>
-			<Input
-				label="Target Pencapaian"
-				type="number"
-				min="0"
-				step="any"
-				placeholder="0"
-				disabled={isPending}
-				bind:value={values.targetPreviousAchievementMwh}
-			/>
+				{#each group.fields as field (field.key)}
+					<Input
+						label={field.label}
+						type="number"
+						min="0"
+						step="any"
+						placeholder="0"
+						disabled={isPending}
+						bind:value={values[field.key]}
+					/>
+				{/each}
+			</section>
+		{/each}
 
-			<p class="text-xs leading-5 text-text-muted">
-				Persentase pencapaian dihitung otomatis oleh server.
-			</p>
-		</section>
+		<p class="text-xs leading-5 text-text-muted">
+			Prognosa pencapaian dan kesimpulannya (Tercapai / Belum tercapai) dihitung otomatis oleh
+			server.
+		</p>
 	</form>
 
 	{#snippet footer()}
