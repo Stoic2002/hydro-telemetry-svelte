@@ -100,7 +100,13 @@
 	}
 </script>
 
-<Sheet {isOpen} title={`Unggah ${imageLabel}`} isDismissible={!isPending} {onClose}>
+<Sheet
+	{isOpen}
+	title={`Unggah ${imageLabel}`}
+	isDismissible={!isPending}
+	isDirty={file !== null}
+	{onClose}
+>
 	{#snippet description()}
 		Pilih periode dan gambarnya. Satu unggahan berlaku untuk seluruh PLTA.
 	{/snippet}

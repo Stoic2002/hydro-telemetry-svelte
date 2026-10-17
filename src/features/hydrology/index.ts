@@ -8,19 +8,24 @@ export {
 	createDownloadMonthlyReportMutation,
 	createDownloadMonthlyTemplateMutation,
 	createMonthlyChartQuery,
+	createMonthlyFieldLabelsQuery,
 	createMonthlyHydrologyImageQuery,
 	createMonthlyHydrologyOverviewQuery,
 	createMonthlyHydrologyPanelQuery,
 	createMonthlyHydrologyQuery,
+	createSetDailyLabelsMutation,
 	createSetDailyVisibilityMutation,
+	createSetMonthlyFieldLabelsMutation,
 	createUploadDailyHydrologyExcelMutation,
 	createUploadMonthlyHydrologyExcelMutation
 } from './api/queries';
 export {
 	getHydrologyErrorMessage,
+	getLabelErrorDetail,
 	getMonthlyExcelErrorMessage,
 	getMonthlyExcelRowErrors
 } from './error';
+export { LABEL_MAX_LENGTH, labelChanges } from './labels';
 export { MONTHLY_IMAGE_KIND_LABEL } from './monthly-image';
 export type {
 	DailyHydrology,
@@ -30,6 +35,9 @@ export type {
 	DailyMetricVisibility,
 	DailyVisibility,
 	HydrologyPeriod,
+	LabelChanges,
+	MonthlyFieldLabel,
+	MonthlyFieldLabels,
 	MonthlyAccumulationChart,
 	MonthlyAccumulationPoint,
 	DailyReportPanel,

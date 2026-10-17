@@ -49,7 +49,7 @@ describe('grafik akumulasi bulanan', () => {
 		expect(onRetry).toHaveBeenCalledTimes(1);
 	});
 
-	it('menyebut periode kosong, bukan menggambar sumbu tanpa garis', () => {
+	it('menyebut periode kosong, bukan menggambar sumbu tanpa batang', () => {
 		renderChart({
 			chart: chartData([
 				[null, null],
@@ -77,7 +77,7 @@ describe('grafik akumulasi bulanan', () => {
 		).toBeInTheDocument();
 		expect(screen.getByText('Target akumulasi')).toBeInTheDocument();
 		expect(screen.getByText('Realisasi akumulasi')).toBeInTheDocument();
-		expect(screen.getByText('Bulan yang belum diisi memutus garis.')).toBeInTheDocument();
+		expect(screen.getByText('Bulan yang belum diisi tidak diberi batang.')).toBeInTheDocument();
 	});
 
 	it('memperingatkan bila jumlah PLTA penyumbang target dan realisasi berbeda', () => {

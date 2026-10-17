@@ -38,6 +38,13 @@ export class Form<TValues extends Record<string, unknown>, TOutput> {
 		return this.#schema.safeParse(this.values).success;
 	}
 
+	/** Ada isian yang berbeda dari nilai awal — dipakai `Sheet` sebelum menutup. */
+	get isDirty(): boolean {
+		return Object.keys(this.#initial).some(
+			(key) => JSON.stringify(this.values[key]) !== JSON.stringify(this.#initial[key])
+		);
+	}
+
 	/**
 	 * Menyetel ulang nilai awal tanpa menghapus apa yang sedang diketik.
 	 * Dipakai saat profil sesi baru selesai dimuat setelah form terpasang.

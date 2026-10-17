@@ -65,6 +65,8 @@
 	const upsertMutation = createUpsertMonthlyHydrologyMutation();
 
 	let values = $state<MonthlyHydrologyFormValues>(createEmptyMonthlyForm());
+	/** Isian saat panel dibuka, untuk mengenali perubahan yang belum disimpan. */
+	let valuesBaseline = $state('');
 
 	// Panel dibuka ulang untuk periode berbeda; isian mengikuti data periode itu.
 	$effect(() => {
@@ -80,9 +82,11 @@
 			targetAccumulatedMwh: record?.targetAccumulatedMwh ?? null,
 			actualAccumulatedMwh: record?.actualAccumulatedMwh ?? null
 		};
+		valuesBaseline = JSON.stringify(values);
 	});
 
 	const isPending = $derived(upsertMutation.isPending);
+	const isDirty = $derived(JSON.stringify(values) !== valuesBaseline);
 
 	async function submitHydrology(event: SubmitEvent) {
 		event.preventDefault();
@@ -110,7 +114,7 @@
 	}
 </script>
 
-<Sheet {isOpen} title="Input Hidrologi Bulanan" isDismissible={!isPending} {onClose}>
+<Sheet {isOpen} title="Input Hidrologi Bulanan" isDismissible={!isPending} {isDirty} {onClose}>
 	{#snippet description()}
 		Upsert parsial data {monthLabel}
 		{year} untuk PLTA {plantName}.

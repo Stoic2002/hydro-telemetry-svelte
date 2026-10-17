@@ -1,3 +1,3 @@
 import { requireMonthlyUpload } from '$core/guards';
 
-export const load = () => requireMonthlyUpload();
+export const load = ({ url }) => requireMonthlyUpload(url);

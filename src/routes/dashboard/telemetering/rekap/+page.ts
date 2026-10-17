@@ -10,5 +10,5 @@ export const load = ({ url }) => {
 	// Salinan sekali pakai untuk menyusun URL tujuan.
 	const params = new URLSearchParams(url.searchParams);
 	params.set('tab', 'hidrologi');
-	return redirectToDefaultPLTA('laporan', `?${params.toString()}`);
+	return redirectToDefaultPLTA('laporan', `?${params.toString()}`, url);
 };

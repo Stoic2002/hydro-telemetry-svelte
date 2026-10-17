@@ -7,10 +7,12 @@
 	import IconTrash from '~icons/ph/trash';
 
 	import Button from '$components/controls/Button.svelte';
+	import StatusToggle from '$components/controls/StatusToggle.svelte';
 	import UserTableSkeleton from '$components/skeletons/UserTableSkeleton.svelte';
 	import ConfirmDialog from '$components/ui/ConfirmDialog.svelte';
 	import EmptyState from '$components/ui/EmptyState.svelte';
 	import ErrorState from '$components/ui/ErrorState.svelte';
+	import HorizontalScroll from '$components/ui/HorizontalScroll.svelte';
 	import PageHeader from '$components/ui/PageHeader.svelte';
 	import RefetchBar from '$components/ui/RefetchBar.svelte';
 	import TablePagination from '$components/ui/TablePagination.svelte';
@@ -46,6 +48,7 @@
 	let search = $state('');
 	let userToDelete = $state<UserAccount | null>(null);
 	let userToRevoke = $state<UserAccount | null>(null);
+	let userToDeactivate = $state<UserAccount | null>(null);
 	let isCreateSheetOpen = $state(false);
 	let userToEdit = $state<UserAccount | null>(null);
 
@@ -77,6 +80,25 @@
 		}
 
 		userToEdit = user;
+	}
+
+	/**
+	 * Mengaktifkan langsung jalan; menonaktifkan lewat konfirmasi, karena akun
+	 * itu seketika tidak bisa masuk. Dulu keduanya satu klik pada teks "Aktif"
+	 * yang tidak tampak seperti kontrol.
+	 */
+	function requestStatusChange(user: UserAccount) {
+		if (user.isActive) {
+			userToDeactivate = user;
+			return;
+		}
+		void toggleUserStatus(user);
+	}
+
+	async function confirmDeactivateUser() {
+		if (!userToDeactivate) return;
+		await toggleUserStatus(userToDeactivate);
+		userToDeactivate = null;
 	}
 
 	async function toggleUserStatus(user: UserAccount) {
@@ -188,125 +210,145 @@
 	>
 		<RefetchBar isRefetching={usersQuery.isFetching && !usersQuery.isLoading} />
 
-		<div
-			class="flex h-9 w-full items-center gap-4 border-b border-border-subtle bg-surface-overlay px-5"
-		>
-			<div class="table-head-cell flex-1">User</div>
-			<div class="table-head-cell w-[160px] shrink-0">Role</div>
-			<div class="table-head-cell w-[140px] shrink-0">Status</div>
-			<div class="table-head-cell w-[124px] shrink-0">Aksi</div>
-		</div>
-
-		<div class="flex w-full flex-col">
-			{#if usersQuery.isLoading}
-				<UserTableSkeleton rows={PAGE_LIMIT} />
-			{:else if usersQuery.isError}
-				<ErrorState
-					title="Daftar pengguna belum bisa dimuat"
-					description={getUserManagementErrorMessage(usersQuery.error)}
-					isRetrying={usersQuery.isFetching}
-					onRetry={() => void usersQuery.refetch()}
-					class="py-10"
-				/>
-			{:else if users.length === 0}
-				<EmptyState
-					title={search ? 'Pengguna tidak ditemukan' : 'Belum ada pengguna'}
-					description={search
-						? 'Coba kata kunci lain atau kosongkan pencarian.'
-						: 'Pengguna yang ditambahkan akan muncul di daftar ini.'}
-					class="m-5"
-				/>
-			{:else}
-				{#each users as user (user.id)}
-					{@const isSelf = user.id === currentUser?.id}
+		{#if usersQuery.isError}
+			<ErrorState
+				title="Daftar pengguna belum bisa dimuat"
+				description={getUserManagementErrorMessage(usersQuery.error)}
+				isRetrying={usersQuery.isFetching}
+				onRetry={() => void usersQuery.refetch()}
+				class="py-10"
+			/>
+		{:else if !usersQuery.isLoading && users.length === 0}
+			<EmptyState
+				title={search ? 'Pengguna tidak ditemukan' : 'Belum ada pengguna'}
+				description={search
+					? 'Coba kata kunci lain atau kosongkan pencarian.'
+					: 'Pengguna yang ditambahkan akan muncul di daftar ini.'}
+				class="m-5"
+			/>
+		{:else}
+			<!--
+				Kolom Role/Status/Aksi selebar tetap. Di layar sempit tabelnya
+				digulir ke samping — dulu `overflow-clip` pada wadahnya memotong
+				kolom Aksi sehingga tombolnya tidak terjangkau.
+			-->
+			<HorizontalScroll>
+				<div class="flex min-w-[720px] flex-col">
 					<div
-						class={`flex w-full items-center gap-4 border-b border-b-surface-overlay px-5 py-3.5 transition-colors hover:bg-surface-base/50 ${
-							isSelf ? 'bg-surface-base' : ''
-						}`}
+						class="flex h-9 w-full items-center gap-4 border-b border-border-subtle bg-surface-overlay px-5"
 					>
-						<div class="flex min-w-0 flex-1 items-center gap-3">
+						<div class="table-head-cell min-w-[220px] flex-1">User</div>
+						<div class="table-head-cell w-[160px] shrink-0">Role</div>
+						<div class="table-head-cell w-[140px] shrink-0">Status</div>
+						<div class="table-head-cell w-[124px] shrink-0">Aksi</div>
+					</div>
+
+					{#if usersQuery.isLoading}
+						<UserTableSkeleton rows={PAGE_LIMIT} />
+					{:else}
+						{#each users as user (user.id)}
+							{@const isSelf = user.id === currentUser?.id}
 							<div
-								class={`flex size-9 shrink-0 items-center justify-center rounded-full border text-xs font-semibold ${
-									isSelf
-										? 'border-cyan-200 bg-cyan-100 text-cyan-700'
-										: 'border-border-subtle bg-surface-overlay text-text-subtle'
+								class={`flex w-full items-center gap-4 border-b border-b-surface-overlay px-5 py-3.5 transition-colors hover:bg-surface-base/50 ${
+									isSelf ? 'bg-surface-base' : ''
 								}`}
 							>
-								{getUserInitials(user)}
-							</div>
-							<div class="flex min-w-0 flex-col">
-								<span class="flex items-center gap-1.5">
-									<span class="truncate text-sm font-medium text-text-primary">
-										{getUserDisplayName(user)}
-									</span>
-									{#if isSelf}
-										<span
-											class="inline-flex h-[19px] shrink-0 items-center rounded-full bg-surface-overlay px-2 text-[10px] font-semibold tracking-[0.04em] text-text-subtle uppercase"
-										>
-											Akun Anda
+								<div class="flex min-w-[220px] flex-1 items-center gap-3">
+									<div
+										class={`flex size-9 shrink-0 items-center justify-center rounded-full border text-xs font-semibold ${
+											isSelf
+												? 'border-brand-tint-border bg-brand-tint text-brand-primary-pressed'
+												: 'border-border-subtle bg-surface-overlay text-text-subtle'
+										}`}
+									>
+										{getUserInitials(user)}
+									</div>
+									<div class="flex min-w-0 flex-col">
+										<span class="flex items-center gap-1.5">
+											<span class="truncate text-sm font-medium text-text-primary">
+												{getUserDisplayName(user)}
+											</span>
+											{#if isSelf}
+												<span
+													class="inline-flex h-[19px] shrink-0 items-center rounded-full bg-surface-overlay px-2 text-[10px] font-semibold tracking-[0.04em] text-text-subtle uppercase"
+												>
+													Akun Anda
+												</span>
+											{/if}
 										</span>
+										<span class="truncate font-mono text-[11.5px] text-text-muted">
+											@{user.username}{user.email ? ` · ${user.email}` : ''}
+										</span>
+									</div>
+								</div>
+
+								<div class="flex w-[160px] shrink-0">
+									<RoleBadge role={mapApiRoleToUIRole(user.role)} />
+								</div>
+
+								<div class="flex w-[140px] shrink-0">
+									<StatusToggle
+										variant="inline"
+										label={`Status akun ${user.username}`}
+										isActive={user.isActive}
+										disabled={toggleStatusMutation.isPending || deleteMutation.isPending || isSelf}
+										onChange={() => requestStatusChange(user)}
+									/>
+								</div>
+
+								<div class="flex w-[124px] shrink-0 items-center gap-1.5">
+									{#if isSelf}
+										<!--
+									Akun sendiri tidak bisa dicabut sesinya, dihapus, atau diubah
+									statusnya dari sini. Dulu tiga ikon (dua nonaktif) dengan
+									alasannya hanya di tooltip — tak terbaca di layar sentuh.
+								-->
+										<Button
+											type="button"
+											variant="ghost"
+											size="sm"
+											onclick={() => void openEditSheet(user)}
+										>
+											Profil Saya
+										</Button>
+									{:else}
+										<button
+											type="button"
+											onclick={() => void openEditSheet(user)}
+											aria-label={`Edit pengguna ${user.username}`}
+											title="Edit pengguna"
+											class="flex size-8 cursor-pointer items-center justify-center rounded-lg border border-border-subtle bg-surface-raised text-brand-primary-strong transition-colors hover:bg-brand-tint"
+										>
+											<IconEdit class="size-3.5" aria-hidden="true" />
+										</button>
+										<button
+											type="button"
+											disabled={revokeMutation.isPending}
+											onclick={() => (userToRevoke = user)}
+											aria-label={`Cabut semua sesi ${user.username}`}
+											title="Cabut semua sesi (keluarkan dari semua perangkat)"
+											class="flex size-8 cursor-pointer items-center justify-center rounded-lg border border-border-subtle bg-surface-raised text-status-warning-strong transition-colors hover:bg-status-warning-soft disabled:cursor-not-allowed disabled:bg-surface-base disabled:text-disabled"
+										>
+											<IconSignOut class="size-3.5" aria-hidden="true" />
+										</button>
+										<button
+											type="button"
+											disabled={deleteMutation.isPending}
+											onclick={() => (userToDelete = user)}
+											aria-label={`Hapus pengguna ${user.username}`}
+											title="Hapus pengguna"
+											class="flex size-8 cursor-pointer items-center justify-center rounded-lg border border-border-subtle bg-surface-raised text-status-danger-strong transition-colors hover:bg-status-danger-soft disabled:cursor-not-allowed disabled:bg-surface-base disabled:text-disabled"
+										>
+											<IconTrash class="size-3.5" aria-hidden="true" />
+										</button>
 									{/if}
-								</span>
-								<span class="truncate font-mono text-[11.5px] text-text-muted">
-									@{user.username}{user.email ? ` · ${user.email}` : ''}
-								</span>
+								</div>
 							</div>
-						</div>
-
-						<div class="flex w-[160px] shrink-0">
-							<RoleBadge role={mapApiRoleToUIRole(user.role)} />
-						</div>
-
-						<div class="flex w-[140px] shrink-0">
-							<button
-								type="button"
-								disabled={toggleStatusMutation.isPending || deleteMutation.isPending || isSelf}
-								onclick={() => void toggleUserStatus(user)}
-								title={isSelf ? 'Kelola akun sendiri melalui Profil Saya' : 'Ubah status pengguna'}
-								class="flex cursor-pointer items-center gap-1.5 border-0 bg-transparent p-0 text-[13px] font-medium text-text-secondary disabled:cursor-not-allowed disabled:opacity-60"
-							>
-								<span
-									class={`size-2 rounded-full ${user.isActive ? 'bg-green-500' : 'bg-disabled'}`}
-								></span>
-								{user.isActive ? 'Aktif' : 'Nonaktif'}
-							</button>
-						</div>
-
-						<div class="flex w-[124px] shrink-0 items-center gap-1.5">
-							<button
-								type="button"
-								onclick={() => void openEditSheet(user)}
-								title={isSelf ? 'Buka Profil Saya' : 'Edit pengguna'}
-								class="flex size-[30px] cursor-pointer items-center justify-center rounded-lg border border-border-subtle bg-surface-raised text-brand-primary-strong transition-colors hover:bg-cyan-50"
-							>
-								<IconEdit class="size-3.5" />
-							</button>
-							<button
-								type="button"
-								disabled={revokeMutation.isPending || isSelf}
-								onclick={() => (userToRevoke = user)}
-								aria-label={`Cabut semua sesi ${user.username}`}
-								title={isSelf
-									? 'Sesi sendiri dicabut lewat Profil Saya'
-									: 'Cabut semua sesi (keluarkan dari semua perangkat)'}
-								class="flex size-[30px] cursor-pointer items-center justify-center rounded-lg border border-border-subtle bg-surface-raised text-status-warning-strong transition-colors hover:bg-amber-50 disabled:cursor-not-allowed disabled:bg-surface-base disabled:text-disabled"
-							>
-								<IconSignOut class="size-3.5" />
-							</button>
-							<button
-								type="button"
-								disabled={deleteMutation.isPending || isSelf}
-								onclick={() => (userToDelete = user)}
-								title={isSelf ? 'Akun sendiri tidak dapat dihapus' : 'Hapus pengguna'}
-								class="flex size-[30px] cursor-pointer items-center justify-center rounded-lg border border-border-subtle bg-surface-raised text-status-danger-strong transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:bg-surface-base disabled:text-disabled"
-							>
-								<IconTrash class="size-3.5" />
-							</button>
-						</div>
-					</div>
-				{/each}
-			{/if}
-		</div>
+						{/each}
+					{/if}
+				</div>
+			</HorizontalScroll>
+		{/if}
 
 		<TablePagination
 			{page}
@@ -337,6 +379,20 @@
 >
 	{#snippet description()}
 		Akun <strong>{userToDelete?.username}</strong> akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.
+	{/snippet}
+</ConfirmDialog>
+
+<ConfirmDialog
+	isOpen={userToDeactivate !== null}
+	variant="warning"
+	title="Nonaktifkan pengguna?"
+	confirmLabel="Ya, nonaktifkan"
+	isConfirming={toggleStatusMutation.isPending}
+	onConfirm={() => void confirmDeactivateUser()}
+	onClose={() => (userToDeactivate = null)}
+>
+	{#snippet description()}
+		<strong>{userToDeactivate?.username}</strong> tidak bisa masuk sampai akunnya diaktifkan kembali.
 	{/snippet}
 </ConfirmDialog>
 

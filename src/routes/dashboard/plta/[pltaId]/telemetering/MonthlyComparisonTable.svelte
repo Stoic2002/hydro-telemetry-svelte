@@ -21,7 +21,6 @@
 		api: 'text-brand-primary-pressed',
 		formula: 'text-violet-700',
 		input: 'text-status-warning-strong',
-		constant: 'text-text-subtle',
 		'constant-input': 'text-status-warning-strong',
 		unavailable: 'text-text-muted'
 	};
@@ -43,9 +42,16 @@
 {/snippet}
 
 {#snippet achievementRow(achievement: MonthlyAchievementView)}
-	<tr class="border-b border-border-subtle">
+	<tr>
+		<!--
+			Menjorok dengan garis kiri: baris ini milik baris energi di atasnya,
+			bukan parameter tersendiri. Tanpa itu operator mengira ada dua
+			"prognosa" yang berbeda (13 Okt 2026).
+		-->
 		<th scope="row" class="pr-3 pb-[9px] text-left text-xs font-normal text-text-muted">
-			Prognosa pencapaian <span class="text-text-subtle">thd target</span>
+			<span class="ml-1 block border-l-2 border-border-strong pl-2">
+				Prognosa pencapaian <span class="text-text-subtle">thd target</span>
+			</span>
 		</th>
 		<td colspan={MONTHLY_COLUMNS.length} class="px-2 pb-[9px] text-right">
 			<span class="inline-flex flex-wrap items-center justify-end gap-2">
@@ -76,9 +82,16 @@
 			{/each}
 		</tr>
 	</thead>
-	<tbody>
-		{#each comparison.rows as row (row.label)}
-			<tr class={`align-top ${row.achievement ? '' : 'border-b border-surface-overlay'}`}>
+	<!--
+		Satu <tbody> per parameter beserta baris pencapaiannya. Pemisah antar
+		kelompok sengaja tebal (2px, `border-strong`); pemisah tipis membuat dua
+		baris "Prognosa pencapaian" terbaca sebagai satu daftar.
+	-->
+	{#each comparison.rows as row, index (row.label)}
+		<tbody
+			class={`last:border-b last:border-border-subtle ${index > 0 ? 'border-t-2 border-border-strong' : ''}`}
+		>
+			<tr class="align-top">
 				<th scope="row" class="py-[9px] pr-3 text-left font-normal">
 					<span class="block text-sm text-text-secondary">
 						{row.label}{#if row.unit}<span class="metric-unit ml-1">{row.unit}</span>{/if}
@@ -98,8 +111,8 @@
 			{#if row.achievement}
 				{@render achievementRow(row.achievement)}
 			{/if}
-		{/each}
-	</tbody>
+		</tbody>
+	{/each}
 </table>
 
 <p class="mt-2 text-xs leading-relaxed text-text-muted">

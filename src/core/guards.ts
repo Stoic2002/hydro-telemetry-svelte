@@ -3,7 +3,10 @@ import {
 	authStore,
 	canAccessDataTools,
 	canManageUsers,
-	canUploadMonthlyHydrology
+	canUploadMonthlyHydrology,
+	loginPath,
+	RETURN_PATH_PARAM,
+	safeReturnPath
 } from '../features/auth';
 import {
 	ensurePlantCatalog,
@@ -34,37 +37,44 @@ import { queryClient } from './query-client';
  * menambah request.
  */
 
-export async function requireAuthenticated(): Promise<void> {
+/**
+ * `url` = alamat yang sedang dibuka. Dibawa ke halaman login supaya pengguna
+ * kembali ke sana sesudah masuk, bukan ke Overview. Guard layout dan halaman
+ * berjalan paralel dan yang mana pun bisa mengalihkan lebih dulu, jadi
+ * setiap pemanggil wajib meneruskannya.
+ */
+export async function requireAuthenticated(url?: URL): Promise<void> {
 	await authStore.initialize();
 	if (!authStore.isAuthenticated) {
-		redirect(307, '/login');
+		redirect(307, loginPath(url, { expired: authStore.sessionExpired }));
 	}
 }
 
-export async function requireGuest(): Promise<void> {
+/** Pengguna yang sudah masuk diteruskan ke alamat `?kembali=`, bila ada. */
+export async function requireGuest(url?: URL): Promise<void> {
 	await authStore.initialize();
 	if (authStore.isAuthenticated) {
-		redirect(307, '/dashboard');
+		redirect(307, safeReturnPath(url?.searchParams.get(RETURN_PATH_PARAM)));
 	}
 }
 
 /** Katalog Data: seluruh role kecuali Viewer. */
-export async function requireDataTools(): Promise<void> {
-	await requireAuthenticated();
+export async function requireDataTools(url?: URL): Promise<void> {
+	await requireAuthenticated(url);
 	if (!canAccessDataTools(authStore.user)) {
 		redirect(307, '/dashboard/overview');
 	}
 }
 
-export async function requireUserManagement(): Promise<void> {
-	await requireAuthenticated();
+export async function requireUserManagement(url?: URL): Promise<void> {
+	await requireAuthenticated(url);
 	if (!canManageUsers(authStore.user)) {
 		redirect(307, '/dashboard/overview');
 	}
 }
 
-export async function requireMonthlyUpload(): Promise<void> {
-	await requireAuthenticated();
+export async function requireMonthlyUpload(url?: URL): Promise<void> {
+	await requireAuthenticated(url);
 	if (!canUploadMonthlyHydrology(authStore.user)) {
 		redirect(307, '/dashboard/overview');
 	}
@@ -76,10 +86,11 @@ export async function requireMonthlyUpload(): Promise<void> {
  */
 export async function redirectToDefaultPLTA(
 	page: PLTADashboardPage,
-	search: string
+	search: string,
+	url?: URL
 ): Promise<never> {
 	// Katalog butuh token; tanpa ini request-nya berlomba dengan pemulihan sesi.
-	await requireAuthenticated();
+	await requireAuthenticated(url);
 
 	const plants = await ensurePlantCatalog(queryClient);
 	const defaultPlant = pickDefaultPlant(plants);
@@ -97,8 +108,8 @@ export async function redirectToDefaultPLTA(
  * Forecasting hanya untuk PLTA Soedirman, jadi alamat tanpa `pltaId` dialihkan
  * ke PLTA itu — bukan ke PLTA bawaan seperti menu lain.
  */
-export async function redirectToForecastingPlant(search: string): Promise<never> {
-	await requireAuthenticated();
+export async function redirectToForecastingPlant(search: string, url?: URL): Promise<never> {
+	await requireAuthenticated(url);
 
 	const plants = await ensurePlantCatalog(queryClient);
 	const plant = findForecastingPlant(plants);

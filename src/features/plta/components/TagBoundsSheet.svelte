@@ -72,7 +72,7 @@
 	}
 </script>
 
-<Sheet {isOpen} title="Batas valid tag" isDismissible={!isPending} {onClose}>
+<Sheet {isOpen} title="Batas valid tag" isDismissible={!isPending} isDirty={isChanged} {onClose}>
 	{#snippet description()}
 		Rentang pembacaan yang dianggap sah untuk tag ini.
 	{/snippet}

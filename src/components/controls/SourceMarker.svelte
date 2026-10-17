@@ -1,6 +1,18 @@
 <script lang="ts" module>
-	export type SourceMarkerType =
-		'api' | 'formula' | 'input' | 'constant' | 'constant-input' | 'unavailable';
+	export type SourceMarkerType = 'api' | 'formula' | 'input' | 'constant-input' | 'unavailable';
+
+	/**
+	 * Klasifikasi sumber di panel harian (13 Okt 2026). "Konstanta" polos dan
+	 * "Belum tersedia" dihapus: setiap konstanta di panel harian diisi operator,
+	 * dan baris tanpa nilai tetap memakai penanda sumbernya. `unavailable` hanya
+	 * tersisa untuk sel tabel bulanan yang belum terisi.
+	 */
+	export const DAILY_SOURCE_TYPES: SourceMarkerType[] = [
+		'api',
+		'formula',
+		'input',
+		'constant-input'
+	];
 
 	/**
 	 * Penanda sumber data memakai dua kode sekaligus: bentuk (terbaca tanpa warna)
@@ -10,10 +22,8 @@
 		api: 'size-[7px] rounded-full bg-brand-primary-strong',
 		formula: 'size-[7px] rounded-full border-[1.5px] border-violet-600',
 		input: 'size-[7px] bg-amber-600',
-		constant: 'size-[7px] rotate-45 bg-text-muted',
-		// Dua kode dibaca terpisah: bentuk belah ketupat tetap berarti konstanta,
-		// warna amber berarti nilainya diisi operator. Jadi konstanta yang bisa
-		// diunggah tidak perlu penanda ketiga yang harus dihafal.
+		// Dua kode dibaca terpisah: bentuk belah ketupat berarti konstanta, warna
+		// amber berarti nilainya diisi operator.
 		'constant-input': 'size-[7px] rotate-45 bg-amber-600',
 		unavailable: 'h-[1.5px] w-[7px] bg-text-placeholder'
 	};
@@ -22,7 +32,6 @@
 		api: 'text-cyan-700',
 		formula: 'text-violet-700',
 		input: 'text-amber-700',
-		constant: 'text-text-subtle',
 		'constant-input': 'text-amber-700',
 		unavailable: 'text-text-muted'
 	};
@@ -31,7 +40,6 @@
 		api: 'Realtime',
 		formula: 'Formulasi',
 		input: 'Input',
-		constant: 'Konstanta',
 		'constant-input': 'Konstanta (input)',
 		unavailable: 'Belum tersedia'
 	};

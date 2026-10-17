@@ -50,3 +50,12 @@ export function canEditTagBounds(user: User | null): boolean {
 export function canUploadMonthlyHydrology(user: User | null): boolean {
 	return canAccessDataTools(user);
 }
+
+/**
+ * Mengatur daftar Tren & Grafik satu PLTA (`PUT /trends/plta/{id}/series`) dan
+ * mengganti nama metrik/bidang hidrologi. Swagger menyebut keduanya **khusus
+ * admin**, jadi aturannya sama dengan User Management.
+ */
+export function canConfigureDisplay(user: User | null): boolean {
+	return canManageUsers(user);
+}

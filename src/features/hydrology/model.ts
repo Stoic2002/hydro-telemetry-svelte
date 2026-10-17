@@ -2,17 +2,19 @@ export type NullableMetric = number | null;
 
 export type DashboardMetricSource = 'measured' | 'derived' | 'plan' | 'constant';
 
+/** Tujuan isian manual sebuah metrik. `null` bila baris itu tidak bisa diisi. */
+export interface DashboardMetricInput {
+	parameter: string;
+	station: string;
+}
+
 export interface DashboardStationMetric {
 	station: string;
 	label: string;
 	value: NullableMetric;
 	time: string | null;
-}
-
-/** Tujuan isian manual sebuah metrik. `null` bila baris itu tidak bisa diisi. */
-export interface DashboardMetricInput {
-	parameter: string;
-	station: string;
+	/** Tujuan isian stasiun ini sendiri, mis. pintu spillway G1. */
+	input: DashboardMetricInput | null;
 }
 
 export interface DashboardMetric {
@@ -220,6 +222,35 @@ export interface DailyMetricVisibility {
 	hidden: boolean;
 	/** `true` = posisinya pernah diatur untuk PLTA ini; `false` = posisi bawaan. */
 	isCustomOrder: boolean;
+	/** Nama bawaan sistem, dipakai lagi bila nama khusus dihapus. */
+	defaultLabel: string;
+	/** `true` = nama khusus dari admin sedang berlaku. */
+	isLabelCustom: boolean;
+}
+
+/**
+ * Ganti nama, parsial: kunci yang tidak disebut tidak berubah, `null`
+ * mengembalikan ke nama bawaan. Dipakai nama metrik harian (per PLTA) dan
+ * nama bidang bulanan (seluruh PLTA).
+ */
+export type LabelChanges = Record<string, string | null>;
+
+/** Satu bidang hidrologi bulanan beserta namanya (`GET /hydrology/monthly/labels`). */
+export interface MonthlyFieldLabel {
+	key: string;
+	/** Nama dasar yang berlaku, tanpa akhiran "s.d. Bulan …". */
+	label: string;
+	defaultLabel: string;
+	isCustom: boolean;
+	/** `true` = sistem menambahkan "s.d. Bulan <X>" di belakang nama ini. */
+	isAccumulated: boolean;
+	updatedBy: string | null;
+	updatedAt: string | null;
+}
+
+export interface MonthlyFieldLabels {
+	customCount: number;
+	fields: MonthlyFieldLabel[];
 }
 
 /**

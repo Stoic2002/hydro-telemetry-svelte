@@ -9,11 +9,15 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const session = vi.hoisted(() => ({
 	isAuthenticated: false,
+	sessionExpired: false,
 	user: null as { role: string } | null,
 	initialize: vi.fn()
 }));
 
-vi.mock('../features/auth', () => ({
+vi.mock('../features/auth', async () => ({
+	...(await vi.importActual<typeof import('../features/auth/return-path')>(
+		'../features/auth/return-path'
+	)),
 	authStore: session,
 	canAccessDataTools: (user: { role: string } | null) => user !== null && user.role !== 'Viewer',
 	canManageUsers: (user: { role: string } | null) => user?.role === 'Super Admin',
@@ -46,6 +50,7 @@ async function redirectLocation(guard: () => Promise<void>): Promise<string | nu
 
 beforeEach(() => {
 	session.isAuthenticated = false;
+	session.sessionExpired = false;
 	session.user = null;
 	session.initialize.mockReset();
 });
@@ -79,5 +84,29 @@ describe('guard saat sesi masih dipulihkan', () => {
 		restoreSessionLater('Operator PLTA');
 
 		expect(await redirectLocation(requireGuest)).toBe('/dashboard');
+	});
+
+	it('membawa halaman asal ke /login supaya sesudah masuk kembali ke sana', async () => {
+		session.initialize.mockResolvedValue(undefined);
+		const url = new URL('http://app.test/dashboard/plta/abc/telemetering/harian?units=1,2');
+
+		expect(await redirectLocation(() => requireAuthenticated(url))).toBe(
+			'/login?kembali=%2Fdashboard%2Fplta%2Fabc%2Ftelemetering%2Fharian%3Funits%3D1%2C2'
+		);
+	});
+
+	it('menandai sesi habis bila token tersimpan ditolak server', async () => {
+		session.initialize.mockImplementation(async () => {
+			session.sessionExpired = true;
+		});
+
+		expect(await redirectLocation(() => requireAuthenticated())).toBe('/login?sesi=habis');
+	});
+
+	it('meneruskan pengguna yang sudah masuk ke alamat ?kembali=', async () => {
+		restoreSessionLater('Operator PLTA');
+		const url = new URL('http://app.test/login?kembali=%2Fdashboard%2Fcatalog');
+
+		expect(await redirectLocation(() => requireGuest(url))).toBe('/dashboard/catalog');
 	});
 });

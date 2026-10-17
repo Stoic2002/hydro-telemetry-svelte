@@ -3,13 +3,6 @@ import { z } from 'zod';
 const nullableNumberSchema = z.number().nullable().optional().default(null);
 const nullableStringSchema = z.string().nullable().optional().default(null);
 
-const apiDashboardStationMetricSchema = z.object({
-	station: z.string(),
-	label: z.string(),
-	value: nullableNumberSchema,
-	time: nullableStringSchema
-});
-
 /**
  * Parameter telemetri di balik sebuah metrik, bila nilainya memang diisi manual
  * DAN PLTA-nya punya tag `upload` untuk itu. Server yang menentukan, jadi FE
@@ -24,6 +17,19 @@ const apiDashboardMetricInputSchema = z.object({
 		.nullable()
 		.optional()
 		.transform((value) => value ?? '')
+});
+
+/**
+ * Satu sub-sumber metrik multi-stasiun. `input`-nya sendiri: hujan dan pintu
+ * spillway G1–G4 diisi satu per satu, sedangkan `input` di tingkat metrik
+ * (agregatnya) `null` karena agregat tidak punya tag.
+ */
+const apiDashboardStationMetricSchema = z.object({
+	station: z.string(),
+	label: z.string(),
+	value: nullableNumberSchema,
+	time: nullableStringSchema,
+	input: apiDashboardMetricInputSchema.nullable().optional().default(null)
 });
 
 const apiDashboardMetricSchema = z.object({
@@ -248,12 +254,39 @@ export const apiDailyVisibilitySchema = z.object({
 			/** Posisi efektif di panelnya (0 = teratas). */
 			urutan: z.number().int().nullable().optional().default(null),
 			/** `false` = masih posisi bawaan, belum pernah diurutkan untuk PLTA ini. */
-			urutan_diatur: z.boolean().optional().default(false)
+			urutan_diatur: z.boolean().optional().default(false),
+			/** Nama bawaan sistem; hilang = sama dengan `label` (server lama). */
+			label_bawaan: z.string().nullable().optional().default(null),
+			label_diatur: z.boolean().optional().default(false)
 		})
 	)
 });
 
 export type ApiDailyVisibility = z.infer<typeof apiDailyVisibilitySchema>;
+
+/** `GET`/`PUT /hydrology/monthly/labels` — urut seperti di panel. */
+export const apiMonthlyFieldLabelsSchema = z.object({
+	jumlah_diatur: z.number().int().nonnegative(),
+	bidang: z.array(
+		z.object({
+			key: z.string().min(1),
+			label: z.string(),
+			label_bawaan: z.string(),
+			label_diatur: z.boolean(),
+			akumulasi: z.boolean(),
+			updated_by: z.string().nullable().optional().default(null),
+			updated_at: z.string().nullable().optional().default(null)
+		})
+	)
+});
+
+export type ApiMonthlyFieldLabels = z.infer<typeof apiMonthlyFieldLabelsSchema>;
+
+/** `400` dari kedua `PUT …/labels` — tidak ada yang disimpan. */
+export const apiLabelErrorSchema = z.object({
+	pesan: z.string(),
+	masalah: z.array(z.string()).optional().default([])
+});
 export type ApiMonthlyHydrologyOverview = z.infer<typeof apiMonthlyHydrologyOverviewSchema>;
 export type ApiMonthlyHydrologyExcelResult = z.infer<typeof apiMonthlyHydrologyExcelResultSchema>;
 export type ApiDailyHydrology = z.infer<typeof apiDailyHydrologySchema>;

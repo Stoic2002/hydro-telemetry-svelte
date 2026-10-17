@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildTelemetryPoints } from './points';
+import { buildDeleteRange, buildTelemetryPoints } from './points';
 
 /**
  * Regresi yang sama seperti form hidrologi bulanan: `value` diikat ke
@@ -48,5 +48,41 @@ describe('buildTelemetryPoints', () => {
 
 	it('menolak daftar kosong', () => {
 		expect(buildTelemetryPoints([])).toBeNull();
+	});
+});
+
+describe('buildDeleteRange', () => {
+	const day = (date: string, time: string) => ({ date, time });
+
+	it('menyusun rentang tanpa zona waktu, kedua ujung apa adanya', () => {
+		expect(buildDeleteRange(day('2026-08-01', '00:00'), day('2026-08-01', '23:00'))).toEqual({
+			ok: true,
+			start: '2026-08-01T00:00:00',
+			end: '2026-08-01T23:00:00'
+		});
+	});
+
+	it('menerima awal sama dengan akhir — satu titik', () => {
+		expect(buildDeleteRange(day('2026-08-01', '07:00'), day('2026-08-01', '07:00')).ok).toBe(true);
+	});
+
+	it('menolak isian yang belum lengkap', () => {
+		expect(buildDeleteRange(day('', '00:00'), day('2026-08-01', '23:00')).ok).toBe(false);
+		expect(buildDeleteRange(day('2026-08-01', ''), day('2026-08-01', '23:00')).ok).toBe(false);
+	});
+
+	it('menolak rentang terbalik', () => {
+		expect(buildDeleteRange(day('2026-08-02', '00:00'), day('2026-08-01', '23:00'))).toEqual({
+			ok: false,
+			error: 'Waktu akhir harus sama dengan atau setelah waktu awal'
+		});
+	});
+
+	it('menolak rentang lebih dari 366 hari, menerima tepat 366 hari', () => {
+		expect(buildDeleteRange(day('2025-01-01', '00:00'), day('2026-01-02', '00:00')).ok).toBe(true);
+		expect(buildDeleteRange(day('2025-01-01', '00:00'), day('2026-01-02', '00:01'))).toEqual({
+			ok: false,
+			error: 'Rentang maksimal 366 hari'
+		});
 	});
 });

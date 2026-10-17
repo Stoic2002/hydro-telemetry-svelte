@@ -32,6 +32,16 @@
 		headerAction?: Snippet;
 		/** Diikat pemanggil supaya kartu bisa difokuskan saat zonanya dipilih di peta. */
 		element?: HTMLElement | null;
+		/**
+		 * Baris sudah disaring mode tampilan (Perlu perhatian, Ringkas, …): semua
+		 * hasilnya ditampilkan tanpa batas ringkas lima baris — menyaring lalu
+		 * melipat lagi menyembunyikan yang justru dicari operator.
+		 */
+		isFiltered?: boolean;
+		/** Pesan bila tidak ada baris; bawaannya untuk panel yang memang kosong. */
+		emptyMessage?: string;
+		/** Baris dalam dua kolom dari `lg` — dipakai saat kartu ini tampil sendirian selebar halaman. */
+		isWide?: boolean;
 	}
 
 	let {
@@ -43,7 +53,10 @@
 		zoneControl,
 		zoneControlAfterKey,
 		headerAction,
-		element = $bindable(null)
+		element = $bindable(null),
+		isFiltered = false,
+		emptyMessage = 'Belum ada parameter untuk zona ini.',
+		isWide = false
 	}: Props = $props();
 
 	const COMPACT_ROW_LIMIT = 5;
@@ -52,7 +65,8 @@
 
 	const presentation = $derived(HYDROLOGY_ZONE_PRESENTATION[zone]);
 	const rowCount = $derived(sections.reduce((total, section) => total + section.rows.length, 0));
-	const canToggle = $derived(rowCount > COMPACT_ROW_LIMIT);
+	const canToggle = $derived(!isFiltered && !isWide && rowCount > COMPACT_ROW_LIMIT);
+	const showAllRows = $derived(isExpanded || isFiltered || isWide);
 
 	/**
 	 * Batas ringkas berlaku untuk seluruh kartu, bukan per bagian: kalau setiap
@@ -72,7 +86,7 @@
 
 			return {
 				...section,
-				rows: isExpanded
+				rows: showAllRows
 					? section.rows
 					: section.rows.filter(
 							(row, index) => index < remainingVisibleRows || row.freshness?.level === 'stale'
@@ -124,16 +138,29 @@
 		</div>
 	{/if}
 
+	{#if rowCount === 0}
+		<p class="px-4 py-3 text-xs text-text-muted">{emptyMessage}</p>
+	{/if}
+
 	{#each visibleSections as section (section.title)}
 		<section>
 			{#if visibleSections.length > 1}
 				<div class="table-head-cell px-4 py-2">{section.title}</div>
 			{/if}
-			<div class={`divide-y ${presentation.dividerClassName} px-4`}>
+			<!--
+				Dua kolom saat kartu tampil sendirian: garis pemisah memakai border-b
+				per baris, bukan divide-y, karena divide-y dalam grid menggambar garis
+				di atas baris pertama kolom kanan.
+			-->
+			<div
+				class={isWide
+					? 'grid px-4 lg:grid-cols-2 lg:gap-x-10 [&>*]:border-b [&>*]:border-surface-overlay'
+					: `divide-y ${presentation.dividerClassName} px-4`}
+			>
 				{#each section.rows as row (row.label)}
 					<MetricRowItem {row} {onUpload} />
 					{#if zoneControl && isControlAnchored && row.key === zoneControlAfterKey}
-						<div class="py-2.5">
+						<div class="py-2.5 lg:col-span-2">
 							{@render zoneControl()}
 						</div>
 					{/if}

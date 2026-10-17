@@ -1,5 +1,5 @@
 import { ApiError } from '../../api/http';
-import { apiMonthlyHydrologyExcelErrorSchema } from './api/schemas';
+import { apiLabelErrorSchema, apiMonthlyHydrologyExcelErrorSchema } from './api/schemas';
 import type { MonthlyHydrologyExcelRowError } from './model';
 
 export function getHydrologyErrorMessage(error: unknown): string {
@@ -46,4 +46,19 @@ export function getMonthlyExcelRowErrors(error: unknown): MonthlyHydrologyExcelR
 		pltaCode: item.kode_plta,
 		message: item.pesan
 	}));
+}
+
+/**
+ * `400` dari `PUT …/labels` membawa objek `detail` (`pesan` + satu kalimat per
+ * nama yang ditolak). Satu masalah saja membuat tidak ada yang tersimpan.
+ */
+export function getLabelErrorDetail(error: unknown): { message: string; problems: string[] } {
+	if (ApiError.isApiError(error)) {
+		const parsed = apiLabelErrorSchema.safeParse(error.details);
+		if (parsed.success) return { message: parsed.data.pesan, problems: parsed.data.masalah };
+		if (error.status === 403) {
+			return { message: 'Hanya admin yang dapat mengganti nama.', problems: [] };
+		}
+	}
+	return { message: getHydrologyErrorMessage(error), problems: [] };
 }

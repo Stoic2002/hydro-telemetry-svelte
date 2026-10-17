@@ -232,10 +232,11 @@
 								type="button"
 								onclick={clearSelection}
 								disabled={isUploading}
+								aria-label="Hapus file terpilih"
 								title="Hapus file"
 								class="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-sm text-text-muted hover:bg-surface-raised hover:text-status-danger-strong disabled:cursor-not-allowed disabled:opacity-50"
 							>
-								<IconTrash class="size-4" />
+								<IconTrash class="size-4" aria-hidden="true" />
 							</button>
 						</div>
 					</div>

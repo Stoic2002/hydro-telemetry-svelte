@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { z } from 'zod';
 	import { goto } from '$app/navigation';
+	import { page } from '$app/state';
 	import IconUser from '~icons/ph/user';
 	import IconLock from '~icons/ph/lock-simple';
 	import IconEye from '~icons/ph/eye';
@@ -8,7 +9,13 @@
 	import Button from '$components/controls/Button.svelte';
 	import Banner from '$components/ui/Banner.svelte';
 	import { Form } from '$shared/lib/form.svelte';
-	import { authStore } from '$features/auth';
+	import {
+		RETURN_PATH_PARAM,
+		SESSION_EXPIRED_PARAM,
+		SESSION_EXPIRED_VALUE,
+		authStore,
+		safeReturnPath
+	} from '$features/auth';
 
 	const loginSchema = z.object({
 		username: z.string().trim().min(1, 'Username wajib diisi'),
@@ -17,13 +24,22 @@
 
 	let showPassword = $state(false);
 
+	const isSessionExpired = $derived(
+		page.url.searchParams.get(SESSION_EXPIRED_PARAM) === SESSION_EXPIRED_VALUE
+	);
+
 	const form = new Form({
 		schema: loginSchema,
 		initial: { username: '', password: '' },
 		onSubmit: async ({ username, password }) => {
 			authStore.clearError();
 			const success = await authStore.login(username, password);
-			if (success) await goto('/dashboard', { replaceState: true });
+			// Kembali ke halaman yang dibuka sebelum sesi habis, bukan ke Overview.
+			if (success) {
+				await goto(safeReturnPath(page.url.searchParams.get(RETURN_PATH_PARAM)), {
+					replaceState: true
+				});
+			}
 		}
 	});
 </script>
@@ -72,6 +88,8 @@
 
 			{#if authStore.error}
 				<Banner tone="danger">{authStore.error}</Banner>
+			{:else if isSessionExpired}
+				<Banner tone="warning">Sesi Anda sudah berakhir. Masuk lagi untuk melanjutkan.</Banner>
 			{/if}
 
 			<div class="flex h-fit w-full flex-col gap-2">
@@ -132,7 +150,7 @@
 						type="button"
 						aria-label={showPassword ? 'Sembunyikan password' : 'Tampilkan password'}
 						onclick={() => (showPassword = !showPassword)}
-						class="cursor-pointer text-text-muted transition-colors hover:text-text-secondary focus:outline-none"
+						class="cursor-pointer rounded-sm text-text-muted transition-colors hover:text-text-secondary"
 					>
 						{#if showPassword}
 							<IconEyeSlash class="size-4" />

@@ -59,7 +59,7 @@
 	const isPending = $derived(createMutation.isPending);
 </script>
 
-<Sheet {isOpen} title="Tambah Pengguna" isDismissible={!isPending} {onClose}>
+<Sheet {isOpen} title="Tambah Pengguna" isDismissible={!isPending} isDirty={form.isDirty} {onClose}>
 	{#snippet description()}
 		Buat akun baru dan tentukan hak akses awal.
 	{/snippet}

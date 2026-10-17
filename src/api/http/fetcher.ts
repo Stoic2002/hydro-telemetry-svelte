@@ -51,7 +51,10 @@ async function parseResponseBody(response: Response): Promise<unknown> {
 	if (
 		contentType.startsWith('image/') ||
 		contentType.includes('application/octet-stream') ||
-		contentType.includes('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+		contentType.includes('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') ||
+		// Sebagai berkas, bukan teks: `response.text()` membuang BOM UTF-8, dan
+		// tanpa BOM Excel membaca huruf non-ASCII di CSV sebagai sampah.
+		contentType.includes('text/csv')
 	) {
 		return response.blob();
 	}

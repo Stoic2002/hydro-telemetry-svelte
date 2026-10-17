@@ -1,7 +1,14 @@
-import { apiRequest, createApiResponseParser } from '../../../api/http';
+import { ApiError, apiRequest, createApiResponseParser } from '../../../api/http';
 import type { TelemetryUploadResult } from '../model';
+import { telemetryTemplateQuery } from '../template';
 import type { TelemetryUploadRepository } from './telemetry-upload-repository';
-import { apiTelemetryUploadResultSchema, type ApiTelemetryUploadResult } from './schemas';
+import {
+	apiTelemetryDeleteResultSchema,
+	apiTelemetryUploadResultSchema,
+	type ApiTelemetryUploadResult
+} from './schemas';
+
+const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 
 const parseResponse = createApiResponseParser(
 	'Respons server tidak sesuai kontrak upload telemetri'
@@ -46,5 +53,56 @@ export const httpTelemetryUploadRepository: TelemetryUploadRepository = {
 		});
 
 		return mapResult(parseResponse(payload, apiTelemetryUploadResultSchema, endpoint));
+	},
+
+	async deletePoints(input) {
+		const endpoint = '/api/v1/telemetry/points';
+		const payload = await apiRequest<unknown>(endpoint, {
+			method: 'DELETE',
+			query: {
+				plta_id: input.pltaId,
+				parameter: input.parameter,
+				station: input.station,
+				start: input.start,
+				end: input.end
+			}
+		});
+		const result = parseResponse(payload, apiTelemetryDeleteResultSchema, endpoint);
+
+		return {
+			pltaId: result.plta_id,
+			parameter: result.parameter,
+			station: result.station,
+			pointsDeleted: result.points_deleted
+		};
+	},
+
+	async downloadTemplate(input) {
+		const endpoint = '/api/v1/telemetry/upload-template.xlsx';
+		const query = telemetryTemplateQuery(input.scope, input.date);
+		if (!query) {
+			throw new ApiError('Tanggal template belum diisi', {
+				status: 400,
+				statusText: 'Invalid Template Period',
+				url: endpoint
+			});
+		}
+
+		const payload = await apiRequest<Blob>(endpoint, {
+			method: 'GET',
+			cache: 'no-store',
+			headers: { Accept: XLSX_MIME },
+			query: { plta_id: input.pltaId, parameter: input.parameter, station: input.station, ...query }
+		});
+
+		if (!(payload instanceof Blob)) {
+			throw new ApiError('Respons template upload telemetri tidak valid', {
+				status: 502,
+				statusText: 'Invalid API Response',
+				url: endpoint
+			});
+		}
+
+		return payload;
 	}
 };

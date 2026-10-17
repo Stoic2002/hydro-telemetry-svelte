@@ -26,8 +26,10 @@ describe('kartu zona dalam tampilan ringkas', () => {
 			props: { zone: 'upstream', sections: [{ title: 'Hulu', rows }] }
 		});
 
-		expect(screen.getByText('Parameter 7')).toBeInTheDocument();
-		expect(screen.queryByText('Parameter 6')).not.toBeInTheDocument();
+		// Kata terakhir label dibungkus elemen sendiri bersama penanda sumber,
+		// jadi baris dicari lewat id-nya, bukan teks label utuh.
+		expect(document.getElementById('metric-metric_7')).toHaveTextContent('Parameter 7');
+		expect(document.getElementById('metric-metric_6')).not.toBeInTheDocument();
 		expect(screen.getByRole('button', { name: 'Lihat semua (7)' })).toBeInTheDocument();
 	});
 });

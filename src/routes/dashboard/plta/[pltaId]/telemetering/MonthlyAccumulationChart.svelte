@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { scaleTime } from 'd3-scale';
-	import { Axis, Chart, Highlight, Points, Spline, Svg, Tooltip } from 'layerchart';
+	import { scaleBand } from 'd3-scale';
+	import { Axis, Bars, Chart, Highlight, Svg, Tooltip } from 'layerchart';
 
 	import ErrorState from '$components/ui/ErrorState.svelte';
 	import type { MonthlyAccumulationChart } from '$features/hydrology';
@@ -16,15 +16,16 @@
 	}
 
 	/**
-	 * Target vs realisasi akumulasi produksi per bulan. Setiap bulan dalam
-	 * rentang ada di sumbu X; bulan yang belum diisi bernilai `null`, jadi garis
-	 * **terputus** di sana alih-alih turun ke nol atau disambung seakan ada
-	 * data. Bulan yang berdiri sendiri tetap terlihat lewat penanda titik.
+	 * Target vs realisasi akumulasi produksi per bulan, sebagai batang
+	 * berdampingan (13 Okt 2026; dulu dua garis). Setiap bulan dalam rentang ada
+	 * di sumbu X; bulan yang belum diisi bernilai `null` dan **tidak diberi
+	 * batang** — bukan batang setinggi nol, yang terbaca sebagai produksi nol.
 	 */
 	let { chart, isLoading, isError, onRetry }: Props = $props();
 
 	interface Datum {
-		date: Date;
+		/** Kunci kategori sumbu X; satu per bulan. */
+		key: string;
 		label: string;
 		/** Teks server `s.d. Bulan Maret 2026`: nilainya posisi Januari s.d. bulan itu. */
 		through: string | null;
@@ -42,7 +43,7 @@
 
 	const data = $derived<Datum[]>(
 		points.map((point) => ({
-			date: new Date(point.year, point.month - 1, 1),
+			key: monthLabel(point.year, point.month),
 			label: `${MONTHS[point.month - 1]} ${point.year}`,
 			through: point.throughLabel,
 			target: point.targetMwh,
@@ -53,12 +54,17 @@
 	const actualData = $derived(data.filter((datum) => datum.actual !== null));
 	const hasAnyValue = $derived(targetData.length > 0 || actualData.length > 0);
 
-	const yDomain = $derived(
+	// Batang selalu berangkat dari nol: tinggi batang adalah besarnya, jadi
+	// sumbu yang dipotong (seperti untuk garis) melebih-lebihkan selisih bulan.
+	const yDomain = $derived<[number, number]>([
+		0,
 		chartValueDomain(
 			data.flatMap((datum) => [datum.target, datum.actual]).filter((value) => value !== null)
-		)
-	);
-	const ticks = $derived(data.map((datum) => datum.date));
+		)[1]
+	]);
+
+	/** Posisi kedua batang di dalam satu bulan: target di kiri, realisasi di kanan. */
+	const SERIES = ['target', 'actual'] as const;
 
 	// Perbandingan target–realisasi baru adil bila PLTA penyumbang kedua seri
 	// sama banyak. Pada grafik satu PLTA nilainya 0 atau 1, jadi tidak pernah
@@ -98,12 +104,16 @@
 		<div class="h-[260px] w-full">
 			<Chart
 				{data}
-				x="date"
+				x="key"
 				y="actual"
-				xScale={scaleTime()}
+				xScale={scaleBand().padding(0.28)}
+				x1={() => 'target'}
+				x1Scale={scaleBand().paddingInner(0.12)}
+				x1Domain={[...SERIES]}
+				x1Range={({ xScale }) => [0, xScale.bandwidth()]}
 				{yDomain}
 				padding={{ top: 14, right: 18, bottom: 28, left: 62 }}
-				tooltipContext={{ mode: 'bisect-x' }}
+				tooltipContext={{ mode: 'band' }}
 			>
 				<Svg>
 					<Axis
@@ -116,45 +126,31 @@
 					<Axis
 						placement="bottom"
 						rule={false}
-						{ticks}
-						format={(value: Date) => monthLabel(value.getFullYear(), value.getMonth() + 1)}
 						classes={{ tickLabel: 'fill-chart-axis text-[11px]' }}
 					/>
 
-					<!-- Target: garis putus-putus abu-abu, sebagai acuan. -->
-					<Spline
-						y={(datum: Datum) => datum.target}
-						defined={(datum: Datum) => datum.target !== null}
-						class="stroke-chart-axis stroke-[2] [stroke-dasharray:6_4]"
-					/>
-					<Points
+					<!--
+						`Bars` tidak mengenal `defined`, jadi tiap seri hanya diberi bulan yang
+						terisi. Target abu-abu sebagai acuan, realisasi warna aksen.
+					-->
+					<Bars
 						data={targetData}
 						y={(datum: Datum) => datum.target}
-						r={3}
-						class="fill-chart-axis stroke-surface-raised"
+						x1={() => 'target'}
+						radius={3}
+						rounded="top"
+						class="fill-chart-reference"
 					/>
-
-					<!-- Realisasi: garis utama. -->
-					<Spline
-						y={(datum: Datum) => datum.actual}
-						defined={(datum: Datum) => datum.actual !== null}
-						class="stroke-[3]"
-						stroke="var(--color-brand-primary-strong)"
-					/>
-					<Points
+					<Bars
 						data={actualData}
 						y={(datum: Datum) => datum.actual}
-						r={3.5}
+						x1={() => 'actual'}
+						radius={3}
+						rounded="top"
 						fill="var(--color-brand-primary-strong)"
-						class="stroke-surface-raised"
 					/>
 
-					<!--
-						Titik sorot di KEDUA garis. Tanpa `y` sendiri, Highlight memakai `y`
-						milik Chart (realisasi saja). Sisi yang `null` tidak diberi titik:
-						d3-scale memetakan `null` ke `undefined`, lalu layerchart melewatinya.
-					-->
-					<Highlight points lines y={(datum: Datum) => [datum.target, datum.actual]} />
+					<Highlight area />
 				</Svg>
 
 				<Tooltip.Root variant="none" classes={{ container: 'chart-tooltip' }}>
@@ -192,15 +188,15 @@
 		>
 			<span class="flex flex-wrap items-center gap-x-4 gap-y-1">
 				<span class="flex items-center gap-1.5">
-					<span class="w-4 border-t-2 border-dashed border-chart-axis"></span>
+					<span class="size-2.5 rounded-sm bg-chart-reference"></span>
 					Target akumulasi
 				</span>
 				<span class="flex items-center gap-1.5">
-					<span class="h-0.5 w-4 rounded-full bg-brand-primary-strong"></span>
+					<span class="size-2.5 rounded-sm bg-brand-primary-strong"></span>
 					Realisasi akumulasi
 				</span>
 			</span>
-			<span>Bulan yang belum diisi memutus garis.</span>
+			<span>Bulan yang belum diisi tidak diberi batang.</span>
 		</div>
 		{#if isIncomplete}
 			<p class="mt-1.5 text-xs text-status-warning-strong">

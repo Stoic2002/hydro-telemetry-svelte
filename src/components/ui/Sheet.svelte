@@ -2,6 +2,7 @@
 	import type { Snippet } from 'svelte';
 	import { Dialog } from 'bits-ui';
 	import IconX from '~icons/ph/x';
+	import ConfirmDialog from './ConfirmDialog.svelte';
 
 	interface Props {
 		isOpen: boolean;
@@ -10,6 +11,13 @@
 		children: Snippet;
 		footer?: Snippet;
 		isDismissible?: boolean;
+		/**
+		 * Isian sudah diubah tetapi belum disimpan. Klik di luar panel dan Escape
+		 * — dua cara menutup yang sering tidak disengaja — lalu meminta
+		 * konfirmasi dulu, bukan langsung membuang isian. Tombol tutup dan Batal
+		 * tetap langsung menutup: keduanya pilihan yang disengaja.
+		 */
+		isDirty?: boolean;
 		onClose: () => void;
 	}
 
@@ -29,8 +37,22 @@
 		children,
 		footer,
 		isDismissible = true,
+		isDirty = false,
 		onClose
 	}: Props = $props();
+
+	let isDiscardConfirmOpen = $state(false);
+
+	function guardAccidentalClose(event: Event) {
+		if (!isDismissible || !isDirty) return;
+		event.preventDefault();
+		isDiscardConfirmOpen = true;
+	}
+
+	function discardChanges() {
+		isDiscardConfirmOpen = false;
+		onClose();
+	}
 </script>
 
 <Dialog.Root
@@ -45,6 +67,8 @@
 		<Dialog.Content
 			interactOutsideBehavior={isDismissible ? 'close' : 'ignore'}
 			escapeKeydownBehavior={isDismissible ? 'close' : 'ignore'}
+			onInteractOutside={guardAccidentalClose}
+			onEscapeKeydown={guardAccidentalClose}
 			class="fixed inset-y-0 right-0 z-100 flex h-full w-full max-w-[480px] flex-col border-l border-border-subtle bg-surface-raised shadow-[-12px_0_32px_rgb(0_0_0/10%)] outline-none"
 		>
 			<header
@@ -82,3 +106,17 @@
 		</Dialog.Content>
 	</Dialog.Portal>
 </Dialog.Root>
+
+<ConfirmDialog
+	isOpen={isDiscardConfirmOpen}
+	variant="warning"
+	title="Buang perubahan?"
+	confirmLabel="Buang perubahan"
+	cancelLabel="Lanjut mengisi"
+	onConfirm={discardChanges}
+	onClose={() => (isDiscardConfirmOpen = false)}
+>
+	{#snippet description()}
+		Isian di panel <strong>{title}</strong> belum disimpan dan akan hilang.
+	{/snippet}
+</ConfirmDialog>

@@ -4,6 +4,7 @@ import type {
 	HydrologyPeriod,
 	DailyHydrology,
 	DailyVisibility,
+	MonthlyFieldLabels,
 	DashboardMetricGroup,
 	MonthlyAccumulationChart,
 	MonthlyHydrology,
@@ -16,6 +17,7 @@ import type {
 import type { HydrologyRepository } from './hydrology-repository';
 import {
 	apiDailyVisibilitySchema,
+	apiMonthlyFieldLabelsSchema,
 	apiMonthlyChartSchema,
 	apiMonthlyHydrologyExcelResultSchema,
 	apiMonthlyHydrologySchema,
@@ -25,6 +27,7 @@ import {
 	type ApiDailyHydrology,
 	type ApiDashboardMetricGroup,
 	type ApiDailyVisibility,
+	type ApiMonthlyFieldLabels,
 	type ApiMonthlyChart,
 	type ApiMonthlyHydrology,
 	type ApiMonthlyHydrologyExcelResult,
@@ -123,12 +126,31 @@ function mapVisibility(visibility: ApiDailyVisibility): DailyVisibility {
 		hiddenCount: visibility.jumlah_tersembunyi,
 		// Urutan larik = urutan efektif per panel (dijamin server); `urutan`
 		// sendiri tidak dibawa supaya tidak ada dua sumber urutan.
-		metrics: visibility.metrik.map(({ key, panel, label, hidden, urutan_diatur }) => ({
-			key,
-			panel,
-			label,
-			hidden,
-			isCustomOrder: urutan_diatur
+		metrics: visibility.metrik.map(
+			({ key, panel, label, hidden, urutan_diatur, label_bawaan, label_diatur }) => ({
+				key,
+				panel,
+				label,
+				hidden,
+				isCustomOrder: urutan_diatur,
+				defaultLabel: label_bawaan ?? label,
+				isLabelCustom: label_diatur
+			})
+		)
+	};
+}
+
+function mapMonthlyFieldLabels(labels: ApiMonthlyFieldLabels): MonthlyFieldLabels {
+	return {
+		customCount: labels.jumlah_diatur,
+		fields: labels.bidang.map((field) => ({
+			key: field.key,
+			label: field.label,
+			defaultLabel: field.label_bawaan,
+			isCustom: field.label_diatur,
+			isAccumulated: field.akumulasi,
+			updatedBy: field.updated_by,
+			updatedAt: field.updated_at
 		}))
 	};
 }
@@ -267,6 +289,31 @@ export const httpHydrologyRepository: HydrologyRepository = {
 		});
 
 		return mapVisibility(parseResponse(payload, apiDailyVisibilitySchema, endpoint));
+	},
+
+	async setDailyLabels(pltaId, labels) {
+		const endpoint = `/api/v1/dashboard/plta/${encodeURIComponent(pltaId)}/daily/labels`;
+		const payload = await apiRequest<unknown>(endpoint, { method: 'PUT', json: { label: labels } });
+
+		return mapVisibility(parseResponse(payload, apiDailyVisibilitySchema, endpoint));
+	},
+
+	async getMonthlyFieldLabels(options) {
+		const endpoint = '/api/v1/hydrology/monthly/labels';
+		const payload = await apiRequest<unknown>(endpoint, {
+			method: 'GET',
+			cache: 'no-store',
+			signal: options?.signal
+		});
+
+		return mapMonthlyFieldLabels(parseResponse(payload, apiMonthlyFieldLabelsSchema, endpoint));
+	},
+
+	async setMonthlyFieldLabels(labels) {
+		const endpoint = '/api/v1/hydrology/monthly/labels';
+		const payload = await apiRequest<unknown>(endpoint, { method: 'PUT', json: { label: labels } });
+
+		return mapMonthlyFieldLabels(parseResponse(payload, apiMonthlyFieldLabelsSchema, endpoint));
 	},
 
 	async getMonthlyPanel(pltaId, year, month, options) {

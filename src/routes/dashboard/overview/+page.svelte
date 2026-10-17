@@ -5,7 +5,6 @@
 	import { createPlantCatalogQuery, getPLTADashboardPath } from '$features/plta';
 	import FleetSummary from './FleetSummary.svelte';
 	import FleetSummaryControls from './FleetSummaryControls.svelte';
-	import FleetSummaryDetail from './FleetSummaryDetail.svelte';
 
 	const OVERVIEW_MAP_PROJECTION = {
 		center: [110.0, -7.35] as [number, number],
@@ -21,7 +20,7 @@
 <div class="flex flex-1 flex-col gap-6">
 	<PageHeader title="Overview" description="Peta sebaran PLTA di Jawa Tengah">
 		{#snippet actions()}
-			<!-- Pemilih periode ringkasan; angkanya di kartu dasar peta, detailnya di kolom kanan peta. -->
+			<!-- Pemilih periode ringkasan; angka dan detailnya di kartu dasar peta. -->
 			<FleetSummaryControls {registeredPlantCount} />
 		{/snippet}
 	</PageHeader>
@@ -35,9 +34,6 @@
 			>
 				{#snippet bottomOverlay()}
 					<FleetSummary {registeredPlantCount} />
-				{/snippet}
-				{#snippet rightPanel()}
-					<FleetSummaryDetail {registeredPlantCount} />
 				{/snippet}
 			</JavaMap>
 		</div>

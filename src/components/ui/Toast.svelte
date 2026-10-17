@@ -39,7 +39,19 @@
 	<div class="pointer-events-none fixed right-4 bottom-4 z-300 flex flex-col gap-2">
 		{#each notificationStore.toasts as toast (toast.id)}
 			{@const styles = TYPE_STYLES[toast.type]}
+			{@const isPaused = notificationStore.pausedIds.includes(toast.id)}
+			<!--
+				Hitung mundur berhenti selama kursor atau fokus berada di toast,
+				supaya pesannya bisa dibaca sampai habis.
+			-->
 			<div
+				onpointerenter={() => notificationStore.pauseToast(toast.id)}
+				onpointerleave={() => notificationStore.resumeToast(toast.id)}
+				onfocusin={() => notificationStore.pauseToast(toast.id)}
+				onfocusout={(event) => {
+					if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
+					notificationStore.resumeToast(toast.id);
+				}}
 				role={toast.type === 'error' ? 'alert' : 'status'}
 				aria-live={toast.type === 'error' ? 'assertive' : 'polite'}
 				class="pointer-events-auto relative w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-xl border border-border-subtle bg-surface-raised pt-3 pr-3 pb-3.5 pl-3.5 shadow-panel"
@@ -59,7 +71,7 @@
 							</p>
 							<time
 								datetime={toast.createdAt}
-								class="shrink-0 font-mono text-xs text-text-placeholder tabular-nums"
+								class="shrink-0 font-mono text-xs text-text-muted tabular-nums"
 							>
 								{formatTimeWIB(toast.createdAt)}
 							</time>
@@ -73,7 +85,7 @@
 						type="button"
 						aria-label="Tutup notifikasi"
 						onclick={() => notificationStore.removeToast(toast.id)}
-						class="-mt-0.5 -mr-1 flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-sm text-text-placeholder transition-colors hover:bg-surface-overlay hover:text-text-secondary"
+						class="-mt-1 -mr-1.5 flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-sm text-text-muted transition-colors hover:bg-surface-overlay hover:text-text-secondary"
 					>
 						<IconX class="size-3" />
 					</button>
@@ -81,7 +93,8 @@
 
 				<span
 					aria-hidden="true"
-					style={`--toast-duration: ${toast.duration ?? DEFAULT_TOAST_DURATION}ms`}
+					style:--toast-duration={`${toast.duration ?? DEFAULT_TOAST_DURATION}ms`}
+					style:animation-play-state={isPaused ? 'paused' : 'running'}
 					class={`toast-countdown absolute inset-x-0 bottom-0 h-0.5 ${styles.countdown}`}
 				></span>
 			</div>

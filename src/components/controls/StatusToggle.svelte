@@ -12,6 +12,12 @@
 		 * selebar wadahnya, untuk daftar sakelar dan panel samping.
 		 */
 		align?: 'end' | 'stretch';
+		/**
+		 * `field` (bawaan): sakelar berbingkai dengan label, untuk form. `inline`:
+		 * hanya sakelarnya, untuk sel tabel — `label` tetap dibacakan lewat
+		 * `aria-label`.
+		 */
+		variant?: 'field' | 'inline';
 	}
 
 	let {
@@ -21,18 +27,27 @@
 		disabled = false,
 		activeLabel = 'Aktif',
 		inactiveLabel = 'Nonaktif',
-		align = 'end'
+		align = 'end',
+		variant = 'field'
 	}: Props = $props();
 
 	const statusLabel = $derived(isActive ? activeLabel : inactiveLabel);
 </script>
 
-<div
-	class={`flex h-10 items-center justify-between gap-3 rounded-lg border border-border-subtle px-3 ${
-		align === 'end' ? 'self-end' : 'self-stretch'
-	}`}
->
-	<span class="min-w-0 truncate text-sm text-text-secondary" title={label}>{label}</span>
+{#if variant === 'inline'}
+	{@render toggle()}
+{:else}
+	<div
+		class={`flex h-10 items-center justify-between gap-3 rounded-lg border border-border-subtle px-3 ${
+			align === 'end' ? 'self-end' : 'self-stretch'
+		}`}
+	>
+		<span class="min-w-0 truncate text-sm text-text-secondary" title={label}>{label}</span>
+		{@render toggle()}
+	</div>
+{/if}
+
+{#snippet toggle()}
 	<button
 		type="button"
 		role="switch"
@@ -57,4 +72,4 @@
 		</span>
 		<span>{statusLabel}</span>
 	</button>
-</div>
+{/snippet}

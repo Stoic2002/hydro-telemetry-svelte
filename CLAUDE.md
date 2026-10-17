@@ -129,6 +129,14 @@ Hal-hal yang sudah pernah menggigit dan tidak akan terlihat dari membaca kode:
   `POST /auth/logout-all`) justru harus berhasil dulu: bila gagal, sesi lokal
   dipertahankan dan galatnya tampil. Admin bisa **Cabut sesi** user lain di
   User Management (`POST /users/{id}/revoke-sessions`; akunnya tetap aktif).
+- **Sesi habis (13 Okt 2026)**: guard membawa halaman asal ke
+  `/login?kembali=<path>` dan login kembali ke sana (`safeReturnPath` hanya
+  menerima `/dashboard…`). Guard `load` hanya berjalan saat berpindah halaman,
+  jadi `dashboard/+layout.svelte` punya `$effect` yang mengantar ke login begitu
+  sesi turun di tengah pemakaian — kecuali `authStore.endedByUser` (tombol
+  Keluar). `?sesi=habis` menampilkan "Sesi Anda sudah berakhir". Token yang
+  ditolak saat pemulihan **tidak** menyetel `authStore.error`; dulu layar login
+  langsung menampilkan "Username atau password salah".
 - Realtime: `wss://<host>/api/v1/ws/monitoring?token=${accessToken}&plta_id=${pltaId}`.
 - Upload Excel: kirim file mentah ke server. **Jangan parsing Excel di frontend** —
   ini perubahan dari implementasi awal yang parsing di klien.
@@ -190,7 +198,23 @@ Hal-hal yang sudah pernah menggigit dan tidak akan terlihat dari membaca kode:
   manual) sengaja dikecualikan. Banner ringkasan hanya memuat yang merah —
   yang kuning biasanya sekadar pengiriman tertunda. Jam halaman berdetak per
   menit, karena justru saat sensor diam tidak ada data baru yang memicu render.
-- **Tren & Grafik**: hanya **satu** grafik dengan pemilih parameter (bukan 4
+- **Tren & Grafik — daftar tren per PLTA (13 Okt 2026)**: admin mengatur item,
+  urutan, grup, dan nama khusus lewat **Atur daftar tren**
+  (`TrendListSheet`, `PUT /trends/plta/{id}/series`, `canConfigureDisplay` =
+  admin). Seluruh grafik datang dari satu `GET …/data`; item segrup = satu
+  grafik, satuan kedua di sumbu kanan (dipetakan ke ruang sumbu kiri,
+  `axisMapping`), `sumber: plan` digambar bertangga (`stepPoints` — `d3-shape`
+  bukan dependensi langsung), curah hujan tunggal sebagai batang. Unduhan
+  `data.xlsx`/`data.csv` di atas grafik (CSV diambil sebagai blob supaya BOM
+  UTF-8 tetap ada). **Sejak 17 Okt 2026 hanya SATU grafik yang tampil**,
+  dipilih lewat `?grafik=` (dulu seluruh grafik bertumpuk, dinilai boros).
+  Pilihannya per grafik admin — grup tidak dipecah — dan nilainya kunci
+  metrik (`tma_waduk`), dicocokkan dengan item mana pun di grafik itu; tak
+  dikenal = grafik pertama (`selectTrendChart`). Data diminta hanya untuk item
+  grafik itu (`?item=` berulang; `url.ts` kini mengirim array sebagai
+  parameter berulang, bukan `a,b`), sedangkan unduhan tetap seluruh daftar. **PLTA yang `diatur: false` jatuh ke tampilan lama** di
+  bawah ini (`ParameterTrendView`), supaya halamannya tidak kosong.
+- **Tren & Grafik (cadangan, daftar belum diatur)**: hanya **satu** grafik dengan pemilih parameter (bukan 4
   grafik). Rentang default 24 jam. Daftar parameter diambil dari API tags. Garis
   grafik menampilkan nilai saat di-hover. Parameter terakumulasi (`*rainfall*`,
   `total_outflow`) diagregasi `sum`, sisanya `avg`; curah hujan digambar sebagai
@@ -201,10 +225,12 @@ Hal-hal yang sudah pernah menggigit dan tidak akan terlihat dari membaca kode:
   Untuk curah hujan pembandingnya juga garis, bukan batang berdampingan — 168
   batang per jam (7 hari) tidak terbaca bila digandakan.
 - **Laporan**: alur = pilih laporan → masuk daftar tabel → status `completed` →
-  download. Di atas daftar ada **Unduh langsung: Excel per jam**
-  (`GET /dashboard/plta/{id}/timeseries.xlsx?start=&end=`, 13 kolom rata-rata
-  per jam, tanpa antrean, maks. 62 hari inklusif; rentang yang pasti ditolak
-  tidak dikirim — `features/reports/timeseries-range.ts`). Hanya periode bulanan dan hanya parameter time series. Daftar laporan
+  download. Di atas daftar ada **Unduh langsung: Excel per jam**: sejak 13 Okt
+  2026 `GET /trends/plta/{id}/data.xlsx` (resolusi 1h, kolom = daftar tren PLTA,
+  maks. 366 hari) bila daftar trennya sudah diatur; selain itu cadangan
+  `GET /dashboard/plta/{id}/timeseries.xlsx?start=&end=` (**deprecated**, 13
+  kolom mockup PBS, maks. 62 hari inklusif). Rentang yang pasti ditolak tidak
+  dikirim — `features/reports/timeseries-range.ts`. Hanya periode bulanan dan hanya parameter time series. Daftar laporan
   pakai paginasi + search, tanpa tombol "Perbarui"; polling berhenti sendiri
   begitu tidak ada baris `pending`/`processing`.
 - **Forecasting**: khusus PLTA Soedirman, tanpa pemilih PLTA. PLTA-nya
@@ -232,6 +258,9 @@ Hal-hal yang sudah pernah menggigit dan tidak akan terlihat dari membaca kode:
   Ubin GIBS berupa gambar opak, jadi `components/map/cloud-mask.ts` membaca
   ulang warnanya menjadi suhu puncak awan lewat colormap GIBS dan hanya
   menggambar awan ≤ -32 °C. Ini perkiraan, bukan hujan terukur.
+  Penanda PLTA yang jaraknya < 26 px **di layar** disebar melingkar dengan
+  garis ke koordinat aslinya (`components/map/marker-spread.ts`, 13 Okt 2026);
+  dihitung ulang saat ukuran peta berubah.
   **Hujan terukur** (penakar ARR milik PLTA, `features/monitoring/rainfall.ts`)
   melengkapinya: cincin biru di penanda PLTA + daftar di panel (PLTA tanpa
   koordinat tetap masuk daftar). Per 25 Sep 2026 hanya Soedirman (4 stasiun
@@ -328,6 +357,15 @@ Hal-hal yang sudah pernah menggigit dan tidak akan terlihat dari membaca kode:
   itu sendiri. Nama kunci `rerata` di overview juga terkonfirmasi dari respons
   staging 6 Okt 2026: keenamnya persis nama field bulanan
   (`OVERVIEW_AVERAGE_KEYS`).
+  **Ganti nama (13 Okt 2026, khusus admin = `canConfigureDisplay`)**: metrik
+  harian per PLTA lewat isian di `DailyVisibilitySheet` (`PUT …/daily/labels`,
+  dikirim sesudah tata letak — dua endpoint, dua hak akses); bidang bulanan
+  untuk seluruh PLTA lewat tombol **Nama bidang** di Hidrologi Bulanan
+  (`MonthlyFieldLabelSheet`, `PUT /hydrology/monthly/labels`). Draf hanya
+  memuat isian yang disentuh (`labelChanges`); kosong = `null` = nama bawaan.
+  Panel harian sudah merender `label` server, jadi nama baru langsung tampil;
+  tabel bulanan **belum** (masih di-hold, lihat di bawah) — nama bulanan baru
+  terlihat di template, Excel, dan pesan impor.
   **Swagger 7 Okt 2026 menambah `label`** (nama tampilan, mis. "… s.d. Bulan
   September 2026") di data bulanan, blok overview (`label`, `label_prediksi`,
   `label_target`), `rerata`, dan grafik (`label`, plus `sd_bulan` per titik).
@@ -358,29 +396,59 @@ Hal-hal yang sudah pernah menggigit dan tidak akan terlihat dari membaca kode:
   kosong. Semuanya di `routes/dashboard/hydrology-report.ts`
   (`resolveReportRange`, `reportRangeError`) dan dipakai label, validasi, dan
   nama berkas supaya sepakat dengan server; rentang yang pasti ditolak **tidak
-  dikirim** (query `enabled` mati). Rentang ada di **overview** (kartu Detail ringkasan di kolom kanan peta,
+  dikirim** (query `enabled` mati). Rentang ada di **overview** (kaki kartu ringkasan di dasar peta,
   `?tahun_akhir=&bulan_akhir=`) dan **laporan bulanan** (tab Laporan Hidrologi);
   **laporan harian tidak mendukung rentang**. Mengubah beberapa parameter URL
   harus dalam satu `goto` (`setPeriods`/`setFilters`) — dua `goto` berturut-turut
   sama-sama membaca URL lama dan yang kedua membatalkan yang pertama.
 - **Grafik akumulasi** (`GET /hydrology/monthly/chart`) ada di Hidrologi
   Bulanan, per PLTA aktif untuk tahun terpilih (Jan–Des). Bulan yang belum
-  diisi bernilai `null` dan **memutus garis**, bukan nol. Tanpa `plta_id`
+  diisi bernilai `null` dan **tidak diberi batang**, bukan batang nol (sejak 13 Okt 2026
+  grafiknya batang berdampingan target/realisasi, bukan dua garis; sumbu Y
+  selalu dari nol). Tanpa `plta_id`
   nilainya JUMLAH seluruh PLTA dan `n_target`/`n_realisasi` harus diperiksa
   sebelum kedua garis dibandingkan — komponennya sudah memperingatkan bila
   tidak sama, tetapi grafik gabungan seluruh PLTA belum ada layarnya. Kunci
   query-nya di bawah `dashboardRoot(pltaId)` supaya ikut segar setelah isian
   bulanan diubah. Test komponen grafik butuh stub `window.matchMedia` di
   `src/test/setup.ts` (layerchart → `svelte/motion`).
-- **Tombol "Input data" di Hidrologi Harian** mengikuti field `input`
-  (`{parameter, station}`) yang dikirim server pada tiap metrik panel harian —
-  server hanya mengisinya bila PLTA itu benar-benar punya tag `upload`-nya.
-  `METRIC_UPLOAD_BINDINGS` di `telemetering/presentation.ts` tinggal **cadangan**
-  untuk dua baris yang `input`-nya masih `null` per 21 Sep 2026: rencana turbin
-  di PLTA yang tagnya tanpa station, dan realisasi spillway. Cadangan tidak
-  berlaku bila tag parameter itu dipecah per station — baris Unit 4 di PLTA yang
-  hanya punya T1–T3 harus tetap hanya-baca. Hapus tabelnya begitu backend
-  mengisi `input` untuk kedua kasus itu.
+- **Tombol "Input data" di Hidrologi Harian** mengikuti **hanya** field `input`
+  (`{parameter, station}`) dari server — di tingkat metrik, atau per entri
+  `stations` untuk metrik multi-stasiun (pintu spillway G1–G4 jadi pilihan
+  Station di satu form). Sejak 13 Okt 2026 tidak lagi memakai daftar tag maupun
+  tabel cadangan `METRIC_UPLOAD_BINDINGS` (dihapus): backend menegaskan tujuan
+  **tidak boleh diturunkan dari `source`** — Pintu Air ber-`source` `plan`
+  padahal tagnya tak ada, dan `input` yang tidak `null` dijamin diterima.
+  **Target TMA sengaja `input: null`** ("ubah lewat RTOW"), jadi tanpa tombol;
+  padahal upload RTOW sudah diputuskan tidak dipakai — cara mengisinya **belum
+  dikonfirmasi backend**.
+- **Form isian harian punya tab Hapus Data dan template (17 Okt 2026)**:
+  `DELETE /telemetry/points` (rentang tanggal+jam, **inklusif di kedua ujung**,
+  bawaan satu hari penuh 00.00–23.59, maks. 366 hari, selalu lewat
+  `ConfirmDialog`). Server hanya menghapus baris `quality='manual'` pada tag
+  `upload`, jadi data sensor aman; 0 titik terhapus bukan galat — panel tetap
+  terbuka. Tab Upload Excel kini punya **Unduh Template**
+  (`GET /telemetry/upload-template.xlsx`, satu parameter + station; harian per
+  jam, bulanan per jam, atau bulanan per hari) yang **dipra-isi nilai
+  tersimpan**. Rentang yang pasti ditolak tidak dikirim
+  (`buildDeleteRange`, `telemetryTemplateQuery`). Unggah maupun hapus kini
+  ikut menyegarkan cache monitoring `latest` dan tren PLTA itu.
+  Swagger template menyebut `resolusi=hari` untuk "Target TMA", padahal
+  daily tetap menulis Target TMA `input: null` ("ubah lewat RTOW") — **perlu
+  ditanyakan ke backend**.
+- **Mode tampilan Hidrologi Harian** (13 Okt 2026): dua sumbu di URL yang bisa
+  dipadukan — `?zona=` (hulu/bendungan/hilir; satu zona = kartu selebar
+  halaman, baris dua kolom) dan `?baris=` (perhatian/manual/ringkas;
+  `filterMetricRows`). Baris tersaring tampil semua tanpa batas ringkas lima
+  baris. "Isian manual" tidak ditawarkan ke Viewer. Isi mode Ringkas
+  (`SUMMARY_METRIC_KEYS`) masih usulan dan menunggu kesepakatan tim. Mengganti
+  penyebut DMN mempertahankan panel lama (placeholder) dan hanya men-shimmer
+  SHFL dan DMN Beban Penuh.
+- **Penanda sumber panel harian hanya empat** (13 Okt 2026): Realtime
+  (`measured`), Formulasi (`derived`), Input (`plan`), Konstanta (input)
+  (`constant`). "Konstanta" polos dan "Belum tersedia" dihapus atas permintaan
+  tim; baris tanpa nilai tampil N/A dengan penanda sumbernya.
+  `unavailable` hanya tersisa untuk sel kosong tabel Hidrologi Bulanan.
 - **Rekap Hidrologi sudah dipecah** (29 Sep 2026) dan submenunya dihapus dari
   Telemetering. **Ringkasan hidrologi seluruh PLTA** (`/hydrology/monthly/overview`)
   kini **kartu yang menempel di dasar peta Overview** (7 Okt 2026), bergaya
@@ -388,11 +456,12 @@ Hal-hal yang sudah pernah menggigit dan tidak akan terlihat dari membaca kode:
   (slot `bottomOverlay` di `JavaMap`, hanya dari `lg`; di layar sempit kartu
   turun ke bawah peta). Isinya pencapaian seluruh PLTA, rata-rata antar-PLTA,
   status per PLTA, dan cakupan. **Pemilih bulan/tahun tetap di kepala halaman**
-  (`FleetSummaryControls`, satu baris), sedangkan rentang, catatan cakupan,
-  tabel rata-rata, dan unduh Excel ada di kartu **Detail ringkasan** yang
-  terlipat di kolom kanan peta bersama Awan Hujan/Legenda (`FleetSummaryDetail`,
-  slot `rightPanel`) — peta tidak punya celah kosong setinggi isinya. Ketiganya
-  membaca periode yang sama dari URL lewat `overview/fleet-summary.svelte.ts`.
+  (`FleetSummaryControls`, satu baris). Rata-rata per PLTA, rentang
+  ("Sampai"), dan unduh Excel ada di **kaki kartu yang sama**, dua baris padat,
+  selalu terlihat (13 Okt 2026). Dulu kartu **Detail ringkasan** terlipat di
+  kolom kanan peta (`FleetSummaryDetail`, slot `rightPanel` — keduanya dihapus);
+  tim menilai buka-tutupnya membuat isinya tidak ketahuan. Keduanya membaca
+  periode yang sama dari URL lewat `overview/fleet-summary.svelte.ts`.
   `Select` memakai `w-full` di akarnya: lebar tetap dipasang di pembungkusnya,
   bukan lewat prop `class` (yang kalah dan membuat pemilihnya bertumpuk). Bawaannya bulan berjalan; bila kosong,
   kartu menawarkan bulan sebelumnya. Riwayat penempatan: kolom 300px di samping

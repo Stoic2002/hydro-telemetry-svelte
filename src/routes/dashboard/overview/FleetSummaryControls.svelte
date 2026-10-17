@@ -10,9 +10,8 @@
 
 	/**
 	 * Pemilih bulan dan tahun ringkasan seluruh PLTA, di kepala halaman Overview.
-	 * Angkanya tampil di kartu dasar peta (`FleetSummary`), rentang dan tabel
-	 * rata-rata di kartu "Detail ringkasan" di kolom kanan peta
-	 * (`FleetSummaryDetail`); ketiganya membaca periode yang sama dari URL.
+	 * Angka, rata-rata per PLTA, rentang, dan unduhan Excel tampil di kartu dasar
+	 * peta (`FleetSummary`); keduanya membaca periode yang sama dari URL.
 	 */
 	let { registeredPlantCount }: Props = $props();
 

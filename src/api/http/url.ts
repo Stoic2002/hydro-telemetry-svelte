@@ -1,6 +1,12 @@
 import { env } from '../../shared/lib/env';
 
-export type QueryValue = string | number | boolean | null | undefined;
+type QueryScalar = string | number | boolean;
+
+/**
+ * Array dikirim sebagai parameter berulang (`item=a&item=b`) — bentuk yang
+ * dibaca FastAPI untuk parameter list. `String(array)` akan menjadi `a,b`.
+ */
+export type QueryValue = QueryScalar | readonly QueryScalar[] | null | undefined;
 
 function appendQuery(url: string, query?: Record<string, QueryValue>): string {
 	if (!query) return url;
@@ -8,9 +14,12 @@ function appendQuery(url: string, query?: Record<string, QueryValue>): string {
 	const searchParams = new URLSearchParams();
 
 	Object.entries(query).forEach(([key, value]) => {
-		if (value !== undefined && value !== null) {
-			searchParams.set(key, String(value));
+		if (value === undefined || value === null) return;
+		if (Array.isArray(value)) {
+			value.forEach((item: QueryScalar) => searchParams.append(key, String(item)));
+			return;
 		}
+		searchParams.set(key, String(value));
 	});
 
 	const queryString = searchParams.toString();

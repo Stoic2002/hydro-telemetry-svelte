@@ -58,3 +58,108 @@ export interface TrendSeries {
 	/** Pembacaan yang nilainya di luar batas wajar dan tidak ikut ditampilkan. */
 	discardedPoints: number;
 }
+
+/**
+ * Daftar tren per PLTA (`/trends/plta/{id}/series`, 13 Okt 2026). Ditetapkan
+ * admin per PLTA; tiap item satu metrik panel harian, dan item segrup
+ * digambar dalam satu grafik.
+ */
+export type TrendPanel = 'hulu' | 'dam' | 'hilir';
+
+export interface PlantTrendItem {
+	id: string;
+	/** Kunci metrik panel harian, mis. `tma_waduk`. */
+	key: string;
+	order: number;
+	group: string | null;
+	label: string;
+	/** `true` = nama khusus tren sedang berlaku. */
+	isLabelCustom: boolean;
+	unit: string | null;
+	panel: TrendPanel;
+	/** `measured` · `derived` · `plan`; `plan` = satu nilai per tanggal, digambar sebagai garis tangga. */
+	source: string;
+}
+
+export interface PlantTrendChart {
+	title: string;
+	group: string | null;
+	/** Id item dalam grafik ini, urut tampil. */
+	itemIds: string[];
+}
+
+export interface PlantTrendList {
+	pltaId: string;
+	/** `false` = PLTA ini belum punya daftar tren. */
+	isConfigured: boolean;
+	items: PlantTrendItem[];
+	charts: PlantTrendChart[];
+}
+
+export interface PlantTrendSeries {
+	/** Nama garis / kolom unduhan. */
+	name: string;
+	/** Station yang dibaca; `null` = gabungan `stations`. */
+	station: string | null;
+	stations: string[];
+	points: TrendPoint[];
+	/** Dipotong pada batas 5.000 titik — perkecil rentang. */
+	isTruncated: boolean;
+}
+
+export interface PlantTrendDataItem extends PlantTrendItem {
+	/** Resolusi yang sungguh dipakai: hujan minimal `1h`, estimasi minimal `5m`. */
+	effectiveResolution: string;
+	hasData: boolean;
+	series: PlantTrendSeries[];
+}
+
+export interface PlantTrendData {
+	pltaId: string;
+	resolution: string;
+	from: string;
+	to: string;
+	items: PlantTrendDataItem[];
+	charts: PlantTrendChart[];
+}
+
+export interface PlantTrendDataInput {
+	pltaId: string;
+	from: string;
+	to: string;
+	resolution: TrendResolution;
+	/** Hanya item ini (`?item=` berulang); kosong/tidak diisi = seluruh daftar. */
+	itemIds?: readonly string[];
+}
+
+export interface TrendCandidate {
+	key: string;
+	label: string;
+	unit: string | null;
+	panel: TrendPanel;
+	source: string;
+	/** Cara riwayatnya dibangun, mis. `satu`, `jumlah`, `rata2`, `per_stasiun`. */
+	kind: string;
+	/** `true` = disajikan sebagai total per jam/hari. */
+	isRainfall: boolean;
+	/** Hari terakhir berdata; `null` = belum pernah. */
+	lastDataDate: string | null;
+	isUsed: boolean;
+}
+
+export interface TrendCatalog {
+	pltaId: string;
+	candidates: TrendCandidate[];
+	/** Metrik panel yang belum bisa dijadikan tren, beserta alasannya. */
+	unavailable: Record<string, string>;
+}
+
+/** Satu item daftar baru yang dikirim; urutan array = urutan tampil. */
+export interface PlantTrendItemInput {
+	key: string;
+	group: string | null;
+	/** Nama khusus tren; `null` = ikut nama panel. */
+	label: string | null;
+}
+
+export type TrendExportFormat = 'xlsx' | 'csv';

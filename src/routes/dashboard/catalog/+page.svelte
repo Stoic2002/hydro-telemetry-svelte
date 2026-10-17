@@ -66,7 +66,7 @@
 		role="tabpanel"
 		aria-labelledby={`catalog-tab-${activeView}`}
 		tabindex="0"
-		class="outline-none"
+		class="rounded-lg"
 	>
 		{#if activeView === 'ws'}
 			<RiverBasinsCatalog />

@@ -1,10 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { DashboardMetric, MonthlyHydrology } from '$features/hydrology';
 import type { MonitoringParameterLatest } from '$features/monitoring';
-import type { PlantTag } from '$features/plta';
 import {
 	buildMonthlyComparison,
-	buildUploadTarget,
 	currentWibDate,
 	dashboardMetricRows,
 	formatReadingAge,
@@ -12,9 +10,14 @@ import {
 	HOURLY_SENSOR_FRESHNESS_MINUTES,
 	METRIC_FRESHNESS_MINUTES,
 	latestMonitoringParameter,
+	filterMetricRows,
+	markRecalculating,
+	parseDailyRowFilter,
+	parseDailyZoneFilter,
 	metricFreshness,
 	staleMetricRows,
-	resolveMetricUploadTargets
+	resolveMetricUploadTargets,
+	type MetricRow
 } from './presentation';
 
 const measuredMetric: DashboardMetric = {
@@ -97,35 +100,6 @@ describe('telemetering presentation', () => {
 		];
 
 		expect(latestMonitoringParameter(readings, 'water_level', ['tailrace'])?.value).toBe(92);
-	});
-
-	it('only exposes enabled upload tags for the requested parameter', () => {
-		const baseTag: PlantTag = {
-			id: 'tag-1',
-			pltaId: 'plta-1',
-			parameter: 'plan_water_level',
-			station: 'manual',
-			protocol: 'upload',
-			address: '',
-			httpHeaders: {},
-			valuePath: null,
-			timestampPath: null,
-			scale: 1,
-			offset: 0,
-			unit: 'mdpl',
-			enabled: true,
-			label: null,
-			minValid: null,
-			maxValid: null
-		};
-		const target = buildUploadTarget(
-			[baseTag, { ...baseTag, id: 'tag-2', enabled: false }],
-			'plan_water_level',
-			'Target TMA',
-			'mdpl'
-		);
-
-		expect(target?.tags.map((tag) => tag.id)).toEqual(['tag-1']);
 	});
 
 	it('memasangkan target, prediksi, dan realisasi dalam satu baris per parameter', () => {
@@ -286,8 +260,8 @@ describe('sub-parameter per stasiun', () => {
 		time: '2026-08-10T08:00:00Z',
 		source: 'measured',
 		stations: [
-			{ station: 'SKW', label: 'Pos Sokawera', value: 15.2, time: null },
-			{ station: 'WND', label: 'Pos Wanadadi', value: 9.6, time: null }
+			{ station: 'SKW', label: 'Pos Sokawera', value: 15.2, time: null, input: null },
+			{ station: 'WND', label: 'Pos Wanadadi', value: 9.6, time: null, input: null }
 		],
 		input: null,
 		hidden: false,
@@ -317,139 +291,55 @@ describe('sub-parameter per stasiun', () => {
 		const [row] = dashboardMetricRows({ rainfall: { ...rainfall, value: null } }, false);
 
 		expect(row.value).toBe('N/A');
-		expect(row.sourceType).toBe('unavailable');
+		// Tidak ada lagi penanda "Belum tersedia": baris kosong memakai penanda sumbernya.
+		expect(row.sourceType).toBe('api');
 		expect(row.subRows).toHaveLength(2);
 	});
 });
 
-describe('penanda konstanta yang bisa diunggah', () => {
-	const constantMetric: DashboardMetric = {
-		label: 'Batas TMA MOL',
-		value: 225.7,
-		unit: 'mdpl',
-		time: null,
-		source: 'constant',
-		stations: null,
-		input: null,
-		hidden: false,
-		order: null
-	};
+describe('empat klasifikasi sumber panel harian', () => {
+	it.each([
+		['measured', 'api', 'Realtime'],
+		['derived', 'formula', 'Formulasi'],
+		['plan', 'input', 'Input'],
+		['constant', 'constant-input', 'Konstanta (input)']
+	] as const)('%s → %s', (source, sourceType, label) => {
+		const [row] = dashboardMetricRows({ metrik: { ...measuredMetric, source } }, false);
 
-	function constantTag(parameter: string, enabled = true): PlantTag {
-		return {
-			id: `tag-${parameter}`,
-			pltaId: 'plta-1',
-			parameter,
-			station: 'MANUAL',
-			protocol: 'upload',
-			address: '',
-			httpHeaders: {},
-			valuePath: null,
-			timestampPath: null,
-			scale: 1,
-			offset: 0,
-			unit: 'm dpl',
-			enabled,
-			label: null,
-			minValid: null,
-			maxValid: null
-		};
-	}
-
-	/**
-	 * Dua jenis konstanta harus terbaca beda: yang hanya bisa diubah lewat
-	 * konfigurasi server, dan yang boleh diisi operator. Tanpa pembedaan ini
-	 * operator tidak punya cara tahu baris mana yang bisa dia perbaiki sendiri.
-	 */
-	it('tetap "constant" bila tidak ada tag unggah untuk parameternya', () => {
-		const [row] = dashboardMetricRows({ batas_tma_mol: constantMetric }, false);
-
-		expect(row.sourceType).toBe('constant');
-		expect(row.uploadTarget).toBeUndefined();
-	});
-
-	it('menjadi "constant-input" begitu parameternya punya tag unggah', () => {
-		const target = buildUploadTarget(
-			[constantTag('const_tma_mol')],
-			'const_tma_mol',
-			'Batas TMA MOL',
-			'mdpl'
-		);
-
-		const [row] = dashboardMetricRows({ batas_tma_mol: constantMetric }, false, {
-			batas_tma_mol: target
-		});
-
-		expect(row.sourceType).toBe('constant-input');
-		expect(row.uploadTarget?.parameter).toBe('const_tma_mol');
-	});
-
-	it('tidak menandai konstanta bila tag unggahnya dinonaktifkan', () => {
-		const target = buildUploadTarget(
-			[constantTag('const_tma_mol', false)],
-			'const_tma_mol',
-			'Batas TMA MOL',
-			'mdpl'
-		);
-
-		const [row] = dashboardMetricRows({ batas_tma_mol: constantMetric }, false, {
-			batas_tma_mol: target
-		});
-
-		expect(target).toBeUndefined();
-		expect(row.sourceType).toBe('constant');
+		expect(row).toMatchObject({ sourceType, source: label });
 	});
 
 	it('nilai realtime tetap mengalahkan penanda konstanta', () => {
 		// TMA tailrace berupa konstanta di respons harian, tetapi bila sensornya
 		// mengirim angka, yang dibaca operator adalah angka sensor itu.
-		const target = buildUploadTarget(
-			[constantTag('const_tma_tailrace')],
-			'const_tma_tailrace',
-			'TMA tailrace',
-			'mdpl'
-		);
-
 		const [row] = dashboardMetricRows(
-			{ tma_tailrace: { ...constantMetric, label: 'TMA Tailrace' } },
+			{ tma_tailrace: { ...measuredMetric, source: 'constant' } },
 			false,
-			{ tma_tailrace: target },
+			{},
 			{ tma_tailrace: { value: 134.9, source: 'Realtime' } }
 		);
 
 		expect(row.sourceType).toBe('api');
 	});
+
+	it('panel kosong tidak menghasilkan baris N/A tanpa nama', () => {
+		expect(dashboardMetricRows({}, false)).toEqual([]);
+		expect(dashboardMetricRows(undefined, true)).toHaveLength(1);
+	});
 });
 
-describe('tombol Input data otomatis per baris', () => {
-	function uploadTag(parameter: string, station = ''): PlantTag {
-		return {
-			id: `tag-${parameter}-${station}`,
-			pltaId: 'plta-1',
-			parameter,
-			station,
-			protocol: 'upload',
-			address: '',
-			httpHeaders: {},
-			valuePath: null,
-			timestampPath: null,
-			scale: 1,
-			offset: 0,
-			unit: 'm3/s',
-			enabled: true,
-			label: null,
-			minValid: null,
-			maxValid: null
-		};
-	}
-
-	function planMetric(label: string, input: DashboardMetric['input'] = null): DashboardMetric {
+describe('tujuan isian hanya dari `input` server', () => {
+	function metric(
+		label: string,
+		input: DashboardMetric['input'],
+		source: DashboardMetric['source'] = 'plan'
+	): DashboardMetric {
 		return {
 			label,
 			value: null,
 			unit: 'm³/s',
 			time: null,
-			source: 'plan',
+			source,
 			stations: null,
 			input,
 			hidden: false,
@@ -457,198 +347,85 @@ describe('tombol Input data otomatis per baris', () => {
 		};
 	}
 
-	it('memetakan rencana baru ke parameter unggahnya dengan label dari API', () => {
-		// Pola tag PLTA-SDJ: PDAM dan buangan sampah diisi manual.
-		const targets = resolveMetricUploadTargets(
-			[
-				{
-					rencana_debit_intake_pdam: planMetric('Rencana Debit Intake PDAM'),
-					rencana_debit_buangan_sampah: planMetric('Rencana Debit Buangan Sampah')
-				}
-			],
-			[uploadTag('plan_outflow_pdam'), uploadTag('plan_outflow_trash')]
-		);
+	it('memakai parameter dan station dari server beserta label metriknya', () => {
+		const targets = resolveMetricUploadTargets([
+			{
+				debit_irigasi_kanan: metric(
+					'Debit Irigasi Kanan',
+					{ parameter: 'outflow_irigasi', station: 'KANAN' },
+					'measured'
+				)
+			}
+		]);
 
-		expect(targets.rencana_debit_intake_pdam?.parameter).toBe('plan_outflow_pdam');
-		expect(targets.rencana_debit_intake_pdam?.label).toBe('Rencana Debit Intake PDAM');
-		expect(targets.rencana_debit_buangan_sampah?.parameter).toBe('plan_outflow_trash');
-	});
-
-	it('memisahkan irigasi kanan dan kiri berdasarkan station tag', () => {
-		const tags = [
-			uploadTag('plan_outflow_irigasi', 'KANAN'),
-			uploadTag('plan_outflow_irigasi', 'KIRI')
-		];
-		const targets = resolveMetricUploadTargets(
-			[
-				{
-					rencana_debit_irigasi_kanan: planMetric('Rencana Irigasi Kanan'),
-					rencana_debit_irigasi_kiri: planMetric('Rencana Irigasi Kiri')
-				}
-			],
-			tags
-		);
-
-		expect(targets.rencana_debit_irigasi_kanan?.tags.map((tag) => tag.station)).toEqual(['KANAN']);
-		expect(targets.rencana_debit_irigasi_kiri?.tags.map((tag) => tag.station)).toEqual(['KIRI']);
-	});
-
-	it('tidak memunculkan tombol kanan/kiri di PLTA yang irigasinya satu tag', () => {
-		const targets = resolveMetricUploadTargets(
-			[{ rencana_debit_irigasi_kanan: planMetric('Rencana Irigasi Kanan') }],
-			[uploadTag('plan_outflow_irigasi')]
-		);
-
-		expect(targets.rencana_debit_irigasi_kanan).toBeUndefined();
-	});
-
-	it('rencana turbin memakai tag per unit, atau tag tunggal bila PLTA tidak membaginya', () => {
-		const perUnit = resolveMetricUploadTargets(
-			[{ rencana_debit_turbin_unit_2: planMetric('Rencana Turbin 2') }],
-			[uploadTag('plan_outflow_turbine', 'T1'), uploadTag('plan_outflow_turbine', 'T2')]
-		);
-		const single = resolveMetricUploadTargets(
-			[{ rencana_debit_turbin_unit_2: planMetric('Rencana Turbin 2') }],
-			[uploadTag('plan_outflow_turbine')]
-		);
-
-		expect(perUnit.rencana_debit_turbin_unit_2?.tags.map((tag) => tag.station)).toEqual(['T2']);
-		expect(single.rencana_debit_turbin_unit_2?.tags).toHaveLength(1);
-	});
-
-	it('baris tanpa tag unggah tetap hanya-baca', () => {
-		const targets = resolveMetricUploadTargets(
-			[{ rencana_debit_pintu_air: planMetric('Rencana Pintu Air') }],
-			[]
-		);
-
-		expect(targets.rencana_debit_pintu_air).toBeUndefined();
-	});
-});
-
-describe('tujuan isian dari server (`metric.input`)', () => {
-	function uploadTag(parameter: string, station = ''): PlantTag {
-		return {
-			id: `tag-${parameter}-${station}`,
-			pltaId: 'plta-1',
-			parameter,
-			station,
-			protocol: 'upload',
-			address: '',
-			httpHeaders: {},
-			valuePath: null,
-			timestampPath: null,
-			scale: 1,
-			offset: 0,
-			unit: 'm3/s',
-			enabled: true,
-			label: null,
-			minValid: null,
-			maxValid: null
-		};
-	}
-
-	function metric(label: string, input: DashboardMetric['input']): DashboardMetric {
-		return {
-			label,
-			value: null,
+		expect(targets.debit_irigasi_kanan).toEqual({
+			label: 'Debit Irigasi Kanan',
+			parameter: 'outflow_irigasi',
 			unit: 'm³/s',
-			time: null,
-			source: 'measured',
-			stations: null,
-			input,
-			hidden: false,
-			order: null
+			stations: [{ station: 'KANAN', label: 'KANAN' }]
+		});
+	});
+
+	/**
+	 * Backend: Target TMA sengaja `input: null` (diubah lewat RTOW) dan Pintu Air
+	 * ber-`source` `plan` tanpa tag. Tombol tidak boleh diturunkan dari `source`.
+	 */
+	it('tidak memunculkan tombol dari `source` bila `input` null', () => {
+		const targets = resolveMetricUploadTargets([
+			{
+				target_tma: metric('Target TMA', null, 'plan'),
+				rencana_debit_pintu_air: metric('Rencana Debit Pintu Air', null, 'plan'),
+				batas_tma_mol: metric('Batas TMA MOL', null, 'constant')
+			}
+		]);
+
+		expect(targets).toEqual({});
+	});
+
+	it('menyusun pilihan station dari `input` tiap stasiun (pintu spillway)', () => {
+		const spillway: DashboardMetric = {
+			...metric('Debit Spillway', null, 'measured'),
+			stations: [
+				{
+					station: 'G1',
+					label: 'Pintu 1',
+					value: 0,
+					time: null,
+					input: { parameter: 'outflow_spillway', station: 'G1' }
+				},
+				{
+					station: 'G2',
+					label: 'Pintu 2',
+					value: 0,
+					time: null,
+					input: { parameter: 'outflow_spillway', station: 'G2' }
+				},
+				{ station: 'SENSOR', label: 'Sensor', value: 0, time: null, input: null }
+			]
 		};
-	}
 
-	/**
-	 * Sejak backend mengirim `input`, itulah sumber utamanya: baris realisasi yang
-	 * `source`-nya `measured` pun bisa diisi manual, dan hanya server yang tahu.
-	 */
-	it('memakai parameter dan station dari server', () => {
-		const targets = resolveMetricUploadTargets(
-			[
-				{
-					debit_irigasi_kanan: metric('Debit Irigasi Kanan', {
-						parameter: 'outflow_irigasi',
-						station: 'KANAN'
-					})
-				}
-			],
-			[uploadTag('outflow_irigasi', 'KANAN'), uploadTag('outflow_irigasi', 'KIRI')]
-		);
+		const targets = resolveMetricUploadTargets([{ debit_spillway: spillway }]);
 
-		expect(targets.debit_irigasi_kanan?.parameter).toBe('outflow_irigasi');
-		expect(targets.debit_irigasi_kanan?.tags.map((tag) => tag.station)).toEqual(['KANAN']);
-	});
-
-	it('tidak memunculkan tombol bila server tidak menyebut tujuan dan tabel pun tidak punya', () => {
-		const targets = resolveMetricUploadTargets(
-			[{ debit_turbin_total: metric('Debit Turbin Total', null) }],
-			[uploadTag('total_outflow')]
-		);
-
-		expect(targets.debit_turbin_total).toBeUndefined();
-	});
-
-	/**
-	 * Dua kasus yang `input`-nya masih `null` dari backend per 21 Sep 2026:
-	 * rencana turbin di PLTA yang tagnya tanpa station, dan realisasi spillway.
-	 * Tanpa cadangan tabel, tombolnya hilang di 11 dari 13 PLTA.
-	 */
-	it('jatuh ke tabel cadangan saat server belum mengisi `input`', () => {
-		const targets = resolveMetricUploadTargets(
-			[
-				{
-					rencana_debit_turbin_unit_2: metric('Rencana Debit Turbin Unit 2', null),
-					debit_spillway: metric('Debit Spillway', null)
-				}
-			],
-			[uploadTag('plan_outflow_turbine'), uploadTag('outflow_spillway')]
-		);
-
-		expect(targets.rencana_debit_turbin_unit_2?.parameter).toBe('plan_outflow_turbine');
 		expect(targets.debit_spillway?.parameter).toBe('outflow_spillway');
+		expect(targets.debit_spillway?.stations).toEqual([
+			{ station: 'G1', label: 'Pintu 1' },
+			{ station: 'G2', label: 'Pintu 2' }
+		]);
 	});
 
-	/**
-	 * PLTA-001 mencatat rencana turbin per unit tetapi hanya punya T1–T3.
-	 * Cadangan tidak boleh mengarahkan baris Unit 4 ke tag unit lain.
-	 */
-	it('tidak mengarahkan unit tanpa tag ke tag unit lain', () => {
-		const tags = [uploadTag('plan_outflow_turbine', 'T1'), uploadTag('plan_outflow_turbine', 'T2')];
-		const targets = resolveMetricUploadTargets(
-			[
-				{
-					rencana_debit_turbin_unit_2: metric('Rencana Debit Turbin Unit 2', {
-						parameter: 'plan_outflow_turbine',
-						station: 'T2'
-					}),
-					rencana_debit_turbin_unit_4: metric('Rencana Debit Turbin Unit 4', null)
-				}
-			],
-			tags
-		);
+	it('station kosong ditampilkan sebagai Default', () => {
+		const targets = resolveMetricUploadTargets([
+			{
+				rencana_debit_turbin_total: metric('Rencana Total', {
+					parameter: 'plan_outflow_turbine',
+					station: ''
+				})
+			}
+		]);
 
-		expect(targets.rencana_debit_turbin_unit_2?.tags.map((tag) => tag.station)).toEqual(['T2']);
-		expect(targets.rencana_debit_turbin_unit_4).toBeUndefined();
-	});
-
-	it('tetap hanya-baca bila server menunjuk tag yang tidak dimiliki PLTA', () => {
-		const targets = resolveMetricUploadTargets(
-			[
-				{
-					rencana_debit_pintu_air: metric('Rencana Debit Pintu Air', {
-						parameter: 'plan_outflow_sluice',
-						station: ''
-					})
-				}
-			],
-			[]
-		);
-
-		expect(targets.rencana_debit_pintu_air).toBeUndefined();
+		expect(targets.rencana_debit_turbin_total?.stations).toEqual([
+			{ station: '', label: 'Default' }
+		]);
 	});
 });
 
@@ -790,5 +567,99 @@ describe('ringkasan sensor basi', () => {
 		]);
 
 		expect(rows.map((item) => item.key)).toEqual(['d', 'a']);
+	});
+});
+
+describe('nilai yang dihitung ulang saat penyebut DMN diganti', () => {
+	const rows = [
+		{ key: 'tma_waduk', label: 'TMA Waduk', value: '1', source: 'Realtime', sourceType: 'api' },
+		{
+			key: 'service_hour_full_load',
+			label: 'Service Hour Full Load',
+			value: '2',
+			source: 'Formulasi',
+			sourceType: 'formula'
+		},
+		{
+			key: 'dmn_beban_penuh',
+			label: 'DMN Beban Penuh',
+			value: '3',
+			source: 'Formulasi',
+			sourceType: 'formula'
+		}
+	] satisfies MetricRow[];
+
+	it('hanya menandai SHFL dan DMN beban penuh', () => {
+		const marked = markRecalculating(rows, true);
+
+		expect(marked.filter((row) => row.isRecalculating).map((row) => row.key)).toEqual([
+			'service_hour_full_load',
+			'dmn_beban_penuh'
+		]);
+	});
+
+	it('tidak mengubah apa pun bila tidak sedang menghitung ulang', () => {
+		expect(markRecalculating(rows, false)).toBe(rows);
+	});
+});
+
+describe('mode tampilan Hidrologi Harian', () => {
+	const base = { source: 'Realtime', sourceType: 'api', hasData: true } as const;
+	const rows = [
+		{ ...base, key: 'tma_waduk', label: 'TMA Waduk', value: '231' },
+		{
+			...base,
+			key: 'inflow',
+			label: 'Inflow',
+			value: '12',
+			freshness: { level: 'stale', ageLabel: '2 jam lalu', measuredAt: '2026-10-13T00:00:00Z' }
+		},
+		{ ...base, key: 'ph_hulu', label: 'pH', value: 'N/A', hasData: false },
+		{ ...base, key: 'volume_waduk', label: 'Volume', value: '9', sourceType: 'formula' },
+		{
+			...base,
+			key: 'batas_tma_mol',
+			label: 'Batas MOL',
+			value: '200',
+			sourceType: 'constant-input'
+		},
+		{ ...base, key: 'rencana_debit_ddc', label: 'Rencana DDC', value: '1', sourceType: 'input' }
+	] satisfies MetricRow[];
+	const keys = (filtered: MetricRow[]) => filtered.map((row) => row.key);
+
+	it('Semua tidak menyaring apa pun', () => {
+		expect(filterMetricRows(rows, 'semua')).toBe(rows);
+	});
+
+	it('Perlu perhatian: sensor basi, nilai kosong, dan formula yang menunggu', () => {
+		expect(keys(filterMetricRows(rows, 'perhatian', new Set(['volume_waduk'])))).toEqual([
+			'inflow',
+			'ph_hulu',
+			'volume_waduk'
+		]);
+	});
+
+	it('Isian manual: baris Input dan Konstanta (input)', () => {
+		expect(keys(filterMetricRows(rows, 'manual'))).toEqual(['batas_tma_mol', 'rencana_debit_ddc']);
+	});
+
+	it('Ringkas: hanya metrik kunci', () => {
+		expect(keys(filterMetricRows(rows, 'ringkas'))).toEqual(['tma_waduk', 'inflow']);
+	});
+
+	it('baris memuat selalu dipertahankan', () => {
+		const loading = {
+			label: 'Memuat parameter…',
+			value: 'Memuat…',
+			source: 'Memuat',
+			sourceType: 'api'
+		} as const;
+		expect(filterMetricRows([loading], 'ringkas')).toEqual([loading]);
+	});
+
+	it('nilai URL yang tidak dikenal jatuh ke Semua', () => {
+		expect(parseDailyZoneFilter('hulu')).toBe('hulu');
+		expect(parseDailyZoneFilter('atap')).toBe('semua');
+		expect(parseDailyRowFilter(null)).toBe('semua');
 	});
 });

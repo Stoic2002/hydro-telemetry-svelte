@@ -6,10 +6,14 @@
 	import IconSliders from '~icons/ph/sliders-horizontal';
 	import IconWarning from '~icons/ph/warning';
 
-	import SourceMarker from '$components/controls/SourceMarker.svelte';
+	import SourceMarker, {
+		DAILY_SOURCE_TYPES,
+		SOURCE_MARKER_LABEL
+	} from '$components/controls/SourceMarker.svelte';
+	import SegmentedControl from '$components/controls/SegmentedControl.svelte';
 	import Banner from '$components/ui/Banner.svelte';
 	import PageHeader from '$components/ui/PageHeader.svelte';
-	import { authStore, canEditHydrologyData } from '$features/auth';
+	import { authStore, canConfigureDisplay, canEditHydrologyData } from '$features/auth';
 	import {
 		createDailyHydrologyQuery,
 		getHydrologyErrorMessage,
@@ -17,22 +21,26 @@
 	} from '$features/hydrology';
 	import DailyVisibilitySheet from '$features/hydrology/components/DailyVisibilitySheet.svelte';
 	import { createMonitoringStream, createPLTALatestQuery } from '$features/monitoring';
-	import {
-		HYDROLOGY_ZONE_PRESENTATION,
-		createPLTATagsQuery,
-		getActivePLTA,
-		type HydrologyZone
-	} from '$features/plta';
+	import { HYDROLOGY_ZONE_PRESENTATION, getActivePLTA, type HydrologyZone } from '$features/plta';
 	import PlantSwitcher from '$features/plta/components/PlantSwitcher.svelte';
 	import type { DailyTelemetryUploadTarget } from '$features/telemetry-upload';
 	import TelemetryUploadSheet from '$features/telemetry-upload/components/TelemetryUploadSheet.svelte';
 	import DmnUnitPicker from './DmnUnitPicker.svelte';
 	import HydrologySpatialLayout from '../HydrologySpatialLayout.svelte';
 	import {
+		DAILY_ROW_FILTERS,
+		DAILY_ROW_FILTER_EMPTY_MESSAGE,
+		DAILY_ZONE_FILTERS,
 		currentWibDate,
 		dashboardMetricRows,
+		filterMetricRows,
+		parseDailyRowFilter,
+		parseDailyZoneFilter,
+		type DailyRowFilter,
+		type DailyZoneFilter,
 		formatHydrologyDate,
 		latestMonitoringParameter,
+		markRecalculating,
 		monitoringSource,
 		resolveMetricUploadTargets,
 		staleMetricRows,
@@ -89,11 +97,6 @@
 		() => ({ units: selectedUnits, dmnMw: manualDmn })
 	);
 
-	const uploadTagsQuery = createPLTATagsQuery(
-		() => pltaId,
-		() => ({ page: 1, limit: 200, protocol: 'upload', enabled: true })
-	);
-
 	// Bootstrap dimatikan di kedua tempat: snapshot awal tidak diperlukan karena
 	// nilai dasarnya sudah datang dari endpoint hidrologi harian, dan realtime
 	// hanya menimpa parameter yang benar-benar dikirim.
@@ -110,17 +113,20 @@
 	const daily = $derived(dailyQuery.data?.daily ?? null);
 	const dmnUnits = $derived(dailyQuery.data?.dmnUnits ?? []);
 
-	async function applyDmnFilter(units: number[], dmnMw: number | undefined) {
+	/**
+	 * Semua perubahan query string halaman ini lewat satu `goto`: dua `goto`
+	 * berturut-turut sama-sama membaca URL lama dan yang kedua membatalkan yang
+	 * pertama. Nilai kosong menghapus parameternya.
+	 */
+	async function setSearchParams(changes: Record<string, string | undefined>) {
 		// Salinan sekali pakai untuk menyusun URL berikutnya; dibuang setelah
 		// `goto`, jadi tidak perlu `SvelteURLSearchParams`.
 		// eslint-disable-next-line svelte/prefer-svelte-reactivity
 		const params = new URLSearchParams(page.url.searchParams);
-
-		if (units.length > 0) params.set('units', units.join(','));
-		else params.delete('units');
-
-		if (dmnMw === undefined) params.delete('dmn');
-		else params.set('dmn', String(dmnMw));
+		for (const [key, value] of Object.entries(changes)) {
+			if (value) params.set(key, value);
+			else params.delete(key);
+		}
 
 		const query = params.toString();
 		await goto(query ? `?${query}` : '?', {
@@ -129,20 +135,64 @@
 			noScroll: true
 		});
 	}
+
+	function applyDmnFilter(units: number[], dmnMw: number | undefined) {
+		return setSearchParams({
+			units: units.length > 0 ? units.join(',') : undefined,
+			dmn: dmnMw === undefined ? undefined : String(dmnMw)
+		});
+	}
+
+	/**
+	 * Mode tampilan: zona mana yang tampil (`?zona=`) dan baris mana di dalamnya
+	 * (`?baris=`). Nilai bawaan tidak ditulis ke URL. Viewer tidak mengisi data,
+	 * jadi mode Isian manual tidak ditawarkan kepadanya.
+	 */
+	const zoneFilter = $derived(parseDailyZoneFilter(page.url.searchParams.get('zona')));
+	const rowFilterOptions = $derived(
+		canEditData
+			? DAILY_ROW_FILTERS
+			: DAILY_ROW_FILTERS.filter((option) => option.value !== 'manual')
+	);
+	const rowFilter = $derived.by(() => {
+		const parsed = parseDailyRowFilter(page.url.searchParams.get('baris'));
+		return rowFilterOptions.some((option) => option.value === parsed) ? parsed : 'semua';
+	});
+
+	const ZONE_FILTER_ZONES: Record<DailyZoneFilter, readonly HydrologyZone[]> = {
+		semua: ['upstream', 'dam', 'downstream'],
+		hulu: ['upstream'],
+		bendungan: ['dam'],
+		hilir: ['downstream']
+	};
+
+	function setZoneFilter(value: DailyZoneFilter) {
+		void setSearchParams({ zona: value === 'semua' ? undefined : value });
+	}
+
+	function setRowFilter(value: DailyRowFilter) {
+		void setSearchParams({ baris: value === 'semua' ? undefined : value });
+	}
+
+	const pendingFormulaKeys = $derived(new Set(daily?.pendingFormulas ?? []));
+
+	function applyRowFilter(sections: MetricSection[]): MetricSection[] {
+		return sections.map((section) => ({
+			...section,
+			rows: filterMetricRows(section.rows, rowFilter, pendingFormulaKeys)
+		}));
+	}
 	const isDailyLoading = $derived(dailyQuery.isLoading);
-	const uploadTags = $derived(
-		uploadTagsQuery.isPlaceholderData ? undefined : uploadTagsQuery.data?.items
-	);
-
-	// Satu tabel pemetaan untuk seluruh panel (`METRIC_UPLOAD_BINDINGS`): tombol
-	// "Input data" muncul di setiap baris yang PLTA ini punya tag unggahnya.
+	/**
+	 * Penyebut DMN baru sedang diminta; panel lama dipertahankan sebagai
+	 * placeholder, dan hanya nilai yang bergantung pada DMN yang di-shimmer.
+	 */
+	const isDmnRecalculating = $derived(dailyQuery.isPlaceholderData && dailyQuery.isFetching);
+	// Tombol "Input data" mengikuti field `input` yang dikirim server per metrik
+	// (dan per stasiun) — bukan daftar tag maupun `source`. Lihat
+	// `resolveMetricUploadTargets`.
 	const metricUploadTargets = $derived(
-		resolveMetricUploadTargets([daily?.upstream, daily?.dam, daily?.downstream], uploadTags ?? [])
-	);
-
-	// Legenda hanya menampilkan penanda yang benar-benar dipakai di layar.
-	const hasConstantUploadTags = $derived(
-		(uploadTags ?? []).some((tag) => tag.parameter.startsWith('const_') && tag.enabled)
+		resolveMetricUploadTargets([daily?.upstream, daily?.dam, daily?.downstream])
 	);
 
 	const monitoringParameters = $derived(monitoringQuery.data?.parameters ?? []);
@@ -190,13 +240,16 @@
 	const upstreamSections = $derived<MetricSection[]>([
 		{
 			title: 'Parameter hulu',
-			rows: dashboardMetricRows(
-				daily?.upstream,
-				isDailyLoading,
-				metricUploadTargets,
-				{ tma_waduk: reservoirOverride },
-				['target_tma', 'tma_waduk', 'inflow', 'curah_hujan', 'volume_waduk'],
-				now
+			rows: markRecalculating(
+				dashboardMetricRows(
+					daily?.upstream,
+					isDailyLoading,
+					metricUploadTargets,
+					{ tma_waduk: reservoirOverride },
+					['target_tma', 'tma_waduk', 'inflow', 'curah_hujan', 'volume_waduk'],
+					now
+				),
+				isDmnRecalculating
 			)
 		}
 	]);
@@ -307,17 +360,12 @@
 			{monitoringStream.status === 'open' ? 'Realtime aktif' : 'Realtime belum aktif'}
 		</span>
 
-		<span class="flex items-center gap-1.5"><SourceMarker type="formula" />Formulasi</span>
-		{#if (uploadTags?.length ?? 0) > 0}
-			<span class="flex items-center gap-1.5"><SourceMarker type="input" />Input</span>
-		{/if}
-		<span class="flex items-center gap-1.5"><SourceMarker type="constant" />Konstanta</span>
-		{#if hasConstantUploadTags}
-			<span class="flex items-center gap-1.5">
-				<SourceMarker type="constant-input" />Konstanta (input)
-			</span>
-		{/if}
-		<span class="flex items-center gap-1.5"><SourceMarker type="unavailable" />Belum tersedia</span>
+		<!-- Empat klasifikasi sumber; sama dengan penanda di setiap baris. -->
+		{#each DAILY_SOURCE_TYPES as type (type)}
+			<span class="flex items-center gap-1.5"
+				><SourceMarker {type} />{SOURCE_MARKER_LABEL[type]}</span
+			>
+		{/each}
 
 		{#if monitoringStream.status === 'error' || monitoringStream.status === 'closed'}
 			<button
@@ -338,22 +386,6 @@
 				<button
 					type="button"
 					onclick={() => void dailyQuery.refetch()}
-					class="inline-flex cursor-pointer items-center gap-1 font-medium underline underline-offset-2"
-				>
-					<IconRefresh class="size-3" />
-					Coba lagi
-				</button>
-			</span>
-		</Banner>
-	{/if}
-
-	{#if uploadTagsQuery.isError}
-		<Banner tone="warning">
-			<span class="flex flex-wrap items-center gap-x-2 gap-y-1">
-				Katalog input manual belum dapat dimuat. Data monitoring tetap tersedia.
-				<button
-					type="button"
-					onclick={() => void uploadTagsQuery.refetch()}
 					class="inline-flex cursor-pointer items-center gap-1 font-medium underline underline-offset-2"
 				>
 					<IconRefresh class="size-3" />
@@ -423,12 +455,36 @@
 		/>
 	{/snippet}
 
+	<div class="flex flex-wrap items-center gap-x-5 gap-y-2">
+		<div class="flex max-w-full items-center gap-2 overflow-x-auto">
+			<span class="text-xs font-medium text-text-muted">Zona</span>
+			<SegmentedControl
+				ariaLabel="Zona yang ditampilkan"
+				value={zoneFilter}
+				onChange={setZoneFilter}
+				options={DAILY_ZONE_FILTERS}
+			/>
+		</div>
+		<div class="flex max-w-full items-center gap-2 overflow-x-auto">
+			<span class="text-xs font-medium text-text-muted">Baris</span>
+			<SegmentedControl
+				ariaLabel="Baris yang ditampilkan"
+				value={rowFilter}
+				onChange={setRowFilter}
+				options={rowFilterOptions}
+			/>
+		</div>
+	</div>
+
 	<HydrologySpatialLayout
 		{plant}
 		plantName={displayName}
-		{upstreamSections}
-		{damSections}
-		{downstreamSections}
+		upstreamSections={applyRowFilter(upstreamSections)}
+		damSections={applyRowFilter(damSections)}
+		downstreamSections={applyRowFilter(downstreamSections)}
+		zones={ZONE_FILTER_ZONES[zoneFilter]}
+		isFiltered={rowFilter !== 'semua'}
+		emptyMessage={rowFilter === 'semua' ? undefined : DAILY_ROW_FILTER_EMPTY_MESSAGE[rowFilter]}
 		zoneControls={{ upstream: dmnPicker }}
 		zoneControlAfterKeys={{ upstream: 'service_hour_full_load' }}
 		zoneAction={canEditData ? layoutAction : undefined}
@@ -442,6 +498,7 @@
 		{pltaId}
 		panel={layoutPanel}
 		plantName={displayName}
+		canRename={canConfigureDisplay(authStore.user)}
 		onClose={() => (layoutPanel = null)}
 	/>
 {/if}

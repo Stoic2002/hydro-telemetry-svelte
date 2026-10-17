@@ -59,7 +59,7 @@
 	const isPending = $derived(updateMutation.isPending);
 </script>
 
-<Sheet {isOpen} title="Edit Pengguna" isDismissible={!isPending} {onClose}>
+<Sheet {isOpen} title="Edit Pengguna" isDismissible={!isPending} isDirty={form.isDirty} {onClose}>
 	{#snippet description()}
 		Perbarui akun @{user.username}. Username tidak dapat diubah.
 	{/snippet}

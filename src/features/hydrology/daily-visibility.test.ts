@@ -7,19 +7,21 @@ import {
 } from './daily-visibility';
 import type { DailyMetricVisibility } from './model';
 
-const metrics: DailyMetricVisibility[] = [
-	{ key: 'tma_waduk', panel: 'hulu', label: 'TMA Waduk', hidden: false, isCustomOrder: false },
-	{ key: 'ph_hulu', panel: 'hulu', label: 'pH Hulu', hidden: true, isCustomOrder: false },
-	{ key: 'inflow', panel: 'hulu', label: 'Inflow', hidden: false, isCustomOrder: false },
-	{
-		key: 'debit_spillway',
-		panel: 'dam',
-		label: 'Debit Spillway',
-		hidden: false,
-		isCustomOrder: false
-	},
-	{ key: 'ph_hilir', panel: 'hilir', label: 'pH Hilir', hidden: false, isCustomOrder: false }
-];
+const metrics: DailyMetricVisibility[] = (
+	[
+		{ key: 'tma_waduk', panel: 'hulu', label: 'TMA Waduk', hidden: false, isCustomOrder: false },
+		{ key: 'ph_hulu', panel: 'hulu', label: 'pH Hulu', hidden: true, isCustomOrder: false },
+		{ key: 'inflow', panel: 'hulu', label: 'Inflow', hidden: false, isCustomOrder: false },
+		{
+			key: 'debit_spillway',
+			panel: 'dam',
+			label: 'Debit Spillway',
+			hidden: false,
+			isCustomOrder: false
+		},
+		{ key: 'ph_hilir', panel: 'hilir', label: 'pH Hilir', hidden: false, isCustomOrder: false }
+	] satisfies Omit<DailyMetricVisibility, 'defaultLabel' | 'isLabelCustom'>[]
+).map((metric) => ({ ...metric, defaultLabel: metric.label, isLabelCustom: false }));
 
 describe('visibilityChanges', () => {
 	it('hanya memuat kunci yang berbeda dari kondisi tersimpan', () => {

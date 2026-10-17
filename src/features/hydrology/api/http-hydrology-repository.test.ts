@@ -683,9 +683,37 @@ describe('visibilitas metrik harian', () => {
 		);
 		expect(visibility.hiddenCount).toBe(1);
 		expect(visibility.metrics).toEqual([
-			{ key: 'tma_waduk', panel: 'hulu', label: 'TMA Waduk', hidden: false, isCustomOrder: false },
-			{ key: 'ph_hulu', panel: 'hulu', label: 'pH Hulu', hidden: true, isCustomOrder: true }
+			{
+				key: 'tma_waduk',
+				panel: 'hulu',
+				label: 'TMA Waduk',
+				hidden: false,
+				isCustomOrder: false,
+				// Server lama tanpa `label_bawaan`: nama bawaan = nama yang berlaku.
+				defaultLabel: 'TMA Waduk',
+				isLabelCustom: false
+			},
+			{
+				key: 'ph_hulu',
+				panel: 'hulu',
+				label: 'pH Hulu',
+				hidden: true,
+				isCustomOrder: true,
+				defaultLabel: 'pH Hulu',
+				isLabelCustom: false
+			}
 		]);
+	});
+
+	it('mengirim ganti nama metrik dalam kunci `label`', async () => {
+		apiRequestMock.mockResolvedValue(VISIBILITY);
+
+		await httpHydrologyRepository.setDailyLabels(PLTA_ID, { tma_waduk: 'Elevasi', ph_hulu: null });
+
+		const [endpoint, options] = apiRequestMock.mock.calls[0];
+		expect(endpoint).toBe(`/api/v1/dashboard/plta/${PLTA_ID}/daily/labels`);
+		expect(options?.method).toBe('PUT');
+		expect(options?.json).toEqual({ label: { tma_waduk: 'Elevasi', ph_hulu: null } });
 	});
 
 	it('mengirim perubahan sembunyi parsial dalam kunci `metrik`', async () => {

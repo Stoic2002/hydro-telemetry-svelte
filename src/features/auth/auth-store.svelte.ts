@@ -45,6 +45,19 @@ class AuthStore {
 	isInitialized = $state(false);
 	isLoading = $state(false);
 	error = $state<string | null>(null);
+	/**
+	 * `true` bila sesi diakhiri lewat tombol Keluar di tab ini. Membedakan
+	 * keluar yang disengaja dari sesi yang habis sendiri (refresh token ditolak,
+	 * dicabut admin, keluar di tab lain): hanya yang kedua yang diantar kembali
+	 * ke halaman asal sesudah login.
+	 */
+	endedByUser = $state(false);
+	/**
+	 * `true` bila token yang tersimpan ditolak server saat sesi dipulihkan
+	 * (refresh browser setelah sesi habis). Dibaca guard untuk menampilkan
+	 * "Sesi Anda sudah berakhir" di layar login.
+	 */
+	sessionExpired = $state(false);
 
 	async initialize(): Promise<void> {
 		if (this.isInitialized) return;
@@ -78,7 +91,9 @@ class AuthStore {
 				this.isLoading = false;
 				this.error = null;
 			} catch (error) {
-				if (ApiError.isApiError(error) && (error.isUnauthorized || error.isForbidden)) {
+				const isRejected =
+					ApiError.isApiError(error) && (error.isUnauthorized || error.isForbidden);
+				if (isRejected) {
 					clearAuthTokens({ broadcast: true });
 				}
 
@@ -86,7 +101,11 @@ class AuthStore {
 				this.isAuthenticated = false;
 				this.isInitialized = true;
 				this.isLoading = false;
-				this.error = getLoginErrorMessage(error);
+				this.sessionExpired = isRejected;
+				// Token yang ditolak bukan salah ketik: pesan login untuk 401 ("Username
+				// atau password salah") dulu tampil di layar login sebelum pengguna
+				// mengetik apa pun. Keadaan itu kini dijelaskan oleh `sessionExpired`.
+				this.error = isRejected ? null : getLoginErrorMessage(error);
 			}
 		})().finally(() => {
 			initializationPromise = null;
@@ -137,6 +156,8 @@ class AuthStore {
 			this.isInitialized = true;
 			this.isLoading = false;
 			this.error = null;
+			this.endedByUser = false;
+			this.sessionExpired = false;
 			return true;
 		} catch (error) {
 			clearAuthTokens();
@@ -180,6 +201,9 @@ class AuthStore {
 	}
 
 	private clearLocalSession(): void {
+		// Disetel sebelum token dihapus: penghapusan token langsung memicu
+		// penjaga sesi di layout dashboard, yang membaca tanda ini.
+		this.endedByUser = true;
 		clearAuthTokens({ broadcast: true });
 		this.user = null;
 		this.isAuthenticated = false;

@@ -38,7 +38,9 @@ function visibility(
 	].map((metric) => ({
 		...metric,
 		hidden: hiddenKeys.includes(metric.key),
-		isCustomOrder: customOrderPanels.includes(metric.panel)
+		isCustomOrder: customOrderPanels.includes(metric.panel),
+		defaultLabel: metric.label,
+		isLabelCustom: false
 	}));
 
 	return { pltaId, hiddenCount: hiddenKeys.length, metrics };

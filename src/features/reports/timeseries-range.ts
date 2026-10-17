@@ -1,5 +1,12 @@
-/** Batas server untuk Excel time-series langsung; lebih panjang ditolak 400. */
+/** Batas server untuk Excel time-series 13 kolom (deprecated); lebih panjang ditolak 400. */
 export const MAX_TIMESERIES_DAYS = 62;
+
+/**
+ * Batas Excel data tren (`…/data.xlsx`) yang dipakai FE. Server membatasi
+ * 100.000 baris; per jam itu ±11 tahun, tetapi berkas sebesar itu tidak
+ * berguna dibuka di Excel — satu tahun cukup dan tetap jauh di bawah batas.
+ */
+export const MAX_TREND_EXPORT_DAYS = 366;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -21,11 +28,15 @@ export function timeseriesRangeDays(start: string, end: string): number | null {
  * Pesan untuk rentang yang pasti ditolak server, supaya permintaannya tidak
  * dikirim sia-sia. `null` = sah.
  */
-export function timeseriesRangeError(start: string, end: string): string | null {
+export function timeseriesRangeError(
+	start: string,
+	end: string,
+	maxDays: number = MAX_TIMESERIES_DAYS
+): string | null {
 	const days = timeseriesRangeDays(start, end);
 	if (days === null) return 'Isi tanggal awal dan akhir.';
 	if (days < 1) return 'Tanggal akhir tidak boleh sebelum tanggal awal.';
-	if (days > MAX_TIMESERIES_DAYS) return `Rentang maksimal ${MAX_TIMESERIES_DAYS} hari.`;
+	if (days > maxDays) return `Rentang maksimal ${maxDays} hari.`;
 	return null;
 }
 

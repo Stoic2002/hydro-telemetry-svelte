@@ -9,7 +9,9 @@
 	import Button from '$components/controls/Button.svelte';
 	import SegmentedControl from '$components/controls/SegmentedControl.svelte';
 	import Select from '$components/controls/Select.svelte';
+	import StatusToggle from '$components/controls/StatusToggle.svelte';
 	import SourceMarker, {
+		DAILY_SOURCE_TYPES,
 		SOURCE_MARKER_LABEL,
 		type SourceMarkerType
 	} from '$components/controls/SourceMarker.svelte';
@@ -37,14 +39,7 @@
 
 	const noop = () => {};
 
-	const SOURCE_TYPES: SourceMarkerType[] = [
-		'api',
-		'formula',
-		'input',
-		'constant',
-		'constant-input',
-		'unavailable'
-	];
+	const SOURCE_TYPES: SourceMarkerType[] = DAILY_SOURCE_TYPES;
 
 	const REPORT_FLOW = [
 		{ label: 'Menunggu', tone: 'amber' as const, spinning: false },
@@ -136,7 +131,7 @@
 							label: 'TMA Waduk',
 							parameter: 'reservoir',
 							unit: 'm',
-							tags: []
+							stations: [{ station: '', label: 'Default' }]
 						}
 					}}
 					onUpload={noop}
@@ -238,18 +233,18 @@
 				Baris 7: kode_plta "XYZ" tidak dikenal.
 			</Banner>
 		{:else if id === 'user-status'}
-			<!-- Status di tabel pengguna bukan komponen tersendiri; kelasnya disamakan. -->
+			<!-- Sakelar yang sama dengan kolom Status di tabel pengguna. -->
 			<div class="grid w-full grid-cols-[auto_1fr] items-center gap-x-6 gap-y-2.5">
 				{#each [{ role: 'Operator PLTA' as const, isActive: true }, { role: 'Viewer' as const, isActive: false }] as item (item.role)}
 					<RoleBadge role={item.role} />
-					<button
-						type="button"
-						class="flex w-fit items-center gap-1.5 border-0 bg-transparent p-0 text-[13px] font-medium text-text-secondary"
-					>
-						<span class={`size-2 rounded-full ${item.isActive ? 'bg-green-500' : 'bg-disabled'}`}
-						></span>
-						{item.isActive ? 'Aktif' : 'Nonaktif'}
-					</button>
+					<div class="flex">
+						<StatusToggle
+							variant="inline"
+							label={`Status akun ${item.role}`}
+							isActive={item.isActive}
+							onChange={() => {}}
+						/>
+					</div>
 				{/each}
 			</div>
 		{/if}

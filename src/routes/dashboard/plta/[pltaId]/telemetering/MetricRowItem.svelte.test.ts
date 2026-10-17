@@ -17,7 +17,7 @@ const ROW: MetricRow = {
 	source: 'Input',
 	sourceType: 'input',
 	hasData: true,
-	uploadTarget: { label: 'TMA Waduk', parameter: 'reservoir', unit: 'm', tags: [] } as never
+	uploadTarget: { label: 'TMA Waduk', parameter: 'reservoir', unit: 'm', stations: [] } as never
 };
 
 describe('tombol isian data harian', () => {

@@ -15,6 +15,7 @@
 	import { formatTimeWIB } from '$shared/lib/date';
 	import { formatMetric } from '$shared/utils/number';
 	import { getLabelCoordinate } from './label-placement';
+	import { spreadMarkers, type SpreadMarker } from './marker-spread';
 	import { horizontalShiftForWidth, pixelShiftToLongitude } from './projection';
 	import { CLOUD_TIERS } from './cloud-mask';
 	import { MEASURED_RAIN_COLOR, describeMeasuredRain } from './measured-rain';
@@ -31,21 +32,9 @@
 		 * jadi pemanggil menaruhnya di bawah peta.
 		 */
 		bottomOverlay?: Snippet;
-		/**
-		 * Kartu tambahan di kolom kanan, di antara Awan Hujan dan Legenda — di
-		 * Overview: Detail ringkasan hidrologi. Kolomnya bergulir bila isinya
-		 * melebihi tinggi peta.
-		 */
-		rightPanel?: Snippet;
 	}
 
-	let {
-		onPLTAClick,
-		showPrecipitation = false,
-		projectionConfig,
-		bottomOverlay,
-		rightPanel
-	}: Props = $props();
+	let { onPLTAClick, showPrecipitation = false, projectionConfig, bottomOverlay }: Props = $props();
 
 	/**
 	 * `react-simple-maps` tidak punya padanan Svelte, jadi `d3-geo` dipakai
@@ -228,6 +217,23 @@
 		mapSize.width < 480 ? 0.62 : mapSize.width < 768 ? 0.78 : 1
 	);
 	const labelFontSize = $derived(mapSize.width < 480 ? 5.8 : mapSize.width < 768 ? 7 : 8.5);
+
+	/**
+	 * Posisi layar tiap penanda PLTA. Yang berdempet disebar melingkar dan diberi
+	 * garis ke koordinat aslinya (lihat `marker-spread.ts`); dihitung ulang saat
+	 * proyeksi berubah karena jaraknya diukur dalam piksel.
+	 */
+	const markerPositions = $derived.by(() => {
+		const points = plantList.flatMap((plant) => {
+			if (plant.longitude === null || plant.latitude === null) return [];
+			const position = projection([plant.longitude, plant.latitude]);
+			if (!position || !Number.isFinite(position[0]) || !Number.isFinite(position[1])) return [];
+			return [{ id: plant.id, x: position[0], y: position[1] }];
+		});
+		return new Map<string, SpreadMarker>(
+			spreadMarkers(points).map((marker) => [marker.id, marker])
+		);
+	});
 
 	const hoveredPlant = $derived(
 		hoveredId ? (plantList.find((plant) => plant.id === hoveredId) ?? null) : null
@@ -448,9 +454,31 @@
 				{/each}
 			</g>
 
+			<!--
+				Garis penghubung penanda yang disebar, digambar lebih dulu supaya berada
+				di bawah seluruh penanda. Titik kecil di ujungnya = koordinat asli.
+			-->
+			<g pointer-events="none" aria-hidden="true">
+				{#each markerPositions.values() as marker (marker.id)}
+					{#if marker.isDisplaced}
+						<line
+							x1={marker.anchorX}
+							y1={marker.anchorY}
+							x2={marker.x}
+							y2={marker.y}
+							stroke="#6e6e6e"
+							stroke-opacity={0.7}
+							stroke-width={1}
+						/>
+						<circle cx={marker.anchorX} cy={marker.anchorY} r={2} fill="#6e6e6e" />
+					{/if}
+				{/each}
+			</g>
+
 			{#each plantList as plant (plant.id)}
 				{#if plant.longitude !== null && plant.latitude !== null}
-					{@const position = projection([plant.longitude, plant.latitude])}
+					{@const marker = markerPositions.get(plant.id)}
+					{@const position = marker ? [marker.x, marker.y] : null}
 					{#if position}
 						{@const isHighlighted = hoveredId === plant.id}
 						{@const isFocused = focusedId === plant.id}
@@ -752,8 +780,6 @@
 					{/if}
 				</div>
 			{/if}
-
-			{@render rightPanel?.()}
 
 			<div
 				class="pointer-events-auto mt-auto flex shrink-0 flex-col gap-2 rounded-xl border border-border-subtle bg-surface-raised/95 px-3 py-2.5 shadow-overlay backdrop-blur-sm sm:px-3.5"

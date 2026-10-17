@@ -3,6 +3,8 @@ import type {
 	DailyTemplateOptions,
 	DailyLayoutChanges,
 	DailyVisibility,
+	LabelChanges,
+	MonthlyFieldLabels,
 	DailyHydrologyPanel,
 	DailyHydrologyExcelResult,
 	DailyHydrologyReportScope,
@@ -43,6 +45,11 @@ export interface HydrologyRepository {
 	 * ada yang tersimpan.
 	 */
 	setDailyVisibility(pltaId: string, changes: DailyLayoutChanges): Promise<DailyVisibility>;
+	/** Nama metrik panel harian satu PLTA — khusus admin. */
+	setDailyLabels(pltaId: string, labels: LabelChanges): Promise<DailyVisibility>;
+	getMonthlyFieldLabels(options?: HydrologyRequestOptions): Promise<MonthlyFieldLabels>;
+	/** Nama bidang bulanan — berlaku untuk SEMUA PLTA, khusus admin. */
+	setMonthlyFieldLabels(labels: LabelChanges): Promise<MonthlyFieldLabels>;
 	/** Panel satu bulan. Bulan yang belum diisi tetap balik dengan `id` null. */
 	getMonthlyPanel(
 		pltaId: string,

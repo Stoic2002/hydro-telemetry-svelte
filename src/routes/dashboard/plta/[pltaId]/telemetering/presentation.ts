@@ -7,8 +7,10 @@ import type {
 	NullableMetric
 } from '$features/hydrology';
 import type { MonitoringParameter, MonitoringParameterLatest } from '$features/monitoring';
-import type { PlantTag } from '$features/plta';
-import type { DailyTelemetryUploadTarget } from '$features/telemetry-upload';
+import type {
+	DailyTelemetryUploadStation,
+	DailyTelemetryUploadTarget
+} from '$features/telemetry-upload';
 import { formatLongCalendarDate, toISODateWIB } from '$shared/lib/date';
 
 export const MONTHS = [
@@ -26,9 +28,15 @@ export const MONTHS = [
 	'Desember'
 ] as const;
 
-/** Sejalan dengan `SourceMarkerType` — penanda barisnya memakai tipe yang sama. */
-export type MetricSource =
-	'api' | 'formula' | 'input' | 'unavailable' | 'constant' | 'constant-input';
+/**
+ * Sejalan dengan `SourceMarkerType` — penanda barisnya memakai tipe yang sama.
+ *
+ * Panel harian hanya memakai empat (13 Okt 2026): Realtime, Formulasi, Input,
+ * dan Konstanta (input). Penanda "Konstanta" polos dan "Belum tersedia" dihapus
+ * atas permintaan tim — baris tanpa nilai tetap memakai penanda sumbernya.
+ * `unavailable` tinggal untuk sel tabel bulanan yang belum terisi.
+ */
+export type MetricSource = 'api' | 'formula' | 'input' | 'constant-input' | 'unavailable';
 
 /** Pembacaan per stasiun di dalam satu parameter. */
 export interface MetricSubRow {
@@ -136,6 +144,26 @@ export interface MetricRow {
 	subRows?: MetricSubRow[];
 	/** Terisi hanya untuk pembacaan sensor yang sudah melewati ambang umur. */
 	freshness?: MetricFreshness;
+	/** Nilainya sedang dihitung ulang server (mis. penyebut DMN diganti); tampilkan shimmer. */
+	isRecalculating?: boolean;
+}
+
+/**
+ * Metrik yang berubah bila penyebut DMN diganti. Menurut backend hanya SHFL
+ * (ketersediaan energi thd MOL ÷ beban penuh) dan beban penuhnya sendiri;
+ * ketersediaan energi F4/F5 sengaja tidak terpengaruh.
+ */
+export const DMN_DEPENDENT_METRIC_KEYS: ReadonlySet<string> = new Set([
+	'service_hour_full_load',
+	'dmn_beban_penuh'
+]);
+
+/** Tandai baris yang nilainya menunggu hasil penyebut DMN yang baru. */
+export function markRecalculating(rows: MetricRow[], isRecalculating: boolean): MetricRow[] {
+	if (!isRecalculating) return rows;
+	return rows.map((row) =>
+		row.key && DMN_DEPENDENT_METRIC_KEYS.has(row.key) ? { ...row, isRecalculating: true } : row
+	);
 }
 
 /** Nilai realtime yang menimpa nilai dari endpoint harian. */
@@ -223,14 +251,14 @@ const dashboardSourceType: Record<
 	measured: 'api',
 	derived: 'formula',
 	plan: 'input',
-	constant: 'constant'
+	constant: 'constant-input'
 };
 
 const dashboardSourceLabel: Record<DashboardMetric['source'], string> = {
 	measured: 'Realtime',
 	derived: 'Formulasi',
-	plan: 'Rencana',
-	constant: 'Konstanta'
+	plan: 'Input',
+	constant: 'Konstanta (input)'
 };
 
 /**
@@ -250,46 +278,42 @@ function metricSubRows(metric: DashboardMetric): MetricSubRow[] | undefined {
 
 export function dashboardMetricRow(
 	key: string,
-	metric: DashboardMetric | undefined,
+	metric: DashboardMetric,
 	isLoading: boolean,
 	uploadTarget?: DailyTelemetryUploadTarget,
 	override?: MetricOverride,
 	now?: number
 ): MetricRow {
+	const sourceType = override ? 'api' : dashboardSourceType[metric.source];
+	const source = override?.source ?? dashboardSourceLabel[metric.source];
+
 	if (isLoading) {
 		return {
 			key,
-			label: metric?.label ?? key,
+			label: metric.label || key,
 			value: 'Memuat…',
 			source: 'Memuat',
-			sourceType: 'api',
+			sourceType,
 			hasData: false,
 			uploadTarget
 		};
 	}
 
-	if (!metric || (override?.value ?? metric.value) === null) {
+	const value = override?.value ?? metric.value;
+	if (value === null) {
+		// Penanda tetap penanda sumbernya — operator perlu tahu baris kosong ini
+		// menunggu sensor, formula, atau isiannya sendiri.
 		return {
 			key,
-			label: metric?.label ?? key,
+			label: metric.label || key,
 			value: 'N/A',
-			source: 'Belum tersedia',
-			sourceType: 'unavailable',
+			source,
+			sourceType,
 			hasData: false,
 			uploadTarget,
-			subRows: metric ? metricSubRows(metric) : undefined
+			subRows: metricSubRows(metric)
 		};
 	}
-
-	// Konstanta yang punya tag unggah dibedakan dari konstanta yang hanya bisa
-	// diubah lewat konfigurasi server: penandanya menggabungkan bentuk konstanta
-	// dengan warna input, sehingga operator tahu baris itu bisa dia isi sendiri.
-	const baseSourceType = dashboardSourceType[metric.source];
-	const sourceType = override
-		? 'api'
-		: baseSourceType === 'constant' && uploadTarget
-			? 'constant-input'
-			: baseSourceType;
 
 	// Umur hanya berarti untuk pembacaan sensor. Rencana, konstanta, dan hasil
 	// formula diisi sekali sehari atau dihitung ulang server, jadi "sudah lama"
@@ -305,9 +329,9 @@ export function dashboardMetricRow(
 	return {
 		key,
 		label: metric.label,
-		value: formatHydrologyMetric(override?.value ?? metric.value),
+		value: formatHydrologyMetric(value),
 		unit: metric.unit ?? undefined,
-		source: override?.source ?? dashboardSourceLabel[metric.source],
+		source,
 		sourceType,
 		hasData: true,
 		uploadTarget,
@@ -345,7 +369,20 @@ export function dashboardMetricRows(
 	);
 
 	if (entries.length === 0) {
-		return [dashboardMetricRow('Parameter dashboard', undefined, isLoading)];
+		// Data pertama belum datang: satu baris memuat menjaga kartu tetap berisi.
+		// Panel yang memang kosong dijelaskan kartunya — baris "N/A" tanpa nama
+		// dulu dipakai di sini dan terbaca seperti parameter sungguhan.
+		return isLoading
+			? [
+					{
+						label: 'Memuat parameter…',
+						value: 'Memuat…',
+						source: 'Memuat',
+						sourceType: 'api',
+						hasData: false
+					}
+				]
+			: [];
 	}
 
 	return entries.map(([key, metric]) =>
@@ -357,146 +394,57 @@ export function currentWibDate(date = new Date()): string {
 	return toISODateWIB(date);
 }
 
-export function buildUploadTarget(
-	tags: PlantTag[],
-	parameter: MonitoringParameter,
-	label: string,
-	unit: string,
-	station?: string
-): DailyTelemetryUploadTarget | undefined {
-	const matchingTags = tags.filter(
-		(tag) =>
-			tag.parameter === parameter &&
-			tag.protocol === 'upload' &&
-			tag.enabled &&
-			(station === undefined || tag.station.toUpperCase() === station.toUpperCase())
-	);
-
-	if (matchingTags.length === 0) return undefined;
-
-	return {
-		label,
-		parameter,
-		unit,
-		tags: matchingTags
-	};
+function uploadStation(input: { station: string }, label?: string): DailyTelemetryUploadStation {
+	return { station: input.station, label: label || input.station || 'Default' };
 }
 
 /**
- * Cadangan pemetaan baris panel harian → parameter unggahnya.
+ * Target unggah untuk setiap baris panel yang bisa diisi manual di PLTA ini,
+ * **hanya** dari field `input` yang dikirim server (13 Okt 2026).
  *
- * Sumber utamanya sekarang field `input` pada tiap metrik, yang dikirim server.
- * Tabel ini hanya dipakai untuk baris yang `input`-nya masih `null` padahal
- * PLTA-nya punya tag, yaitu dua kasus yang belum ditangani backend:
+ * Dulu tujuan disusun dari daftar tag PLTA ditambah tabel cadangan per kunci
+ * metrik. Backend kini mengisi `input` untuk semua kasus dan menegaskan
+ * tujuan tidak boleh diturunkan dari `source`: Pintu Air ber-`source` `plan`
+ * padahal tagnya tidak ada (unggahannya ditolak), dan Target TMA sengaja
+ * `input: null` karena diubah lewat RTOW, bukan telemetri. `input` yang tidak
+ * `null` dijamin diterima server.
  *
- * 1. Rencana turbin di PLTA yang tagnya TIDAK dipecah per unit — tag
- *    `plan_outflow_turbine` tanpa station, sementara barisnya per unit.
- * 2. Realisasi spillway (`outflow_spillway`) yang di sebagian PLTA diisi manual.
- *
- * Tanpa cadangan ini, tombol "Input data" di baris-baris itu hilang. Hapus
- * tabelnya begitu backend mengisi `input` untuk kedua kasus tersebut.
- */
-interface MetricUploadBinding {
-	parameter: MonitoringParameter;
-	/** Station tag yang dituju. Kosong = seluruh station parameter itu. */
-	station?: string;
-	/**
-	 * Bila PLTA ini TIDAK memecah tag parameter itu per station, pakai tag
-	 * tunggalnya. Hanya untuk turbin: sebagian PLTA mencatat rencana turbin per
-	 * unit (`T1`, `T2`, …), sebagian lagi satu tag tanpa station.
-	 *
-	 * Pemecahan per station sengaja dihormati: di PLTA yang hanya punya T1–T3,
-	 * baris Unit 4 harus tetap hanya-baca, bukan mengarah ke tag unit lain.
-	 */
-	fallbackToAnyStation?: boolean;
-}
-
-function turbineUnit(unit: number): MetricUploadBinding {
-	return { parameter: 'plan_outflow_turbine', station: `T${unit}`, fallbackToAnyStation: true };
-}
-
-export const METRIC_UPLOAD_BINDINGS: Record<string, MetricUploadBinding> = {
-	// Hulu
-	target_tma: { parameter: 'plan_water_level' },
-	batas_tma_limpas: { parameter: 'const_tma_limpas' },
-	batas_tma_mol: { parameter: 'const_tma_mol' },
-
-	// Bendungan — rencana
-	rencana_debit_turbin_unit_1: turbineUnit(1),
-	rencana_debit_turbin_unit_2: turbineUnit(2),
-	rencana_debit_turbin_unit_3: turbineUnit(3),
-	rencana_debit_turbin_unit_4: turbineUnit(4),
-	rencana_debit_spillway: { parameter: 'plan_outflow_spillway' },
-	rencana_debit_hjv: { parameter: 'plan_outflow_hjv' },
-	rencana_debit_irigasi: { parameter: 'plan_outflow_irigasi' },
-	rencana_debit_irigasi_kanan: { parameter: 'plan_outflow_irigasi', station: 'KANAN' },
-	rencana_debit_irigasi_kiri: { parameter: 'plan_outflow_irigasi', station: 'KIRI' },
-	rencana_debit_ddc: { parameter: 'plan_outflow_ddc' },
-	rencana_debit_buangan_sampah: { parameter: 'plan_outflow_trash' },
-	rencana_debit_intake_pdam: { parameter: 'plan_outflow_pdam' },
-	rencana_debit_pintu_air: { parameter: 'plan_outflow_sluice' },
-	rencana_debit_pintu_pembilas: { parameter: 'plan_outflow_flushing' },
-
-	// Bendungan — realisasi yang di sebagian PLTA dicatat manual, bukan sensor
-	debit_spillway: { parameter: 'outflow_spillway' },
-	debit_hjv: { parameter: 'outflow_hjv' },
-	debit_irigasi: { parameter: 'outflow_irigasi' },
-	debit_irigasi_kanan: { parameter: 'outflow_irigasi', station: 'KANAN' },
-	debit_irigasi_kiri: { parameter: 'outflow_irigasi', station: 'KIRI' },
-	debit_ddc: { parameter: 'outflow_ddc' },
-	debit_buangan_sampah: { parameter: 'outflow_trash' },
-	debit_intake_pdam: { parameter: 'outflow_pdam' },
-	debit_pintu_air: { parameter: 'outflow_sluice' },
-	debit_pintu_pembilas: { parameter: 'outflow_flushing' },
-
-	// Hilir
-	tma_tailrace: { parameter: 'const_tma_tailrace' },
-	batas_tma_hilir_maks: { parameter: 'const_tma_hilir_maks' },
-	swc_acuan: { parameter: 'const_swc' }
-};
-
-/**
- * Target unggah untuk setiap baris panel yang bisa diisi manual di PLTA ini.
- *
- * Urutannya: `metric.input` dari server lebih dulu, lalu `METRIC_UPLOAD_BINDINGS`
- * sebagai cadangan. Label dan satuan diambil dari metriknya sendiri, jadi judul
- * form selalu sama dengan nama baris yang diklik operator.
+ * Metrik multi-stasiun (pintu spillway G1–G4, stasiun hujan) ber-`input` `null`
+ * di tingkat metrik, tetapi tiap stasiun membawa `input`-nya sendiri; seluruh
+ * stasiun itu menjadi pilihan Station di satu form. Label dan satuan diambil
+ * dari metriknya, jadi judul form selalu sama dengan nama baris yang diklik.
  */
 export function resolveMetricUploadTargets(
-	groups: (DashboardMetricGroup | undefined)[],
-	tags: PlantTag[]
+	groups: (DashboardMetricGroup | undefined)[]
 ): Record<string, DailyTelemetryUploadTarget | undefined> {
 	const targets: Record<string, DailyTelemetryUploadTarget | undefined> = {};
 
 	for (const group of groups) {
 		for (const [key, metric] of Object.entries(group ?? {})) {
-			const label = metric.label || key;
-			const unit = metric.unit ?? '';
+			const base = { label: metric.label || key, unit: metric.unit ?? '' };
 
-			// Server sudah menyebut tujuannya: pakai apa adanya, termasuk station.
 			if (metric.input) {
-				targets[key] = buildUploadTarget(
-					tags,
-					metric.input.parameter as MonitoringParameter,
-					label,
-					unit,
-					metric.input.station || undefined
-				);
-				if (targets[key]) continue;
+				targets[key] = {
+					...base,
+					parameter: metric.input.parameter as MonitoringParameter,
+					stations: [uploadStation(metric.input)]
+				};
+				continue;
 			}
 
-			const binding = METRIC_UPLOAD_BINDINGS[key];
-			if (!binding) continue;
+			const stationInputs = (metric.stations ?? []).filter((station) => station.input !== null);
+			const parameter = stationInputs[0]?.input?.parameter;
+			if (!parameter) continue;
 
-			const isSplitPerStation = tags.some(
-				(tag) => tag.parameter === binding.parameter && tag.enabled && tag.station !== ''
-			);
-
-			targets[key] =
-				buildUploadTarget(tags, binding.parameter, label, unit, binding.station) ??
-				(binding.fallbackToAnyStation && !isSplitPerStation
-					? buildUploadTarget(tags, binding.parameter, label, unit)
-					: undefined);
+			// Satu form = satu parameter. Stasiun berparameter lain (belum pernah
+			// terjadi) tidak dicampur ke pilihan Station.
+			targets[key] = {
+				...base,
+				parameter: parameter as MonitoringParameter,
+				stations: stationInputs
+					.filter((station) => station.input?.parameter === parameter)
+					.map((station) => uploadStation(station.input!, station.label))
+			};
 		}
 	}
 
@@ -626,3 +574,99 @@ export function buildMonthlyComparison(
 		]
 	};
 }
+
+/**
+ * Mode tampilan Hidrologi Harian (13 Okt 2026). Dua sumbu yang bisa dipadukan
+ * — zona mana yang tampil, dan baris mana di dalamnya — keduanya di query
+ * string (`?zona=`, `?baris=`) supaya bisa dibagikan seperti filter lain.
+ */
+export type DailyZoneFilter = 'semua' | 'hulu' | 'bendungan' | 'hilir';
+export type DailyRowFilter = 'semua' | 'perhatian' | 'manual' | 'ringkas';
+
+export const DAILY_ZONE_FILTERS: { value: DailyZoneFilter; label: string }[] = [
+	{ value: 'semua', label: 'Semua' },
+	{ value: 'hulu', label: 'Hulu' },
+	{ value: 'bendungan', label: 'Bendungan' },
+	{ value: 'hilir', label: 'Hilir' }
+];
+
+export const DAILY_ROW_FILTERS: { value: DailyRowFilter; label: string }[] = [
+	{ value: 'semua', label: 'Semua' },
+	{ value: 'perhatian', label: 'Perlu perhatian' },
+	{ value: 'manual', label: 'Isian manual' },
+	{ value: 'ringkas', label: 'Ringkas' }
+];
+
+export function parseDailyZoneFilter(raw: string | null): DailyZoneFilter {
+	return DAILY_ZONE_FILTERS.some((option) => option.value === raw)
+		? (raw as DailyZoneFilter)
+		: 'semua';
+}
+
+export function parseDailyRowFilter(raw: string | null): DailyRowFilter {
+	return DAILY_ROW_FILTERS.some((option) => option.value === raw)
+		? (raw as DailyRowFilter)
+		: 'semua';
+}
+
+/**
+ * Metrik kunci mode Ringkas: posisi air, aliran masuk-keluar, cadangan energi,
+ * dan tinggi jatuh. Usulan awal; isinya menunggu kesepakatan tim.
+ */
+export const SUMMARY_METRIC_KEYS: ReadonlySet<string> = new Set([
+	'tma_waduk',
+	'target_tma',
+	'inflow',
+	'volume_efektif_thd_target',
+	'service_hour_full_load',
+	'debit_turbin_total',
+	'debit_spillway',
+	'head'
+]);
+
+function needsAttention(row: MetricRow, pendingFormulas: ReadonlySet<string>): boolean {
+	return (
+		row.freshness !== undefined ||
+		!row.hasData ||
+		(row.key !== undefined && pendingFormulas.has(row.key))
+	);
+}
+
+function isManualRow(row: MetricRow): boolean {
+	return (
+		row.uploadTarget !== undefined ||
+		row.sourceType === 'input' ||
+		row.sourceType === 'constant-input'
+	);
+}
+
+/**
+ * Baris yang tampil pada mode `filter`. Baris memuat selalu dipertahankan,
+ * supaya kartu tidak tampak kosong sebelum data pertama datang.
+ *
+ * - **Perlu perhatian**: sensor kuning/merah, nilai kosong, dan formula yang
+ *   masih menunggu data.
+ * - **Isian manual**: baris yang diisi operator (Input, Konstanta (input)) atau
+ *   punya tombol isian.
+ * - **Ringkas**: `SUMMARY_METRIC_KEYS`.
+ */
+export function filterMetricRows(
+	rows: MetricRow[],
+	filter: DailyRowFilter,
+	pendingFormulas: ReadonlySet<string> = new Set()
+): MetricRow[] {
+	if (filter === 'semua') return rows;
+
+	return rows.filter((row) => {
+		if (row.source === 'Memuat') return true;
+		if (filter === 'perhatian') return needsAttention(row, pendingFormulas);
+		if (filter === 'manual') return isManualRow(row);
+		return row.key !== undefined && SUMMARY_METRIC_KEYS.has(row.key);
+	});
+}
+
+export const DAILY_ROW_FILTER_EMPTY_MESSAGE: Record<Exclude<DailyRowFilter, 'semua'>, string> = {
+	perhatian: 'Semua parameter di zona ini normal.',
+	manual: 'Tidak ada parameter isian manual di zona ini.',
+	ringkas: 'Tidak ada metrik kunci di zona ini.'
+};

@@ -1,3 +1,3 @@
 import { requireDataTools } from '$core/guards';
 
-export const load = () => requireDataTools();
+export const load = ({ url }) => requireDataTools(url);

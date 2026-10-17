@@ -1,15 +1,25 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
+	import IconSliders from '~icons/ph/sliders-horizontal';
 
+	import Button from '$components/controls/Button.svelte';
 	import SegmentedControl from '$components/controls/SegmentedControl.svelte';
 	import Select from '$components/controls/Select.svelte';
-	import EmptyState from '$components/ui/EmptyState.svelte';
+	import Banner from '$components/ui/Banner.svelte';
 	import PageHeader from '$components/ui/PageHeader.svelte';
-	import { createPLTATagsQuery, getActivePLTA } from '$features/plta';
+	import { authStore, canConfigureDisplay } from '$features/auth';
+	import { getActivePLTA } from '$features/plta';
 	import PlantSwitcher from '$features/plta/components/PlantSwitcher.svelte';
-	import { alignTrendRange, createTrendQuery, type TrendResolution } from '$features/trends';
-	import TrendCard, { type TrendComparisonView } from './TrendCard.svelte';
+	import {
+		alignTrendRange,
+		createPlantTrendListQuery,
+		type TrendResolution
+	} from '$features/trends';
+	import TrendListSheet from '$features/trends/components/TrendListSheet.svelte';
+	import ParameterTrendView from './ParameterTrendView.svelte';
+	import PlantTrendBoard from './PlantTrendBoard.svelte';
+	import { selectTrendChart, trendChartOptions } from './plant-trend';
 	import {
 		TREND_COMPARISONS,
 		comparisonOffsetMs,
@@ -21,23 +31,8 @@
 	const TREND_PERIODS = ['24 Jam Terakhir', '7 Hari Terakhir', '30 Hari Terakhir'] as const;
 	type TrendPeriod = (typeof TREND_PERIODS)[number];
 
-	const TREND_COLORS = [
-		'var(--color-chart-series-1)',
-		'var(--color-chart-series-2)',
-		'var(--color-chart-series-3)',
-		'var(--color-chart-series-4)',
-		'var(--color-chart-series-5)',
-		'var(--color-chart-series-6)'
-	];
-
 	function isTrendPeriod(value: string | null): value is TrendPeriod {
 		return TREND_PERIODS.some((period) => period === value);
-	}
-
-	function formatParameterLabel(parameter: string): string {
-		return parameter
-			.replaceAll('_', ' ')
-			.replace(/\b\w/g, (character) => character.toLocaleUpperCase('id-ID'));
 	}
 
 	function periodConfig(period: TrendPeriod): { durationMs: number; resolution: TrendResolution } {
@@ -56,6 +51,9 @@
 	const activePLTA = $derived(getActivePLTA());
 	const displayName = $derived(activePLTA.displayName);
 	const pltaId = $derived(activePLTA.pltaId);
+	const canConfigure = $derived(canConfigureDisplay(authStore.user));
+
+	let isListSheetOpen = $state(false);
 
 	/** Filter disimpan di URL supaya tautan ke grafik tertentu bisa dibagikan. */
 	const period = $derived.by(() => {
@@ -63,73 +61,24 @@
 		return isTrendPeriod(value) ? value : TREND_PERIODS[0];
 	});
 	const parameterParam = $derived(page.url.searchParams.get('parameter'));
+	const chartParam = $derived(page.url.searchParams.get('grafik'));
 	const comparisonMode = $derived.by(() => {
 		const value = page.url.searchParams.get('compare');
 		return isTrendComparison(value) ? value : 'none';
 	});
 
-	const tagsQuery = createPLTATagsQuery(
-		() => pltaId,
-		() => ({ page: 1, limit: 200, enabled: true })
+	/**
+	 * Daftar tren per PLTA (13 Okt 2026): admin menetapkan item dan
+	 * pengelompokannya, dan seluruh grafiknya datang dari satu panggilan. PLTA
+	 * yang daftarnya belum diatur memakai tampilan lama — satu parameter dari
+	 * daftar tag — supaya halamannya tidak kosong.
+	 */
+	const listQuery = createPlantTrendListQuery(() => pltaId);
+	const chartOptions = $derived(listQuery.data ? trendChartOptions(listQuery.data) : []);
+	const selectedChart = $derived(
+		listQuery.data ? selectTrendChart(listQuery.data, chartOptions, chartParam) : undefined
 	);
-
-	const parameterOptions = $derived.by(() => {
-		if (tagsQuery.isPlaceholderData) return [];
-
-		const grouped: Record<
-			string,
-			{ value: string; label: string; unit: string; stations: string[] }
-		> = {};
-
-		for (const tag of tagsQuery.data?.items ?? []) {
-			const value = tag.parameter.trim();
-			if (!value) continue;
-
-			const existing = (grouped[value] ??= {
-				value,
-				label: formatParameterLabel(value),
-				unit: tag.unit.trim(),
-				stations: []
-			});
-			if (!existing.unit && tag.unit.trim()) existing.unit = tag.unit.trim();
-			const station = tag.station.trim();
-			if (station && !existing.stations.includes(station)) existing.stations.push(station);
-		}
-
-		return Object.values(grouped)
-			.sort((left, right) => left.label.localeCompare(right.label, 'id-ID'))
-			.map((option, index) => {
-				// Curah hujan dan outflow total adalah besaran terakumulasi, jadi
-				// diagregasi dengan jumlah — bukan rata-rata seperti parameter lain.
-				const isRainfall = option.value.includes('rainfall');
-				const isAccumulated = isRainfall || option.value === 'total_outflow';
-
-				return {
-					...option,
-					subtitle:
-						option.stations.length > 0
-							? `${option.stations.length} stasiun aktif`
-							: 'Tag aktif PLTA',
-					color: TREND_COLORS[index % TREND_COLORS.length],
-					aggregation: isAccumulated ? ('sum' as const) : ('avg' as const),
-					chartType: isRainfall ? ('bar' as const) : ('line' as const)
-				};
-			});
-	});
-
-	const parameterConfig = $derived(
-		parameterOptions.find((item) => item.value === parameterParam) ??
-			parameterOptions[0] ?? {
-				value: '',
-				label: 'Parameter',
-				subtitle: 'Menunggu tag aktif PLTA',
-				unit: '',
-				stations: [] as string[],
-				color: TREND_COLORS[0],
-				aggregation: 'avg' as const,
-				chartType: 'line' as const
-			}
-	);
+	const isConfigured = $derived(Boolean(listQuery.data?.isConfigured && selectedChart));
 
 	const timeRange = $derived.by(() => {
 		const config = periodConfig(period);
@@ -139,51 +88,21 @@
 		};
 	});
 
-	const trendQuery = createTrendQuery(() => ({
-		pltaId,
-		parameter: parameterConfig.value,
-		...timeRange,
-		aggregation: parameterConfig.aggregation
-	}));
-
-	const comparisonOffset = $derived(comparisonOffsetMs(comparisonMode, timeRange));
-	const comparisonRange = $derived(shiftRange(timeRange, comparisonOffset));
-
-	// Parameter, resolusi, dan agregasi sama persis dengan periode ini; hanya
-	// rentangnya yang digeser. Tanpa itu kedua garis tidak sebanding.
-	const comparisonQuery = createTrendQuery(
-		() => ({
-			pltaId,
-			parameter: parameterConfig.value,
-			...comparisonRange,
-			resolution: timeRange.resolution,
-			aggregation: parameterConfig.aggregation
-		}),
-		() => comparisonMode !== 'none'
-	);
-
-	const comparisonView = $derived.by<TrendComparisonView | null>(() => {
+	const comparison = $derived.by(() => {
 		if (comparisonMode === 'none') return null;
+		const offsetMs = comparisonOffsetMs(comparisonMode, timeRange);
+		const range = shiftRange(timeRange, offsetMs);
 		const option = TREND_COMPARISONS.find((item) => item.value === comparisonMode);
 		const isLastYear = comparisonMode === 'last-year';
-
 		return {
-			label: `${option?.label} (${formatRangeLabel(comparisonRange, isLastYear)})`,
-			currentLabel: `Periode ini (${formatRangeLabel(timeRange, isLastYear)})`,
-			offsetMs: comparisonOffset,
-			series: comparisonQuery.data,
-			isLoading: comparisonQuery.isLoading,
-			isError: comparisonQuery.isError,
-			onRetry: () => void comparisonQuery.refetch()
+			range,
+			offsetMs,
+			label: `${option?.label} (${formatRangeLabel(range, isLastYear)})`,
+			currentLabel: `Periode ini (${formatRangeLabel(timeRange, isLastYear)})`
 		};
 	});
 
-	const isWaitingForTags = $derived(tagsQuery.isLoading || tagsQuery.isPlaceholderData);
-	const hasNoParameters = $derived(
-		!isWaitingForTags && !tagsQuery.isError && parameterOptions.length === 0
-	);
-
-	async function setFilter(key: 'parameter' | 'period' | 'compare', value: string) {
+	async function setFilter(key: 'parameter' | 'grafik' | 'period' | 'compare', value: string) {
 		// Salinan sekali pakai untuk menyusun URL berikutnya; dibuang setelah
 		// `goto`, jadi tidak perlu `SvelteURLSearchParams`.
 		// eslint-disable-next-line svelte/prefer-svelte-reactivity
@@ -196,9 +115,17 @@
 <div class="flex flex-1 flex-col gap-6">
 	<PageHeader
 		title="Tren & Grafik"
-		description={`Pilih satu parameter untuk melihat tren data PLTA ${displayName}`}
+		description={isConfigured
+			? `Daftar tren PLTA ${displayName}`
+			: `Pilih satu parameter untuk melihat tren data PLTA ${displayName}`}
 	>
 		{#snippet actions()}
+			{#if canConfigure}
+				<Button type="button" variant="ghost" size="sm" onclick={() => (isListSheetOpen = true)}>
+					{#snippet leftIcon()}<IconSliders class="size-4" />{/snippet}
+					Atur daftar tren
+				</Button>
+			{/if}
 			<PlantSwitcher page="trends" />
 		{/snippet}
 	</PageHeader>
@@ -206,52 +133,64 @@
 	<section
 		class="flex flex-col gap-3 border-b border-border-subtle pb-4 sm:flex-row sm:items-center sm:gap-4"
 	>
-		<Select
-			ariaLabel="Parameter grafik"
-			value={parameterConfig.value}
-			disabled={isWaitingForTags || parameterOptions.length === 0}
-			onValueChange={(value) => void setFilter('parameter', value)}
-			controlSize="sm"
-			class="w-full sm:w-60"
-			options={parameterOptions.map((item) => ({ value: item.value, label: item.label }))}
-		/>
 		<SegmentedControl
 			ariaLabel="Periode tren"
 			value={period}
 			onChange={(value) => void setFilter('period', value)}
 			options={TREND_PERIODS.map((item) => ({ value: item, label: item }))}
 		/>
-		<Select
-			ariaLabel="Bandingkan dengan"
-			value={comparisonMode}
-			onValueChange={(value) => void setFilter('compare', value)}
-			controlSize="sm"
-			class="w-full sm:w-48"
-			options={TREND_COMPARISONS.map((item) => ({ value: item.value, label: item.label }))}
-		/>
+		<div class="w-full sm:w-48">
+			<Select
+				ariaLabel="Bandingkan dengan"
+				value={comparisonMode}
+				onValueChange={(value) => void setFilter('compare', value)}
+				controlSize="sm"
+				options={TREND_COMPARISONS.map((item) => ({ value: item.value, label: item.label }))}
+			/>
+		</div>
 		<span class="text-xs text-text-muted sm:ml-auto">Filter tersimpan di URL</span>
 	</section>
 
-	{#if hasNoParameters}
-		<EmptyState
-			title="Belum ada parameter"
-			description="PLTA ini belum punya tag aktif yang bisa ditampilkan sebagai grafik."
+	{#if listQuery.isLoading}
+		<div role="status" class="skeleton-shimmer h-[420px] rounded-xl">
+			<span class="sr-only">Memuat daftar tren…</span>
+		</div>
+	{:else if isConfigured && selectedChart}
+		<PlantTrendBoard
+			{pltaId}
+			plantCode={activePLTA.plant.code}
+			range={timeRange}
+			comparison={comparison
+				? { range: comparison.range, offsetMs: comparison.offsetMs, label: comparison.label }
+				: null}
+			options={chartOptions}
+			selected={selectedChart}
+			onChartChange={(value) => void setFilter('grafik', value)}
 		/>
 	{:else}
-		<TrendCard
-			title={parameterConfig.label}
-			subtitle={parameterConfig.subtitle}
-			unit={parameterConfig.unit}
-			color={parameterConfig.color}
-			chartType={parameterConfig.chartType}
-			series={trendQuery.data}
-			isLoading={isWaitingForTags || trendQuery.isLoading}
-			isError={tagsQuery.isError || trendQuery.isError}
-			comparison={comparisonView}
-			onRetry={() => {
-				if (tagsQuery.isError) void tagsQuery.refetch();
-				if (trendQuery.isError) void trendQuery.refetch();
-			}}
+		{#if listQuery.isSuccess}
+			<Banner tone="info">
+				Daftar tren PLTA ini belum diatur, jadi ditampilkan grafik satu parameter.
+				{canConfigure
+					? 'Tekan Atur daftar tren untuk memilih metrik dan mengelompokkannya.'
+					: 'Admin dapat mengatur daftar tren untuk PLTA ini.'}
+			</Banner>
+		{/if}
+		<ParameterTrendView
+			{pltaId}
+			range={timeRange}
+			{comparison}
+			parameter={parameterParam}
+			onParameterChange={(value) => void setFilter('parameter', value)}
 		/>
 	{/if}
 </div>
+
+{#if canConfigure && isListSheetOpen}
+	<TrendListSheet
+		isOpen
+		{pltaId}
+		plantName={displayName}
+		onClose={() => (isListSheetOpen = false)}
+	/>
+{/if}

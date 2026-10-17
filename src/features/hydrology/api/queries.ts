@@ -3,6 +3,7 @@ import { invalidateUploadAudit } from '../../audit/api/queries';
 import type {
 	DailyEmptyCellMode,
 	DailyLayoutChanges,
+	LabelChanges,
 	DailyHydrologyParams,
 	DailyHydrologyReportScope,
 	HydrologyPeriod,
@@ -42,6 +43,8 @@ export const hydrologyQueryKeys = {
 		] as const,
 	// Di bawah `dashboardRoot`: mengubah visibilitas menginvalidasi akar itu,
 	// sehingga panel harian ikut diambil ulang dan menyesuaikan diri.
+	// Tidak di bawah `dashboardRoot`: nama bidang bulanan berlaku untuk seluruh PLTA.
+	monthlyFieldLabels: () => [...hydrologyQueryKeys.all, 'monthly-labels'] as const,
 	dailyVisibility: (pltaId: string) =>
 		[...hydrologyQueryKeys.dashboardRoot(pltaId), 'daily-visibility'] as const,
 	monthlyPanel: (pltaId: string, year: number, month: number) =>
@@ -74,6 +77,16 @@ export function createDailyHydrologyQuery(
 			queryKey: hydrologyQueryKeys.daily(id, value),
 			queryFn: ({ signal }: { signal: AbortSignal }) =>
 				hydrologyRepository.getDaily(id, value, { signal }),
+			// Mengganti penyebut DMN hanya mengubah dua metrik (Service Hour Full
+			// Load dan DMN Beban Penuh). Panel lainnya dipertahankan selama
+			// permintaan baru berjalan — dulu seluruh baris berubah jadi "Memuat…"
+			// dan kartunya menciut. Hanya untuk PLTA yang sama: data PLTA lain
+			// tidak boleh tampil sebagai milik PLTA yang baru dipilih.
+			placeholderData: (previous, previousQuery) => {
+				const root = hydrologyQueryKeys.dashboardRoot(id);
+				const isSamePlant = root.every((part, index) => previousQuery?.queryKey[index] === part);
+				return isSamePlant ? previous : undefined;
+			},
 			enabled: Boolean(id),
 			staleTime: HYDROLOGY_STALE_TIME,
 			refetchOnWindowFocus: false
@@ -330,6 +343,48 @@ export function createSetDailyVisibilityMutation() {
 			await queryClient.invalidateQueries({
 				queryKey: hydrologyQueryKeys.dashboardRoot(visibility.pltaId)
 			});
+		}
+	}));
+}
+
+/** Nama metrik harian berlaku per PLTA; panel harian PLTA itu diambil ulang sesudahnya. */
+export function createSetDailyLabelsMutation() {
+	const queryClient = useQueryClient();
+
+	return createMutation(() => ({
+		mutationFn: ({ pltaId, labels }: { pltaId: string; labels: LabelChanges }) =>
+			hydrologyRepository.setDailyLabels(pltaId, labels),
+		onSuccess: async (visibility) => {
+			await queryClient.invalidateQueries({
+				queryKey: hydrologyQueryKeys.dashboardRoot(visibility.pltaId)
+			});
+		}
+	}));
+}
+
+export function createMonthlyFieldLabelsQuery(enabled: () => boolean) {
+	return createQuery(() => ({
+		queryKey: hydrologyQueryKeys.monthlyFieldLabels(),
+		queryFn: ({ signal }: { signal: AbortSignal }) =>
+			hydrologyRepository.getMonthlyFieldLabels({ signal }),
+		enabled: enabled(),
+		// Dibaca untuk disunting; perubahan admin lain tidak boleh tertimpa data basi.
+		staleTime: 0
+	}));
+}
+
+/**
+ * Nama bidang bulanan berlaku untuk SEMUA PLTA dan ikut di panel, overview,
+ * grafik, dan template — seluruh cache hidrologi disegarkan.
+ */
+export function createSetMonthlyFieldLabelsMutation() {
+	const queryClient = useQueryClient();
+
+	return createMutation(() => ({
+		mutationFn: (labels: LabelChanges) => hydrologyRepository.setMonthlyFieldLabels(labels),
+		onSuccess: async (labels) => {
+			queryClient.setQueryData(hydrologyQueryKeys.monthlyFieldLabels(), labels);
+			await queryClient.invalidateQueries({ queryKey: hydrologyQueryKeys.all });
 		}
 	}));
 }

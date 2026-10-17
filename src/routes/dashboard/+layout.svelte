@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { navigating, page } from '$app/state';
+	import { tick } from 'svelte';
+	import { MediaQuery } from 'svelte/reactivity';
 
 	import IconLayoutDashboard from '~icons/ph/squares-four';
 	import IconActivity from '~icons/ph/activity';
@@ -28,7 +30,8 @@
 		authStore,
 		canAccessDataTools,
 		canManageUsers,
-		canUploadMonthlyHydrology
+		canUploadMonthlyHydrology,
+		loginPath
 	} from '../../features/auth';
 	import { queryClient } from '$core/query-client';
 	import AppErrorBoundary from '../../components/ui/AppErrorBoundary.svelte';
@@ -45,6 +48,15 @@
 	let collapsed = $state(false);
 	let isMobileSidebarOpen = $state(false);
 	let isLogoutDialogOpen = $state(false);
+	let mobileMenuButton = $state<HTMLButtonElement | null>(null);
+	let mobileCloseButton = $state<HTMLButtonElement | null>(null);
+
+	/**
+	 * Di bawah `lg` sidebar hanya digeser keluar layar. Tanpa `inert`, tautannya
+	 * tetap masuk urutan Tab dan fokus keyboard menghilang ke luar layar.
+	 */
+	const isDesktop = new MediaQuery('min-width: 1024px', true);
+	const isSidebarInert = $derived(!isDesktop.current && !isMobileSidebarOpen);
 
 	const plantsQuery = createPlantCatalogQuery();
 
@@ -68,6 +80,18 @@
 	const isLeavingPage = $derived(
 		Boolean(navigating.to) && navigating.to?.route.id !== page.route.id
 	);
+
+	/**
+	 * Sesi yang habis di tengah pemakaian. Guard `load` hanya berjalan saat
+	 * berpindah halaman, jadi tanpa ini operator yang refresh token-nya ditolak
+	 * tetap di layar yang sama dengan seluruh query gagal — dan baru terlempar
+	 * ke login saat mengeklik menu. Halaman asalnya dibawa, sehingga sesudah
+	 * login ia kembali ke sana. Keluar lewat tombol tidak diantar kembali.
+	 */
+	$effect(() => {
+		if (!authStore.isInitialized || authStore.isAuthenticated || authStore.endedByUser) return;
+		void goto(loginPath(page.url, { expired: true }), { replaceState: true });
+	});
 
 	const selectedPLTAId = $derived.by(() => {
 		const routePLTAId = page.params.pltaId;
@@ -95,8 +119,26 @@
 			: getUnscopedDashboardPath(target);
 	}
 
+	async function openMobileSidebar() {
+		collapsed = false;
+		isMobileSidebarOpen = true;
+		await tick();
+		mobileCloseButton?.focus();
+	}
+
 	function closeMobileSidebar() {
+		if (!isMobileSidebarOpen) return;
 		isMobileSidebarOpen = false;
+		// Fokus kembali ke tombol pembuka, bukan hilang bersama sidebar yang
+		// kini `inert`. Berpindah halaman lewat tautan tidak terganggu: fokusnya
+		// diatur ulang oleh navigasi SvelteKit.
+		if (!isDesktop.current) mobileMenuButton?.focus();
+	}
+
+	function handleWindowKeydown(event: KeyboardEvent) {
+		if (event.key === 'Escape' && isMobileSidebarOpen && !isDesktop.current) {
+			closeMobileSidebar();
+		}
 	}
 
 	async function handleLogout() {
@@ -107,6 +149,8 @@
 		await goto('/login', { replaceState: true });
 	}
 </script>
+
+<svelte:window onkeydown={handleWindowKeydown} />
 
 <div class="flex min-h-screen min-w-0 bg-surface-base">
 	{#if isMobileSidebarOpen}
@@ -119,6 +163,7 @@
 	{/if}
 
 	<aside
+		inert={isSidebarInert}
 		class={`fixed inset-y-0 left-0 z-40 flex w-64 max-w-[85vw] flex-col border-r border-border-subtle bg-surface-raised transition-[width,transform] duration-300 lg:translate-x-0 ${
 			isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'
 		} ${collapsed ? 'lg:w-[72px]' : 'lg:w-64'}`}
@@ -158,6 +203,7 @@
 			</div>
 
 			<button
+				bind:this={mobileCloseButton}
 				type="button"
 				aria-label="Tutup menu navigasi"
 				class="ml-auto flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full text-text-muted hover:bg-surface-overlay lg:hidden"
@@ -266,13 +312,12 @@
 			class="sticky top-0 z-20 flex h-16 shrink-0 items-center gap-3 border-b border-border-subtle bg-surface-raised/95 px-4 backdrop-blur lg:hidden"
 		>
 			<button
+				bind:this={mobileMenuButton}
 				type="button"
 				aria-label="Buka menu navigasi"
+				aria-expanded={isMobileSidebarOpen}
 				class="flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-border-subtle text-text-subtle hover:bg-surface-base"
-				onclick={() => {
-					collapsed = false;
-					isMobileSidebarOpen = true;
-				}}
+				onclick={() => void openMobileSidebar()}
 			>
 				<IconMenu class="size-5" />
 			</button>

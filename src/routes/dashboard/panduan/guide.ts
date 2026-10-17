@@ -174,15 +174,15 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
 				steps: [
 					'Kartu **Ringkasan hidrologi seluruh PLTA** menempel di dasar peta Overview — di layar kecil, di bawah peta. Bawaannya bulan berjalan.',
 					'Pilih bulan — atau **Sepanjang tahun** — dan tahun di kanan atas halaman. Bila bulan itu belum ada datanya, tekan **Lihat** bulan sebelumnya di kartu.',
-					'Buka kartu **Detail ringkasan** di kolom kanan peta (di bawah Awan Hujan) untuk melihat rata-rata per PLTA.',
-					'Di kartu yang sama, isi **Sampai (opsional)** untuk merangkum beberapa bulan sekaligus, misalnya Januari sampai September. Kosongkan (—) untuk satu periode saja; tekan **Hapus rentang** untuk kembali.',
-					'Untuk laporan Excel periode yang sama, tekan **Unduh laporan Excel** di dasar kartu Detail ringkasan.'
+					'Di kaki kartu yang sama tampil **Rata-rata per PLTA** dalam MWh — prognosa, target, dan realisasi untuk bulan itu dan akumulasinya.',
+					'Isi **Sampai** di kaki kartu untuk merangkum beberapa bulan sekaligus, misalnya Januari sampai September. Kosongkan (—) untuk satu periode saja; tekan **Hapus rentang** untuk kembali.',
+					'Untuk laporan Excel periode yang sama, tekan **Unduh laporan Excel** di kanan bawah kartu.'
 				],
 				notes: [
 					'**Pencapaian seluruh PLTA** adalah total prediksi dibagi total target seluruh PLTA — angka yang dipakai untuk melaporkan kinerja gabungan. **Rata-rata antar-PLTA** memberi bobot sama pada setiap PLTA, besar maupun kecil.',
 					'Data yang prediksi atau targetnya belum diisi tidak dihitung sebagai "tidak tercapai" dan tidak ikut angka gabungan.',
 					'Rentang maksimal 60 bulan, dan akhirnya tidak boleh sebelum awal. Bila tidak memenuhi, kartu ringkasan menampilkan "Rentang periode tidak valid" dan tidak meminta data ke server.',
-					'Titik jingga di sebelah **Detail ringkasan** berarti ringkasan belum mencakup seluruh PLTA — penjelasannya ada di dalam kartunya.'
+					'Angka **Cakupan** yang berwarna jingga berarti ringkasan belum mencakup seluruh PLTA.'
 				]
 			}
 		]
@@ -203,7 +203,7 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
 				],
 				notes: [
 					'Bulan dan tahun yang dipilih tetap terbawa saat Anda berpindah PLTA lewat pemilih PLTA.',
-					'Bagian **Akumulasi produksi** di bawah tabel menggambar **target** (garis putus-putus) dan **realisasi** (garis tebal) akumulasi sepanjang tahun yang dipilih, untuk PLTA yang sedang dibuka. Bulan yang belum diisi memutus garis — bukan bernilai nol.'
+					'Bagian **Akumulasi produksi** di bawah tabel menggambar **target** (batang abu-abu) dan **realisasi** (batang biru) akumulasi per bulan sepanjang tahun yang dipilih, untuk PLTA yang sedang dibuka. Bulan yang belum diisi tidak diberi batang — bukan bernilai nol.'
 				]
 			},
 			{
@@ -227,7 +227,7 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
 				notes: [
 					'Menampilkan kondisi **hari ini** untuk tiga zona: hulu, bendungan, dan hilir.',
 					'Penanda **Realtime aktif** berarti koneksi ke server terbuka dan nilai baru langsung masuk begitu dikirim sensor. Bila tertulis **Realtime belum aktif**, tekan **Hubungkan ulang** bila tombol itu muncul.',
-					'Penanda di depan setiap nilai menunjukkan asalnya: **Formulasi** (dihitung), **Input** (diisi manual), **Konstanta**, atau **Belum tersedia**.'
+					'Penanda di depan setiap nilai menunjukkan asalnya: **Realtime** (sensor), **Formulasi** (dihitung), **Input** (diisi manual), atau **Konstanta (input)** (konstanta yang diisi operator). Baris yang belum berisi nilai menampilkan N/A dengan penanda sumbernya.'
 				]
 			},
 			{
@@ -244,6 +244,19 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
 					'Parameter yang disembunyikan tidak dihapus: datanya tetap tersimpan dan bisa ditampilkan kembali kapan saja.',
 					'Parameter hanya bisa diurutkan di dalam panelnya sendiri (Hulu, Bendungan dan pelepasan, Hilir), tidak bisa dipindah ke panel lain.',
 					'**Urutan bawaan** muncul pada panel yang pernah diurutkan; tekan lalu **Simpan** untuk mengembalikan urutan aslinya.'
+				]
+			},
+			{
+				title: 'Mengganti nama parameter',
+				access: 'userManagement',
+				steps: [
+					'Harian: di sheet yang sama, isi kotak nama di bawah sakelar parameter, lalu tekan **Simpan**. Nama berlaku untuk PLTA yang sedang dibuka.',
+					'Bulanan: di Hidrologi Bulanan, tekan **Nama bidang** di kanan atas. Nama berlaku untuk **seluruh PLTA**.',
+					'Kosongkan kotak nama untuk kembali ke nama bawaan.'
+				],
+				notes: [
+					'Nama bidang bulanan dipakai di template unggah, laporan Excel, dan pesan galat impor. Template lama tetap bisa diunggah.',
+					'Bila satu nama ditolak — kosong, terlalu panjang, atau sama dengan nama lain — tidak ada nama yang tersimpan.'
 				]
 			},
 			{
@@ -282,7 +295,22 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
 				],
 				notes: [
 					'Jam yang diisi dianggap WIB. Mengisi ulang tanggal dan jam yang sama akan memperbarui nilai lama.',
-					'Berkas Excel hanya untuk satu parameter, dengan kolom **datetime + value** atau **tanggal + jam + value**.'
+					'Berkas Excel hanya untuk satu parameter, dengan kolom **datetime + value** atau **tanggal + jam + value**.',
+					'Di tab **Upload Excel**, pilih **Isi template** dan **Tanggal**, lalu tekan **Unduh Template** untuk mendapat berkas parameter itu. Nilai yang sudah tersimpan ikut terisi, jadi tinggal dikoreksi.'
+				]
+			},
+			{
+				title: 'Menghapus data yang salah unggah',
+				access: 'dataTools',
+				steps: [
+					'Tekan **Input data** atau **Edit data** pada baris parameter itu, lalu pilih tab **Hapus Data**.',
+					'Isi **Dari** dan **Sampai** (tanggal dan jam). Bawaannya satu hari penuh.',
+					'Tekan **Hapus Data**, lalu **Ya, Hapus** pada konfirmasi.'
+				],
+				notes: [
+					'Nilai yang salah cukup diisi ulang pada jam yang sama. Hapus data dipakai bila jam, parameter, atau station-nya yang keliru.',
+					'Hanya data isian manual dan unggahan yang terhapus; data sensor tidak tersentuh. Waktu awal dan akhir ikut terhapus, maksimal 366 hari.',
+					'Penghapusan tidak bisa dibatalkan dan tercatat di riwayat unggah.'
 				]
 			}
 		]
@@ -330,16 +358,35 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
 	{
 		id: 'tren',
 		title: 'Tren & Grafik',
-		summary: 'Grafik riwayat satu parameter dalam 24 jam, 7 hari, atau 30 hari terakhir.',
+		summary: 'Grafik riwayat metrik PLTA dalam 24 jam, 7 hari, atau 30 hari terakhir.',
 		blocks: [
 			{
 				title: 'Menampilkan grafik',
 				example: 'trend-period',
 				steps: [
 					'Buka menu **Tren & Grafik** dan pilih PLTA di kanan atas.',
-					'Pilih parameter dari kotak pilihan di bawah judul halaman.',
 					'Pilih periode: **24 Jam Terakhir**, **7 Hari Terakhir**, atau **30 Hari Terakhir**.',
-					'Arahkan kursor ke grafik untuk melihat nilai pada waktu tertentu.'
+					'Bila daftar tren PLTA ini sudah diatur admin, pilih grafiknya dari kotak pilihan di atas grafik. Pilihannya mengikuti urutan dan grup daftar tren: metrik yang satu grup digambar dalam satu grafik, dan satuan kedua memakai sumbu kanan.',
+					'Bila belum diatur, halaman menampilkan satu grafik — pilih parameternya dari kotak pilihan di atas grafik.',
+					'Arahkan kursor ke grafik untuk melihat nilai seluruh garisnya pada waktu tertentu.'
+				],
+				notes: [
+					'Tabel di bawah setiap grafik berisi nilai **Terkini**, **Rata-rata**, **Min**, dan **Maks** tiap garis.',
+					'Garis rencana harian (mis. target) digambar bertangga: satu nilai berlaku sepanjang tanggalnya.',
+					'Tekan **Unduh Excel** atau **Unduh CSV** untuk mengambil data **seluruh daftar tren** pada periode itu, bukan hanya grafik yang sedang tampil.'
+				]
+			},
+			{
+				title: 'Mengatur daftar tren',
+				access: 'userManagement',
+				steps: [
+					'Tekan **Atur daftar tren** di kanan atas halaman Tren & Grafik.',
+					'Pilih metrik di **Tambah metrik**. Seret barisnya untuk mengubah urutan, atau tekan × untuk membuangnya.',
+					'Isi **Grup** yang sama pada beberapa metrik untuk menggambarnya dalam satu grafik. Satu grup paling banyak berisi dua satuan berbeda.',
+					'Isi **Nama khusus** bila nama di grafik perlu berbeda dari nama panel harian, lalu tekan **Simpan daftar**.'
+				],
+				notes: [
+					'Daftar berlaku per PLTA untuk semua pengguna. Bila ada satu isian yang ditolak, tidak ada yang tersimpan.'
 				]
 			},
 			{
@@ -398,8 +445,8 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
 					'Tekan **Unduh Excel**.'
 				],
 				notes: [
-					'Berkasnya langsung terunduh, tanpa antrean: 13 kolom rata-rata per jam (TMA waduk, inflow, debit turbin 1–3, spillway, irigasi, DDC, delta head, TMA tailrace, head, dan efisiensi turbin 1–3).',
-					'Rentang maksimal 62 hari.'
+					'Berkasnya langsung terunduh, tanpa antrean. Bila daftar tren PLTA itu sudah diatur, kolomnya mengikuti daftar tren — isinya sama dengan Tren & Grafik — dan rentang maksimal 366 hari.',
+					'Bila daftar tren belum diatur, berkasnya memakai format lama: 13 kolom rata-rata per jam, rentang maksimal 62 hari.'
 				]
 			},
 			{
@@ -577,11 +624,11 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
 				title: 'Mengelola pengguna',
 				example: 'user-status',
 				notes: [
-					'Klik **Aktif** atau **Nonaktif** di kolom **Status** untuk mengubah status akun. Pengguna nonaktif tidak bisa masuk.',
+					'Tekan sakelar di kolom **Status** untuk mengubah status akun. Menonaktifkan meminta konfirmasi **Ya, nonaktifkan**; pengguna nonaktif tidak bisa masuk.',
 					'Tekan ikon edit untuk mengubah nama, email, peran, atau status.',
 					'Tekan ikon hapus lalu konfirmasi untuk menghapus akun.',
 					'Tekan ikon keluar (di antara ikon edit dan hapus) lalu **Ya, cabut sesi** untuk mengeluarkan pengguna dari semua perangkatnya — misalnya bila akunnya dicurigai dipakai orang lain. Akunnya tetap aktif dan bisa masuk kembali.',
-					'Akun Anda sendiri tidak bisa dinonaktifkan, dicabut sesinya, atau dihapus dari sini; kelola lewat **Profil Saya**.'
+					'Akun Anda sendiri tidak bisa dinonaktifkan, dicabut sesinya, atau dihapus dari sini; barisnya hanya punya tombol **Profil Saya**.'
 				]
 			}
 		]

@@ -9,3 +9,12 @@ export const apiTelemetryUploadResultSchema = z.object({
 });
 
 export type ApiTelemetryUploadResult = z.infer<typeof apiTelemetryUploadResultSchema>;
+
+export const apiTelemetryDeleteResultSchema = z.object({
+	plta_id: z.string().uuid(),
+	parameter: z.enum(MONITORING_PARAMETERS),
+	station: z.string(),
+	points_deleted: z.number().int().nonnegative()
+});
+
+export type ApiTelemetryDeleteResult = z.infer<typeof apiTelemetryDeleteResultSchema>;

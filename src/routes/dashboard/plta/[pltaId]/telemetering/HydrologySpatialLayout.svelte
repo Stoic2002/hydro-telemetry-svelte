@@ -21,6 +21,12 @@
 		zoneControlAfterKeys?: Partial<Record<HydrologyZone, string>>;
 		/** Aksi di sebelah judul tiap kartu zona; menerima zona kartunya. */
 		zoneAction?: Snippet<[HydrologyZone]>;
+		/** Zona yang ditampilkan (mode tampilan); bawaannya ketiganya. */
+		zones?: readonly HydrologyZone[];
+		/** Baris sudah disaring mode tampilan; lihat `HydrologyMetricCard`. */
+		isFiltered?: boolean;
+		/** Pesan kartu yang tidak punya baris setelah disaring. */
+		emptyMessage?: string;
 	}
 
 	let {
@@ -32,8 +38,14 @@
 		onUpload,
 		zoneControls,
 		zoneControlAfterKeys,
-		zoneAction
+		zoneAction,
+		zones = HYDROLOGY_ZONES,
+		isFiltered = false,
+		emptyMessage
 	}: Props = $props();
+
+	/** Satu zona saja: kartunya selebar halaman dan barisnya dua kolom. */
+	const isSingleZone = $derived(zones.length === 1);
 
 	let activeZone = $state<HydrologyZone | null>(null);
 	let failedImageUrl = $state<string | null>(null);
@@ -71,7 +83,7 @@
 </script>
 
 {#snippet zoneCards()}
-	{#each HYDROLOGY_ZONES as zone (zone)}
+	{#each zones as zone (zone)}
 		{#snippet headerAction()}
 			{@render zoneAction?.(zone)}
 		{/snippet}
@@ -85,6 +97,9 @@
 			zoneControlAfterKey={zoneControlAfterKeys?.[zone]}
 			headerAction={zoneAction ? headerAction : undefined}
 			{onUpload}
+			{isFiltered}
+			{emptyMessage}
+			isWide={isSingleZone}
 		/>
 	{/each}
 {/snippet}
@@ -102,7 +117,7 @@
 		10 parameter menyisakan ruang kosong sepanjang zona dengan 41 parameter.
 	-->
 	<div
-		class="grid items-start divide-y divide-border-subtle overflow-hidden rounded-xl border border-border-subtle bg-surface-raised lg:grid-cols-3 lg:divide-x lg:divide-y-0"
+		class={`grid items-start divide-y divide-border-subtle overflow-hidden rounded-xl border border-border-subtle bg-surface-raised lg:divide-x lg:divide-y-0 ${isSingleZone ? '' : 'lg:grid-cols-3'}`}
 	>
 		{@render zoneCards()}
 	</div>
@@ -119,7 +134,7 @@
 			onZoneSelect={selectZone}
 		/>
 		<div
-			class="grid items-start divide-y divide-border-subtle border-t border-border-subtle lg:grid-cols-3 lg:divide-x lg:divide-y-0"
+			class={`grid items-start divide-y divide-border-subtle border-t border-border-subtle lg:divide-x lg:divide-y-0 ${isSingleZone ? '' : 'lg:grid-cols-3'}`}
 		>
 			{@render zoneCards()}
 		</div>

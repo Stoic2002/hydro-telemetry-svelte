@@ -56,7 +56,7 @@
 		role="tabpanel"
 		aria-labelledby={`upload-tab-${activeTab}`}
 		tabindex="0"
-		class="flex flex-col gap-6 outline-none"
+		class="flex flex-col gap-6 rounded-lg"
 	>
 		{#if activeTab === 'excel'}
 			<MonthlyExcelUploadPanel />

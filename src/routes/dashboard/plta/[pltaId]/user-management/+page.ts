@@ -1,3 +1,3 @@
 import { requireUserManagement } from '$core/guards';
 
-export const load = () => requireUserManagement();
+export const load = ({ url }) => requireUserManagement(url);
