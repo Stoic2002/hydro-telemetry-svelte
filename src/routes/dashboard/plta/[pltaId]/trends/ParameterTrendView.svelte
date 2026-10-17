@@ -1,4 +1,5 @@
 <script lang="ts">
+	import type { Snippet } from 'svelte';
 	import Select from '$components/controls/Select.svelte';
 	import EmptyState from '$components/ui/EmptyState.svelte';
 	import { createPLTATagsQuery } from '$features/plta';
@@ -14,6 +15,8 @@
 		/** Parameter terpilih dari URL (`?parameter=`). */
 		parameter: string | null;
 		onParameterChange: (value: string) => void;
+		/** Periode dan pembanding dari halaman, sebaris dengan pemilih parameter. */
+		filters?: Snippet;
 	}
 
 	/**
@@ -22,7 +25,7 @@
 	 * daftarnya belum diatur admin (`diatur: false`), supaya halamannya tidak
 	 * kosong.
 	 */
-	let { pltaId, range, comparison, parameter, onParameterChange }: Props = $props();
+	let { pltaId, range, comparison, parameter, onParameterChange, filters }: Props = $props();
 
 	const TREND_COLORS = [
 		'var(--color-chart-series-1)',
@@ -144,15 +147,18 @@
 </script>
 
 <div class="flex flex-col gap-4">
-	<div class="w-full sm:w-60">
-		<Select
-			ariaLabel="Parameter grafik"
-			value={parameterConfig.value}
-			disabled={isWaitingForTags || parameterOptions.length === 0}
-			onValueChange={onParameterChange}
-			controlSize="sm"
-			options={parameterOptions.map((item) => ({ value: item.value, label: item.label }))}
-		/>
+	<div class="flex flex-wrap items-center gap-2 border-b border-border-subtle pb-4">
+		<div class="w-full sm:w-60">
+			<Select
+				ariaLabel="Parameter grafik"
+				value={parameterConfig.value}
+				disabled={isWaitingForTags || parameterOptions.length === 0}
+				onValueChange={onParameterChange}
+				controlSize="sm"
+				options={parameterOptions.map((item) => ({ value: item.value, label: item.label }))}
+			/>
+		</div>
+		{@render filters?.()}
 	</div>
 
 	{#if hasNoParameters}

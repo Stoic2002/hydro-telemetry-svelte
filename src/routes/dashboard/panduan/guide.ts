@@ -365,15 +365,18 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
 				example: 'trend-period',
 				steps: [
 					'Buka menu **Tren & Grafik** dan pilih PLTA di kanan atas.',
-					'Pilih periode: **24 Jam Terakhir**, **7 Hari Terakhir**, atau **30 Hari Terakhir**.',
-					'Bila daftar tren PLTA ini sudah diatur admin, pilih grafiknya dari kotak pilihan di atas grafik. Pilihannya mengikuti urutan dan grup daftar tren: metrik yang satu grup digambar dalam satu grafik, dan satuan kedua memakai sumbu kanan.',
+					'Pilih periode di baris kontrol di atas grafik: **24 jam**, **7 hari**, atau **30 hari** terakhir.',
+					'Bila daftar tren PLTA ini sudah diatur admin, pilih grafiknya dari kotak pilihan paling kiri di baris kontrol. Tanpa pilihan, yang terbuka adalah grafik pertama yang berisi data sensor. Pilihannya mengikuti urutan dan grup daftar tren: metrik yang satu grup digambar dalam satu grafik, dan satuan kedua memakai sumbu kanan.',
 					'Bila belum diatur, halaman menampilkan satu grafik — pilih parameternya dari kotak pilihan di atas grafik.',
 					'Arahkan kursor ke grafik untuk melihat nilai seluruh garisnya pada waktu tertentu.'
 				],
 				notes: [
-					'Tabel di bawah setiap grafik berisi nilai **Terkini**, **Rata-rata**, **Min**, dan **Maks** tiap garis.',
+					'Kepala grafik menampilkan **Nilai terkini**, perubahannya sejak awal periode, dan waktu pembacaannya. Di bawah grafik tertulis **Rata-rata**, **Minimum**, dan **Maksimum**; grafik berisi beberapa garis memakai tabel per garis.',
+					'Grafik TMA Waduk dan TMA Tailrace menyebut **batas** (Limpas, MOL, maks. hilir) beserta jaraknya ke nilai terkini. Batas yang dekat digambar sebagai garis putus-putus oranye.',
+					'Sumbu TMA paling sempit 0,2 m, jadi gerak beberapa sentimeter tetap tampak kecil.',
+					'Grafik 24 jam dan 7 hari menyegarkan diri tiap 5 menit; jam pembaruan terakhir ada di sebelah tombol **Unduh**.',
 					'Garis rencana harian (mis. target) digambar bertangga: satu nilai berlaku sepanjang tanggalnya.',
-					'Tekan **Unduh Excel** atau **Unduh CSV** untuk mengambil data **seluruh daftar tren** pada periode itu, bukan hanya grafik yang sedang tampil.'
+					'Tekan **Unduh**, lalu pilih **Excel (.xlsx)** atau **CSV (.csv)** untuk mengambil data **seluruh daftar tren** pada periode itu, bukan hanya grafik yang sedang tampil.'
 				]
 			},
 			{
@@ -403,7 +406,7 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
 				title: 'Membandingkan dengan periode lain',
 				steps: [
 					'Pada kotak **Bandingkan dengan**, pilih **Periode sebelumnya** atau **Tahun lalu**.',
-					'Periode pembanding muncul sebagai garis abu-abu putus-putus yang mengikuti bentuk datanya, di sumbu waktu yang sama.',
+					'Periode pembanding muncul sebagai garis abu-abu putus-putus yang mengikuti bentuk datanya, di sumbu waktu yang sama. Bila periode itu belum punya data, keterangan di bawah grafik menyebutkannya.',
 					'Arahkan kursor ke grafik: tooltip menampilkan nilai kedua periode beserta selisihnya.'
 				],
 				notes: [

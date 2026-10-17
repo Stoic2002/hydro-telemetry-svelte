@@ -4,7 +4,7 @@ import type {
 	PlantTrendList,
 	TrendPoint
 } from '$features/trends';
-import { chartValueDomain } from '$shared/utils/chart';
+import { chartValueDomain, minimumAxisSpan } from '$shared/utils/chart';
 
 /**
  * Model tampilan grafik Tren & Grafik per PLTA (`GET /trends/plta/{id}/data`).
@@ -156,9 +156,13 @@ export function stepPoints(points: TrendPoint[]): TrendPoint[] {
 	});
 }
 
-function axisDomain(series: TrendSeriesView[], fromZero: boolean): [number, number] {
+function axisDomain(
+	series: TrendSeriesView[],
+	fromZero: boolean,
+	unit: string | null
+): [number, number] {
 	const values = series.flatMap((item) => item.points.map((point) => point.value));
-	const domain = chartValueDomain(values);
+	const domain = chartValueDomain(values, minimumAxisSpan(unit));
 	return fromZero ? [Math.min(0, domain[0]), domain[1]] : domain;
 }
 
@@ -241,14 +245,16 @@ export function buildTrendChart(
 		rightUnit,
 		leftDomain: axisDomain(
 			series.filter((view) => view.axis === 'left'),
-			isBarChart
+			isBarChart,
+			leftUnit
 		),
 		rightDomain:
 			rightUnit === null
 				? null
 				: axisDomain(
 						series.filter((view) => view.axis === 'right'),
-						false
+						false,
+						rightUnit
 					),
 		isBarChart,
 		hasData: series.some((view) => view.points.length > 0),

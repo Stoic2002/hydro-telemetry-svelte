@@ -57,18 +57,41 @@ export function createPlantTrendListQuery(pltaId: () => string) {
 
 export function createPlantTrendDataQuery(
 	input: () => PlantTrendDataInput,
-	enabled: () => boolean = () => true
+	enabled: () => boolean = () => true,
+	/** Selang penyegaran otomatis; `false` = tidak menyegarkan sendiri. */
+	refetchInterval: () => number | false = () => false
 ) {
 	return createQuery(() => {
 		const value = input();
+		const key = trendQueryKeys.plantData(value);
 
 		return {
-			queryKey: trendQueryKeys.plantData(value),
+			queryKey: key,
 			queryFn: ({ signal }: { signal: AbortSignal }) =>
 				trendsRepository.getPlantTrendData(value, { signal }),
 			enabled: enabled() && Boolean(value.pltaId && value.from && value.to),
 			staleTime: TREND_STALE_TIME,
-			refetchOnWindowFocus: false
+			refetchOnWindowFocus: false,
+			refetchInterval: refetchInterval(),
+			/**
+			 * Saat jendela waktu bergeser (jam berganti), grafik lama tetap tampil
+			 * selama data baru dimuat — bukan kembali ke kerangka memuat tiap jam.
+			 * Hanya bila yang berubah memang jendelanya: PLTA, item, resolusi, dan
+			 * panjang rentang sama. Grafik lain tidak boleh tampil sebagai grafik
+			 * yang baru dipilih.
+			 */
+			placeholderData: (previous, previousQuery) => {
+				const previousKey = previousQuery?.queryKey as readonly unknown[] | undefined;
+				if (!previous || !previousKey) return undefined;
+				const span = (from: unknown, to: unknown) =>
+					Date.parse(String(to)) - Date.parse(String(from));
+				const isSameView =
+					previousKey[2] === key[2] &&
+					previousKey[6] === key[6] &&
+					JSON.stringify(previousKey[7]) === JSON.stringify(key[7]) &&
+					span(previousKey[4], previousKey[5]) === span(key[4], key[5]);
+				return isSameView ? previous : undefined;
+			}
 		};
 	});
 }

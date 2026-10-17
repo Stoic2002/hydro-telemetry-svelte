@@ -218,7 +218,10 @@ Hal-hal yang sudah pernah menggigit dan tidak akan terlihat dari membaca kode:
   Tailrace diberi **garis batas** (Limpas/MOL, maks. hilir) dari panel harian
   hari ini (`withTrendReferences`); batas yang lebih jauh dari selebar rentang
   data hanya ditulis di keterangan beserta jaraknya, supaya garis TMA tidak
-  rata. **PLTA yang `diatur: false` jatuh ke tampilan lama** di
+  rata. Sumbu `mdpl` paling sempit **0,2 m** (`minimumAxisSpan`, keputusan
+  tim 17 Okt 2026) — 4 cm dulu digambar setinggi grafik. Grafik beresolusi jam
+  (24 jam, 7 hari) menyegarkan diri tiap 5 menit; jam halaman ikut berdetak
+  karena rentangnya dibulatkan ke akhir jam berjalan. **PLTA yang `diatur: false` jatuh ke tampilan lama** di
   bawah ini (`ParameterTrendView`), supaya halamannya tidak kosong.
 - **Tren & Grafik (cadangan, daftar belum diatur)**: hanya **satu** grafik dengan pemilih parameter (bukan 4
   grafik). Rentang default 24 jam. Daftar parameter diambil dari API tags. Garis

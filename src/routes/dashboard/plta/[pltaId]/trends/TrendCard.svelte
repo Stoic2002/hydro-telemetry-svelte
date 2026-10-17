@@ -20,7 +20,12 @@
 	import ErrorState from '$components/ui/ErrorState.svelte';
 	import { describeResolution, describeSeriesSource, type TrendSeries } from '$features/trends';
 	import { formatDayMonthTimeWIB } from '$shared/lib/date';
-	import { chartValueDomain, timeAxisFormatter, valueAxisTicks } from '$shared/utils/chart';
+	import {
+		chartValueDomain,
+		minimumAxisSpan,
+		timeAxisFormatter,
+		valueAxisTicks
+	} from '$shared/utils/chart';
 	import { formatNumber } from '$shared/utils/number';
 	import { averageOf, mergeWithComparison, type TrendChartDatum } from './comparison';
 
@@ -86,7 +91,10 @@
 	// Sumbu Y mencakup kedua periode; tanpa itu garis pembanding yang lebih
 	// tinggi atau lebih rendah terpotong di tepi grafik.
 	const yDomain = $derived(
-		chartValueDomain([...values, ...comparisonPoints.map((point) => point.value)])
+		chartValueDomain(
+			[...values, ...comparisonPoints.map((point) => point.value)],
+			minimumAxisSpan(unit)
+		)
 	);
 
 	const yAxis = $derived(valueAxisTicks(yDomain));
@@ -98,13 +106,9 @@
 		)
 	);
 
-	const changeClass = $derived(
-		changeValue > 0
-			? 'text-status-success-strong'
-			: changeValue < 0
-				? 'text-status-warning-strong'
-				: 'text-text-muted'
-	);
+	// Netral, bukan hijau/oranye: naik atau turun tidak dengan sendirinya baik
+	// atau buruk — TMA yang naik mendekati batas limpas justru perlu perhatian.
+	const changeClass = $derived(changeValue === 0 ? 'text-text-muted' : 'text-text-strong');
 </script>
 
 <article class="overflow-hidden rounded-xl border border-border-subtle bg-surface-raised">

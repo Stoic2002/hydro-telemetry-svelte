@@ -1,5 +1,8 @@
 <script lang="ts">
 	import { scaleTime } from 'd3-scale';
+	import IconArrowDown from '~icons/ph/arrow-down-right';
+	import IconArrowUp from '~icons/ph/arrow-up-right';
+	import IconMinus from '~icons/ph/minus';
 	import { Axis, Bars, Chart, Highlight, Rule, Spline, Svg, Tooltip } from 'layerchart';
 
 	import { formatDayMonthTimeWIB } from '$shared/lib/date';
@@ -20,6 +23,8 @@
 		comparisonLabel?: string | null;
 		/** Batas TMA dari panel harian; yang dekat digambar, semuanya tertulis di keterangan. */
 		references?: TrendReference[];
+		/** Pembanding sudah termuat tetapi rentangnya belum berdata. */
+		isComparisonEmpty?: boolean;
 	}
 
 	/**
@@ -28,9 +33,31 @@
 	 * garis, kartu statistik tunggal seperti di grafik satu parameter tidak lagi
 	 * berarti.
 	 */
-	let { chart, comparisonLabel = null, references = [] }: Props = $props();
+	let {
+		chart,
+		comparisonLabel = null,
+		references = [],
+		isComparisonEmpty = false
+	}: Props = $props();
 
 	const chartReferences = $derived(references.filter((reference) => reference.isOnChart));
+
+	/**
+	 * Deret yang angkanya ditonjolkan di kepala kartu: yang terukur lebih dulu,
+	 * karena garis rencana (bertangga) tidak punya "nilai terkini" yang berarti.
+	 * Dulu nilai terkini hanya ada di baris kecil tabel di bawah grafik.
+	 */
+	const headline = $derived(
+		chart.series.find((view) => view.stats && !view.isStep) ??
+			chart.series.find((view) => view.stats)
+	);
+	const headlineChange = $derived(
+		headline?.stats && headline.points.length > 0
+			? headline.stats.latest.value - headline.points[0].value
+			: null
+	);
+	/** Satu deret: statistik jadi strip ringkas; tabel deret hanya untuk beberapa garis. */
+	const isSingleSeries = $derived(chart.series.length === 1);
 
 	function describeDistance(reference: TrendReference): string {
 		const distance = reference.distanceFromLatest;
@@ -71,14 +98,51 @@
 
 <article class="overflow-hidden rounded-xl border border-border-subtle bg-surface-raised">
 	<div class="p-4 sm:p-6">
-		<div class="flex flex-wrap items-baseline justify-between gap-2">
-			<h2 class="card-title">{chart.title}</h2>
-			{#if chart.rightUnit}
-				<span class="text-xs text-text-muted">
-					Kiri: {chart.leftUnit ?? '—'} · Kanan: {chart.rightUnit}
-				</span>
-			{:else if chart.leftUnit}
-				<span class="text-xs text-text-muted">{chart.leftUnit}</span>
+		<div class="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
+			<div class="min-w-0">
+				<h2 class="card-title">{chart.title}</h2>
+				{#if chart.rightUnit}
+					<p class="mt-0.5 text-xs text-text-muted">
+						Kiri: {chart.leftUnit ?? '—'} · Kanan: {chart.rightUnit}
+					</p>
+				{:else if chart.leftUnit}
+					<p class="mt-0.5 text-xs text-text-muted">{chart.leftUnit}</p>
+				{/if}
+			</div>
+
+			{#if headline?.stats}
+				<div class="text-left sm:text-right">
+					<p class="text-xs font-medium text-text-muted">
+						Nilai terkini{#if !isSingleSeries}&nbsp;· {headline.name}{/if}
+					</p>
+					<p class="metric-value mt-0.5 text-2xl font-semibold tracking-tight">
+						{formatNumber(headline.stats.latest.value, 2)}<span class="metric-unit ml-1.5 text-xs"
+							>{headline.unit ?? ''}</span
+						>
+					</p>
+					<p
+						class="mt-0.5 flex flex-wrap items-center gap-x-1 gap-y-0.5 text-xs text-text-muted sm:justify-end"
+					>
+						{#if headlineChange !== null}
+							<span class="inline-flex items-center gap-0.5 font-medium text-text-secondary">
+								{#if headlineChange > 0}
+									<IconArrowUp class="size-3.5" aria-hidden="true" />
+								{:else if headlineChange < 0}
+									<IconArrowDown class="size-3.5" aria-hidden="true" />
+								{:else}
+									<IconMinus class="size-3.5" aria-hidden="true" />
+								{/if}
+								{headlineChange > 0 ? '+' : ''}{formatNumber(headlineChange, 2)}
+							</span>
+							<span class="whitespace-nowrap"
+								>sejak {formatDayMonthTimeWIB(headline.points[0].time)} ·</span
+							>
+						{/if}
+						<span class="whitespace-nowrap"
+							>pembacaan {formatDayMonthTimeWIB(headline.stats.latest.time)} WIB</span
+						>
+					</p>
+				</div>
 			{/if}
 		</div>
 
@@ -166,7 +230,7 @@
 								/>
 							{/each}
 
-							<Highlight lines />
+							<Highlight lines points />
 						</Svg>
 
 						<Tooltip.Root variant="none" classes={{ container: 'chart-tooltip' }}>
@@ -203,7 +267,21 @@
 			</div>
 		{/if}
 
-		{#if chart.series.length > 0}
+		{#if isSingleSeries && headline?.stats}
+			{@const stats = headline.stats}
+			<dl class="mt-3 grid grid-cols-3 border-t border-surface-overlay pt-3">
+				{#each [{ label: 'Rata-rata', value: stats.average }, { label: 'Minimum', value: stats.minimum }, { label: 'Maksimum', value: stats.maximum }] as statistic (statistic.label)}
+					<div class="border-surface-overlay px-1 not-first:border-l not-first:pl-3 sm:px-3">
+						<dt class="table-head-cell">{statistic.label}</dt>
+						<dd class="metric-value mt-0.5 text-sm text-text-strong">
+							{formatNumber(statistic.value, 2)}<span class="metric-unit ml-1"
+								>{headline.unit ?? ''}</span
+							>
+						</dd>
+					</div>
+				{/each}
+			</dl>
+		{:else if chart.series.length > 0}
 			<div class="mt-3 overflow-x-auto border-t border-surface-overlay">
 				<table class="w-full min-w-[520px] border-collapse text-left">
 					<thead>
@@ -284,7 +362,12 @@
 			</ul>
 		{/if}
 
-		{#if hasComparison}
+		{#if comparisonLabel && isComparisonEmpty}
+			<!-- Dulu pembanding kosong tidak menggambar apa-apa dan tidak berkata apa-apa. -->
+			<p class="mt-2 text-xs text-text-muted">
+				{comparisonLabel} belum punya data, jadi tidak ada garis pembanding.
+			</p>
+		{:else if hasComparison}
 			<p class="mt-2 flex items-center gap-1.5 text-xs text-text-muted">
 				<span class="w-4 border-t-2 border-dashed border-chart-axis"></span>
 				{comparisonLabel}

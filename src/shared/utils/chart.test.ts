@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { chartValueDomain, timeAxisFormatter, valueAxisTicks } from './chart';
+import { chartValueDomain, timeAxisFormatter, valueAxisTicks, minimumAxisSpan } from './chart';
 
 describe('chartValueDomain', () => {
 	it('memberi rentang aman saat tidak ada nilai', () => {
@@ -78,5 +78,24 @@ describe('timeAxisFormatter', () => {
 
 	it('rentang panjang cukup tanggal', () => {
 		expect(timeAxisFormatter(30 * 24 * 60 * 60 * 1000)(afternoon)).toBe('07 Okt');
+	});
+});
+
+describe('rentang sumbu minimum per satuan', () => {
+	it('melebarkan TMA yang bergerak beberapa sentimeter menjadi 0,2 m', () => {
+		const [low, high] = chartValueDomain([230.32, 230.36], minimumAxisSpan('mdpl'));
+		expect(high - low).toBeCloseTo(0.2);
+		expect((low + high) / 2).toBeCloseTo(230.34);
+	});
+
+	it('tidak menyempitkan rentang yang sudah lebar', () => {
+		const domain = chartValueDomain([229, 231], minimumAxisSpan('mdpl'));
+		expect(domain[1] - domain[0]).toBeGreaterThan(2);
+	});
+
+	it('satuan lain mengikuti datanya', () => {
+		expect(minimumAxisSpan('m3/s')).toBe(0);
+		expect(minimumAxisSpan(null)).toBe(0);
+		expect(minimumAxisSpan(' MDPL ')).toBe(0.2);
 	});
 });

@@ -8,7 +8,7 @@ import { formatDayMonthTimeWIB, formatDayMonthWIB, formatTimeWIB } from '$shared
  * yang nilainya jauh di atas nol — inflow, TMA waduk — seluruh garis jadi
  * menumpuk di pinggir atas dan tidak lagi terbaca terhadap garis bantunya.
  */
-export function chartValueDomain(values: number[]): [number, number] {
+export function chartValueDomain(values: number[], minimumSpan = 0): [number, number] {
 	const finiteValues = values.filter((value) => Number.isFinite(value));
 	if (finiteValues.length === 0) return [0, 1];
 
@@ -20,10 +20,29 @@ export function chartValueDomain(values: number[]): [number, number] {
 	// padding-nya tidak boleh sampai menenggelamkan datanya sendiri.
 	const padding = valueRange > 0 ? valueRange * 0.12 : Math.max(Math.abs(maximumValue) * 0.02, 0.5);
 
-	return [
-		minimumValue >= 0 ? Math.max(0, minimumValue - padding) : minimumValue - padding,
-		maximumValue + padding
-	];
+	const low = minimumValue >= 0 ? Math.max(0, minimumValue - padding) : minimumValue - padding;
+	const high = maximumValue + padding;
+	if (high - low >= minimumSpan) return [low, high];
+
+	// Rentang terlalu sempit untuk satuannya: dilebarkan di sekitar titik tengah
+	// data, supaya derau beberapa sentimeter tidak tampak seperti gejolak besar.
+	const middle = (minimumValue + maximumValue) / 2;
+	const widenedLow =
+		minimumValue >= 0 ? Math.max(0, middle - minimumSpan / 2) : middle - minimumSpan / 2;
+	return [widenedLow, widenedLow + minimumSpan];
+}
+
+/**
+ * Rentang sumbu Y paling sempit per satuan. TMA (mdpl) bergerak beberapa
+ * sentimeter per jam; tanpa batas bawah, 4 cm digambar setinggi grafik dan
+ * derau sensor terbaca sebagai naik-turun drastis (keputusan tim 17 Okt 2026:
+ * 0,2 m). Satuan lain — debit, curah hujan — tetap mengikuti datanya.
+ */
+const MINIMUM_AXIS_SPAN: Readonly<Record<string, number>> = { mdpl: 0.2 };
+
+export function minimumAxisSpan(unit: string | null | undefined): number {
+	if (!unit) return 0;
+	return MINIMUM_AXIS_SPAN[unit.trim().toLowerCase()] ?? 0;
 }
 
 /**

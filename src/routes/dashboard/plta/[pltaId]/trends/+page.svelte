@@ -35,6 +35,22 @@
 		return TREND_PERIODS.some((period) => period === value);
 	}
 
+	/**
+	 * Label tampilan pendek. Nilai URL tetap kalimat lengkap supaya tautan lama
+	 * berlaku; "Terakhir" di setiap tombol dulu membuat tab terpotong di ponsel.
+	 */
+	const PERIOD_LABEL: Record<TrendPeriod, string> = {
+		'24 Jam Terakhir': '24 jam',
+		'7 Hari Terakhir': '7 hari',
+		'30 Hari Terakhir': '30 hari'
+	};
+
+	/**
+	 * Grafik beresolusi jam disegarkan tiap 5 menit: dibuka di layar ruang
+	 * kontrol, grafik 24 jam dulu diam-diam basi. 30 hari (per hari) tidak.
+	 */
+	const REFRESH_MS = 5 * 60 * 1_000;
+
 	function periodConfig(period: TrendPeriod): { durationMs: number; resolution: TrendResolution } {
 		if (period === '24 Jam Terakhir') return { durationMs: 24 * 60 * 60 * 1_000, resolution: '1h' };
 		if (period === '7 Hari Terakhir') {
@@ -80,10 +96,24 @@
 	);
 	const isConfigured = $derived(Boolean(listQuery.data?.isConfigured && selectedChart));
 
+	const refreshMs = $derived(periodConfig(period).resolution === '1d' ? false : REFRESH_MS);
+
+	/**
+	 * Jam halaman. Rentang dibulatkan ke akhir jam berjalan, jadi menyegarkan
+	 * data saja tidak menggeser jendelanya — jam ini yang menggesernya begitu
+	 * jam berganti.
+	 */
+	let now = $state(new Date());
+	$effect(() => {
+		if (!refreshMs) return;
+		const timer = setInterval(() => (now = new Date()), refreshMs);
+		return () => clearInterval(timer);
+	});
+
 	const timeRange = $derived.by(() => {
 		const config = periodConfig(period);
 		return {
-			...alignTrendRange(new Date(), config.durationMs, config.resolution),
+			...alignTrendRange(now, config.durationMs, config.resolution),
 			resolution: config.resolution
 		};
 	});
@@ -130,14 +160,17 @@
 		{/snippet}
 	</PageHeader>
 
-	<section
-		class="flex flex-col gap-3 border-b border-border-subtle pb-4 sm:flex-row sm:items-center sm:gap-4"
-	>
+	<!--
+		Periode dan pembanding dirender di toolbar tiap tampilan, sebaris dengan
+		pemilih grafik — dulu dua baris kontrol terpisah, dan pemilih grafik (apa
+		yang dilihat) justru di bawah pemilih periode.
+	-->
+	{#snippet filters()}
 		<SegmentedControl
 			ariaLabel="Periode tren"
 			value={period}
 			onChange={(value) => void setFilter('period', value)}
-			options={TREND_PERIODS.map((item) => ({ value: item, label: item }))}
+			options={TREND_PERIODS.map((item) => ({ value: item, label: PERIOD_LABEL[item] }))}
 		/>
 		<div class="w-full sm:w-48">
 			<Select
@@ -148,7 +181,7 @@
 				options={TREND_COMPARISONS.map((item) => ({ value: item.value, label: item.label }))}
 			/>
 		</div>
-	</section>
+	{/snippet}
 
 	{#if listQuery.isLoading}
 		<div role="status" class="skeleton-shimmer h-[420px] rounded-xl">
@@ -164,6 +197,8 @@
 				: null}
 			options={chartOptions}
 			selected={selectedChart}
+			{filters}
+			{refreshMs}
 			onChartChange={(value) => void setFilter('grafik', value)}
 		/>
 	{:else}
@@ -180,6 +215,7 @@
 			range={timeRange}
 			{comparison}
 			parameter={parameterParam}
+			{filters}
 			onParameterChange={(value) => void setFilter('parameter', value)}
 		/>
 	{/if}

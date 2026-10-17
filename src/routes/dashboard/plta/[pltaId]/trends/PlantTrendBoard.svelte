@@ -1,6 +1,8 @@
 <script lang="ts">
+	import type { Snippet } from 'svelte';
+	import { DropdownMenu } from 'bits-ui';
+	import IconCaretDown from '~icons/ph/caret-down';
 	import IconDownload from '~icons/ph/download-simple';
-	import Button from '$components/controls/Button.svelte';
 	import Select from '$components/controls/Select.svelte';
 	import ErrorState from '$components/ui/ErrorState.svelte';
 	import {
@@ -12,6 +14,7 @@
 		type TrendResolution
 	} from '$features/trends';
 	import { createDailyHydrologyQuery } from '$features/hydrology';
+	import { formatTimeWIB } from '$shared/lib/date';
 	import { downloadBlob } from '$shared/lib/download';
 	import { notificationStore } from '$shared/lib/notification.svelte';
 	import PlantTrendChartCard from './PlantTrendChartCard.svelte';
@@ -32,6 +35,10 @@
 		/** Seluruh grafik daftar tren, urut admin. */
 		options: TrendChartOption[];
 		selected: TrendChartOption;
+		/** Periode dan pembanding dari halaman, dirender sebaris dengan pemilih grafik. */
+		filters?: Snippet;
+		/** Selang penyegaran otomatis; `false` = tidak menyegarkan sendiri. */
+		refreshMs?: number | false;
 		onChartChange: (value: string) => void;
 	}
 
@@ -42,17 +49,36 @@
 	 * pembanding = panggilan kedua dengan rentang digeser; item dan resolusinya
 	 * sama persis.
 	 */
-	let { pltaId, plantCode, range, comparison, options, selected, onChartChange }: Props = $props();
+	let {
+		pltaId,
+		plantCode,
+		range,
+		comparison,
+		options,
+		selected,
+		filters,
+		refreshMs = false,
+		onChartChange
+	}: Props = $props();
 
 	const itemIds = $derived(selected.chart.itemIds);
 
-	const dataQuery = createPlantTrendDataQuery(() => ({
-		pltaId,
-		from: range.from,
-		to: range.to,
-		resolution: range.resolution,
-		itemIds
-	}));
+	const dataQuery = createPlantTrendDataQuery(
+		() => ({
+			pltaId,
+			from: range.from,
+			to: range.to,
+			resolution: range.resolution,
+			itemIds
+		}),
+		() => true,
+		() => refreshMs
+	);
+	const updatedAt = $derived(
+		dataQuery.dataUpdatedAt > 0
+			? formatTimeWIB(new Date(dataQuery.dataUpdatedAt).toISOString())
+			: null
+	);
 	const comparisonQuery = createPlantTrendDataQuery(
 		() => ({
 			pltaId,
@@ -122,8 +148,13 @@
 </script>
 
 <div class="flex flex-col gap-4">
-	<div class="flex flex-wrap items-center gap-2">
-		<div class="w-full sm:w-72">
+	<!--
+		Satu toolbar: apa yang dilihat (grafik), rentangnya (periode, pembanding),
+		lalu alat sekunder di kanan. Excel dan CSV satu menu — dulu dua tombol
+		setara dengan pemilih grafik.
+	-->
+	<div class="flex flex-wrap items-center gap-2 border-b border-border-subtle pb-4">
+		<div class="w-full sm:w-64">
 			<Select
 				ariaLabel="Grafik tren"
 				value={selected.value}
@@ -133,21 +164,44 @@
 				options={options.map((option) => ({ value: option.value, label: option.label }))}
 			/>
 		</div>
-		<span class="text-xs text-text-muted sm:ml-auto">
-			Unduhan berisi seluruh daftar tren, {describeResolution(range.resolution)}
-		</span>
-		{#each [{ format: 'xlsx' as const, label: 'Unduh Excel' }, { format: 'csv' as const, label: 'Unduh CSV' }] as option (option.format)}
-			<Button
-				type="button"
-				variant="ghost"
-				size="sm"
-				disabled={downloading !== null || !dataQuery.isSuccess}
-				onclick={() => void download(option.format)}
-			>
-				{#snippet leftIcon()}<IconDownload class="size-3.5" />{/snippet}
-				{downloading === option.format ? 'Menyiapkan…' : option.label}
-			</Button>
-		{/each}
+		{@render filters?.()}
+
+		<div class="flex w-full items-center justify-between gap-3 sm:ml-auto sm:w-auto">
+			{#if updatedAt}
+				<span class="text-xs text-text-muted" aria-live="polite">
+					{dataQuery.isFetching ? 'Memperbarui…' : `Diperbarui ${updatedAt} WIB`}
+				</span>
+			{/if}
+			<DropdownMenu.Root>
+				<DropdownMenu.Trigger
+					disabled={downloading !== null || !dataQuery.isSuccess}
+					class="btn btn-ghost btn-sm h-9"
+				>
+					<IconDownload class="size-3.5" aria-hidden="true" />
+					{downloading ? 'Menyiapkan…' : 'Unduh'}
+					<IconCaretDown class="size-3 text-text-muted" aria-hidden="true" />
+				</DropdownMenu.Trigger>
+				<DropdownMenu.Portal>
+					<DropdownMenu.Content
+						align="end"
+						sideOffset={6}
+						class="z-200 w-60 rounded-xl border border-border-subtle bg-surface-raised p-1 shadow-overlay outline-none"
+					>
+						<p class="px-3 pt-2 pb-1.5 text-xs text-text-muted">
+							Berisi seluruh daftar tren, {describeResolution(range.resolution)}.
+						</p>
+						{#each [{ format: 'xlsx' as const, label: 'Excel (.xlsx)' }, { format: 'csv' as const, label: 'CSV (.csv)' }] as option (option.format)}
+							<DropdownMenu.Item
+								onSelect={() => void download(option.format)}
+								class="flex min-h-9 w-full cursor-pointer items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-text-secondary outline-none data-highlighted:bg-surface-overlay data-highlighted:text-text-primary"
+							>
+								{option.label}
+							</DropdownMenu.Item>
+						{/each}
+					</DropdownMenu.Content>
+				</DropdownMenu.Portal>
+			</DropdownMenu.Root>
+		</div>
 	</div>
 
 	{#if dataQuery.isLoading}
@@ -176,6 +230,11 @@
 			<PlantTrendChartCard
 				chart={referenced.chart}
 				references={referenced.references}
+				isComparisonEmpty={Boolean(
+					comparison &&
+					comparisonQuery.isSuccess &&
+					comparisonQuery.data.items.every((item) => !item.hasData)
+				)}
 				comparisonLabel={comparison?.label ?? null}
 			/>
 		{/if}

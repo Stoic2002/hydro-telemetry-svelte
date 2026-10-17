@@ -171,10 +171,11 @@
 				ariaLabel="Periode tren"
 				value="24 Jam Terakhir"
 				onChange={noop}
-				options={['24 Jam Terakhir', '7 Hari Terakhir', '30 Hari Terakhir'].map((value) => ({
-					value,
-					label: value
-				}))}
+				options={[
+					{ value: '24 Jam Terakhir', label: '24 jam' },
+					{ value: '7 Hari Terakhir', label: '7 hari' },
+					{ value: '30 Hari Terakhir', label: '30 hari' }
+				]}
 			/>
 		{:else if id === 'report-create'}
 			<Button type="button" size="lg">
