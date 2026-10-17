@@ -300,23 +300,26 @@ tersedia.
 
 Cek daftar ini sebelum membuat komponen baru.
 
-| Kebutuhan        | Komponen                                                           |
-| ---------------- | ------------------------------------------------------------------ |
-| Aksi             | `controls/Button`                                                  |
-| Field            | `controls/Input`, `controls/Select`, `controls/SegmentedControl`   |
-| Status           | `controls/Badge`, `controls/StatusToggle`, `controls/SourceMarker` |
-| Judul halaman    | `ui/PageHeader`                                                    |
-| Form panel       | `ui/Sheet`                                                         |
-| Konfirmasi       | `ui/ConfirmDialog`                                                 |
-| Tab              | `ui/Tabs`                                                          |
-| Pesan tempel     | `ui/Banner`                                                        |
-| Keadaan kosong   | `ui/EmptyState`                                                    |
-| Keadaan gagal    | `ui/ErrorState`                                                    |
-| Kegagalan render | `ui/AppErrorBoundary`                                              |
-| Notifikasi       | `ui/Toast`                                                         |
-| Paginasi         | `ui/TablePagination`                                               |
-| Muat ulang latar | `ui/RefetchBar`                                                    |
-| Placeholder muat | `controls/Skeleton`, `skeletons/*`                                 |
+| Kebutuhan         | Komponen                                                               |
+| ----------------- | ---------------------------------------------------------------------- |
+| Aksi              | `controls/Button`                                                      |
+| Field             | `controls/Input`, `controls/Select`, `controls/SegmentedControl`       |
+| Kolom cari daftar | `controls/SearchForm`                                                  |
+| Unggah berkas     | `controls/FileDropzone` + `controls/SelectedFile`                      |
+| Tabel lebar       | `ui/HorizontalScroll` (bayangan tepi saat masih ada kolom tersembunyi) |
+| Status            | `controls/Badge`, `controls/StatusToggle`, `controls/SourceMarker`     |
+| Judul halaman     | `ui/PageHeader`                                                        |
+| Form panel        | `ui/Sheet`                                                             |
+| Konfirmasi        | `ui/ConfirmDialog`                                                     |
+| Tab               | `ui/Tabs`                                                              |
+| Pesan tempel      | `ui/Banner`                                                            |
+| Keadaan kosong    | `ui/EmptyState`                                                        |
+| Keadaan gagal     | `ui/ErrorState`                                                        |
+| Kegagalan render  | `ui/AppErrorBoundary`                                                  |
+| Notifikasi        | `ui/Toast`                                                             |
+| Paginasi          | `ui/TablePagination`                                                   |
+| Muat ulang latar  | `ui/RefetchBar`                                                        |
+| Placeholder muat  | `controls/Skeleton`, `skeletons/*`                                     |
 
 ---
 

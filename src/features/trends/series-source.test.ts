@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { describeSeriesSource } from './series-source';
+import { describeResolution, describeSeriesSource } from './series-source';
 
 describe('describeSeriesSource', () => {
 	it('menyebut station yang ikut diagregasi', () => {
@@ -19,5 +19,16 @@ describe('describeSeriesSource', () => {
 			'tingkat pembangkit'
 		);
 		expect(describeSeriesSource({ station: 'SKW', aggregatedStations: [] })).toBe('stasiun SKW');
+	});
+});
+
+describe('describeResolution', () => {
+	it('menerjemahkan kode resolusi ke bahasa operator', () => {
+		expect(describeResolution('1h')).toBe('per jam');
+		expect(describeResolution('1d')).toBe('per hari');
+		expect(describeResolution('5m')).toBe('per 5 menit');
+		expect(describeResolution('15m')).toBe('per 15 menit');
+		expect(describeResolution('raw')).toBe('data mentah');
+		expect(describeResolution(undefined)).toBe('');
 	});
 });

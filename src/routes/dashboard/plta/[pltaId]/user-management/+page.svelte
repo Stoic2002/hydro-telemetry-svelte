@@ -2,11 +2,11 @@
 	import { goto } from '$app/navigation';
 	import IconEdit from '~icons/ph/pencil-simple';
 	import IconPlus from '~icons/ph/plus';
-	import IconSearch from '~icons/ph/magnifying-glass';
 	import IconSignOut from '~icons/ph/sign-out';
 	import IconTrash from '~icons/ph/trash';
 
 	import Button from '$components/controls/Button.svelte';
+	import SearchForm from '$components/controls/SearchForm.svelte';
 	import StatusToggle from '$components/controls/StatusToggle.svelte';
 	import UserTableSkeleton from '$components/skeletons/UserTableSkeleton.svelte';
 	import ConfirmDialog from '$components/ui/ConfirmDialog.svelte';
@@ -182,26 +182,15 @@
 	</PageHeader>
 
 	<div class="flex flex-col gap-2.5 border-b border-border-subtle pb-4 sm:flex-row sm:items-center">
-		<form onsubmit={applySearch} class="flex min-w-0 items-center gap-2 sm:w-80">
-			<div class="relative flex min-w-0 flex-1 items-center">
-				<IconSearch class="pointer-events-none absolute left-3 size-4 shrink-0 text-text-muted" />
-				<input
-					type="search"
-					bind:value={searchInput}
-					maxlength={100}
-					placeholder="Cari nama, username, atau email…"
-					class="h-9 w-full min-w-0 rounded-sm border border-border-subtle bg-surface-raised pr-3 pl-8.5 text-[12.5px] text-text-primary transition-[border-color,box-shadow] outline-none placeholder:text-text-placeholder hover:border-border-strong focus:border-brand-primary-strong focus:ring-[3px] focus:ring-brand-primary-strong/15"
-				/>
-			</div>
-			<button
-				type="submit"
-				class="h-9 shrink-0 cursor-pointer rounded-lg border border-border-subtle bg-surface-raised px-4 text-[12.5px] font-semibold text-text-secondary transition-colors hover:bg-surface-base"
-			>
-				Cari
-			</button>
-		</form>
+		<SearchForm
+			bind:value={searchInput}
+			placeholder="Cari nama, username, atau email…"
+			ariaLabel="Cari pengguna"
+			onSubmit={applySearch}
+			class="sm:w-80"
+		/>
 		{#if !usersQuery.isError}
-			<span class="shrink-0 text-[11.5px] text-text-muted sm:ml-auto">{total} pengguna</span>
+			<span class="shrink-0 text-xs text-text-muted sm:ml-auto">{total} pengguna</span>
 		{/if}
 	</div>
 

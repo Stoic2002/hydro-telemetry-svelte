@@ -193,7 +193,7 @@
 </script>
 
 <div class="flex flex-1 flex-col gap-6">
-	<PageHeader title="Forecasting" description={`Prediksi ML terbaru untuk PLTA ${plantName}`}>
+	<PageHeader title="Forecasting" description={`Prediksi otomatis terbaru untuk PLTA ${plantName}`}>
 		{#snippet actions()}
 			<span
 				class="inline-flex h-10 shrink-0 items-center gap-2 rounded-lg border border-border-subtle bg-surface-raised px-3 text-sm font-medium text-text-primary"

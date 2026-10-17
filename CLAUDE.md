@@ -212,7 +212,13 @@ Hal-hal yang sudah pernah menggigit dan tidak akan terlihat dari membaca kode:
   metrik (`tma_waduk`), dicocokkan dengan item mana pun di grafik itu; tak
   dikenal = grafik pertama (`selectTrendChart`). Data diminta hanya untuk item
   grafik itu (`?item=` berulang; `url.ts` kini mengirim array sebagai
-  parameter berulang, bukan `a,b`), sedangkan unduhan tetap seluruh daftar. **PLTA yang `diatur: false` jatuh ke tampilan lama** di
+  parameter berulang, bukan `a,b`), sedangkan unduhan tetap seluruh daftar. Tanpa `?grafik=`, bawaannya grafik pertama yang memuat item
+  `measured` (17 Okt 2026) — item `plan` seperti Target TMA sering kosong, dan
+  dulu halaman dibuka dengan kotak "Belum ada data". Grafik TMA Waduk dan TMA
+  Tailrace diberi **garis batas** (Limpas/MOL, maks. hilir) dari panel harian
+  hari ini (`withTrendReferences`); batas yang lebih jauh dari selebar rentang
+  data hanya ditulis di keterangan beserta jaraknya, supaya garis TMA tidak
+  rata. **PLTA yang `diatur: false` jatuh ke tampilan lama** di
   bawah ini (`ParameterTrendView`), supaya halamannya tidak kosong.
 - **Tren & Grafik (cadangan, daftar belum diatur)**: hanya **satu** grafik dengan pemilih parameter (bukan 4
   grafik). Rentang default 24 jam. Daftar parameter diambil dari API tags. Garis

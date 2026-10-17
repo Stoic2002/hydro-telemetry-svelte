@@ -1,16 +1,15 @@
 <script lang="ts">
-	import IconCheck from '~icons/ph/check-circle';
 	import IconDownload from '~icons/ph/download-simple';
 	import IconInfo from '~icons/ph/info';
-	import IconTrash from '~icons/ph/trash';
-	import IconUploadCloud from '~icons/ph/cloud-arrow-up';
-	import IconWarning from '~icons/ph/warning';
 
+	import FileDropzone from '$components/controls/FileDropzone.svelte';
 	import Select from '$components/controls/Select.svelte';
+	import SelectedFile from '$components/controls/SelectedFile.svelte';
 	import Banner from '$components/ui/Banner.svelte';
 	import UploadHistoryPanel from '$features/audit/components/UploadHistoryPanel.svelte';
 	import {
 		createDownloadMonthlyTemplateMutation,
+		createMonthlyFieldLabelsQuery,
 		createUploadMonthlyHydrologyExcelMutation,
 		getMonthlyExcelErrorMessage,
 		getMonthlyExcelRowErrors,
@@ -41,21 +40,46 @@
 	 * Urutan kolom template, dipakai sebagai rujukan cepat di panel kanan. Nama
 	 * kontrak 5 Okt 2026; server masih memetakan header lama, tetapi menolak
 	 * berkas yang memuat nama lama dan baru untuk bidang yang sama.
+	 *
+	 * Yang ditonjolkan nama tampilannya (baris 1 berkas); kunci kolom (baris 2)
+	 * kecil di bawahnya. Dulu hanya kunci mentah yang tampil, terpotong di
+	 * tengah kata. Nama bidang yang diganti admin dibaca dari server; daftar di
+	 * bawah cadangan bila belum termuat.
 	 */
-	const TEMPLATE_COLUMNS = [
-		'kode_plta',
-		'nama_plta',
-		'tahun',
-		'bulan',
-		'prediksi_hidrologi',
-		'realisasi_hidrologi',
-		'prediksi_ketersediaan_energi_primer',
-		'target_produksi_energi_listrik',
-		'realisasi_produksi_energi_listrik',
-		'prediksi_akumulasi_ketersediaan_energi_primer',
-		'target_akumulasi_produksi_energi_listrik',
-		'realisasi_akumulasi_produksi_energi_listrik'
+	const TEMPLATE_COLUMNS: { key: string; label: string }[] = [
+		{ key: 'kode_plta', label: 'Kode PLTA' },
+		{ key: 'nama_plta', label: 'Nama PLTA' },
+		{ key: 'tahun', label: 'Tahun' },
+		{ key: 'bulan', label: 'Bulan' },
+		{ key: 'prediksi_hidrologi', label: 'Prediksi Kondisi Hidrologi' },
+		{ key: 'realisasi_hidrologi', label: 'Realisasi Kondisi Hidrologi' },
+		{ key: 'prediksi_ketersediaan_energi_primer', label: 'Prognosa Ketersediaan Energi Primer' },
+		{ key: 'target_produksi_energi_listrik', label: 'Target Produksi Energi Listrik' },
+		{ key: 'realisasi_produksi_energi_listrik', label: 'Realisasi Produksi Energi Listrik' },
+		{
+			key: 'prediksi_akumulasi_ketersediaan_energi_primer',
+			label: 'Prognosa Akumulasi Ketersediaan Energi Primer'
+		},
+		{
+			key: 'target_akumulasi_produksi_energi_listrik',
+			label: 'Target Akumulasi Produksi Energi Listrik'
+		},
+		{
+			key: 'realisasi_akumulasi_produksi_energi_listrik',
+			label: 'Realisasi Akumulasi Produksi Energi Listrik'
+		}
 	];
+
+	const fieldLabelsQuery = createMonthlyFieldLabelsQuery(() => true);
+	const templateColumns = $derived.by(() => {
+		const custom = new Map(
+			(fieldLabelsQuery.data?.fields ?? []).map((field) => [field.key, field.label])
+		);
+		return TEMPLATE_COLUMNS.map((column) => ({
+			...column,
+			label: custom.get(column.key) ?? column.label
+		}));
+	});
 
 	const uploadMutation = createUploadMonthlyHydrologyExcelMutation();
 	const templateMutation = createDownloadMonthlyTemplateMutation();
@@ -67,8 +91,6 @@
 	let errorMessage = $state<string | null>(null);
 	let month = $state(String(new Date().getMonth() + 1));
 	let year = $state(String(CURRENT_YEAR));
-	let isDragging = $state(false);
-	let fileInput = $state<HTMLInputElement | null>(null);
 
 	const isUploading = $derived(uploadMutation.isPending);
 
@@ -97,16 +119,8 @@
 	}
 
 	function clearSelection() {
-		if (fileInput) fileInput.value = '';
 		selectedFile = null;
 		selectionError = null;
-	}
-
-	function handleDrop(event: DragEvent) {
-		event.preventDefault();
-		isDragging = false;
-		const file = event.dataTransfer?.files[0];
-		if (file) selectFile(file);
 	}
 
 	async function downloadTemplate() {
@@ -150,88 +164,20 @@
 	<div class="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_268px]">
 		<div class="flex flex-col gap-5">
 			{#if !selectedFile}
-				<div
-					role="button"
-					tabindex="0"
-					ondragenter={(event) => {
-						event.preventDefault();
-						isDragging = true;
-					}}
-					ondragover={(event) => {
-						event.preventDefault();
-						isDragging = true;
-					}}
-					ondragleave={() => (isDragging = false)}
-					ondrop={handleDrop}
-					onclick={() => fileInput?.click()}
-					onkeydown={(event) => {
-						if (event.key === 'Enter' || event.key === ' ') {
-							event.preventDefault();
-							fileInput?.click();
-						}
-					}}
-					class={`flex min-h-[190px] cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed px-5 py-8 text-center transition-colors ${
-						isDragging
-							? 'border-brand-primary-strong bg-brand-tint'
-							: 'border-border-strong bg-surface-base hover:border-brand-primary-strong'
-					}`}
-				>
-					<input
-						bind:this={fileInput}
-						type="file"
-						accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-						class="hidden"
-						onchange={(event) => {
-							const file = event.currentTarget.files?.[0];
-							if (file) selectFile(file);
-						}}
-					/>
-					<IconUploadCloud class="size-6 text-text-muted" />
-					<p class="mt-2 text-sm font-medium text-text-secondary">Tarik file Excel ke area ini</p>
-					<p class="mt-1 text-xs text-text-muted">atau klik untuk memilih file</p>
-					<span
-						class="mt-2.5 rounded-full border border-border-subtle bg-surface-raised px-2.5 py-[3px] font-mono text-xs text-text-muted"
-					>
-						.xlsx · maksimum 5 MB · satu baris per PLTA
-					</span>
-				</div>
+				<FileDropzone
+					accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+					title="Tarik file Excel ke area ini"
+					hint=".xlsx · maksimum 5 MB · satu baris per PLTA"
+					onSelect={selectFile}
+				/>
 			{:else}
 				<div>
-					<div
-						class={`rounded-xl border p-3.5 ${
-							selectionError
-								? 'border-status-danger-strong/30 bg-status-danger-soft'
-								: 'border-status-success-strong/30 bg-status-success-soft'
-						}`}
-					>
-						<div class="flex items-start gap-3">
-							{#if selectionError}
-								<IconWarning class="mt-0.5 size-5 shrink-0 text-status-danger-strong" />
-							{:else}
-								<IconCheck class="mt-0.5 size-5 shrink-0 text-status-success-strong" />
-							{/if}
-							<div class="min-w-0 flex-1">
-								<p class="truncate text-sm font-medium text-text-primary">
-									{selectedFile.name}
-								</p>
-								<p class="mt-0.5 text-xs text-text-muted">
-									{(selectedFile.size / 1024).toLocaleString('id-ID', {
-										maximumFractionDigits: 1
-									})} KB
-								</p>
-							</div>
-							<button
-								type="button"
-								onclick={clearSelection}
-								disabled={isUploading}
-								aria-label="Hapus file terpilih"
-								title="Hapus file"
-								class="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-sm text-text-muted hover:bg-surface-raised hover:text-status-danger-strong disabled:cursor-not-allowed disabled:opacity-50"
-							>
-								<IconTrash class="size-4" aria-hidden="true" />
-							</button>
-						</div>
-					</div>
+					<SelectedFile
+						file={selectedFile}
+						error={selectionError}
+						disabled={isUploading}
+						onClear={clearSelection}
+					/>
 
 					{#if selectionError}
 						<p class="mt-3 text-xs leading-relaxed text-status-danger-strong">
@@ -387,9 +333,14 @@
 
 			<div class="border-t border-border-subtle pt-2.5">
 				<p class="table-head-cell">Kolom template</p>
-				<ul class="mt-1.5 flex flex-col gap-0.5">
-					{#each TEMPLATE_COLUMNS as column (column)}
-						<li class="font-mono text-xs break-all text-text-muted">{column}</li>
+				<ul class="mt-1.5 flex flex-col gap-1.5">
+					{#each templateColumns as column (column.key)}
+						<li class="flex flex-col">
+							<span class="text-xs text-text-secondary">{column.label}</span>
+							<span class="font-mono text-[11px] [overflow-wrap:anywhere] text-text-muted">
+								{column.key}
+							</span>
+						</li>
 					{/each}
 				</ul>
 				<p class="mt-2 text-xs leading-relaxed text-text-muted">

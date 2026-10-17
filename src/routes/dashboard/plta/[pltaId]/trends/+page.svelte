@@ -148,7 +148,6 @@
 				options={TREND_COMPARISONS.map((item) => ({ value: item.value, label: item.label }))}
 			/>
 		</div>
-		<span class="text-xs text-text-muted sm:ml-auto">Filter tersimpan di URL</span>
 	</section>
 
 	{#if listQuery.isLoading}

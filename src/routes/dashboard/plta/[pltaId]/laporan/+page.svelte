@@ -4,7 +4,6 @@
 	import { page as appPage } from '$app/state';
 	import IconDownload from '~icons/ph/download-simple';
 	import IconPlus from '~icons/ph/plus';
-	import IconSearch from '~icons/ph/magnifying-glass';
 
 	import Badge, { type BadgeTone } from '$components/controls/Badge.svelte';
 	import Button from '$components/controls/Button.svelte';
@@ -13,6 +12,7 @@
 	import EmptyState from '$components/ui/EmptyState.svelte';
 	import ErrorState from '$components/ui/ErrorState.svelte';
 	import PageHeader from '$components/ui/PageHeader.svelte';
+	import SearchForm from '$components/controls/SearchForm.svelte';
 	import RefetchBar from '$components/ui/RefetchBar.svelte';
 	import Sheet from '$components/ui/Sheet.svelte';
 	import TablePagination from '$components/ui/TablePagination.svelte';
@@ -280,7 +280,7 @@
 	>
 		{#snippet actions()}
 			{#if activeTab === 'hidrologi'}
-				<Badge tone="cyan">Berlaku untuk semua PLTA</Badge>
+				<Badge tone="slate">Berlaku untuk semua PLTA</Badge>
 			{:else}
 				<PlantSwitcher page="laporan" />
 				<Button
@@ -324,30 +324,14 @@
 			<div
 				class="flex flex-col gap-2.5 border-b border-border-subtle pb-4 sm:flex-row sm:items-center"
 			>
-				<form onsubmit={applySearch} class="flex min-w-0 items-center gap-2 sm:w-72">
-					<div class="relative flex min-w-0 flex-1 items-center">
-						<IconSearch
-							class="pointer-events-none absolute left-3 size-4 shrink-0 text-text-muted"
-						/>
-						<input
-							type="search"
-							bind:value={searchInput}
-							maxlength={100}
-							placeholder="Cari nama laporan…"
-							class="field h-9 pl-9 text-[13px]"
-						/>
-					</div>
-					<button type="submit" class="btn btn-ghost btn-sm h-9 shrink-0">Cari</button>
-					{#if search}
-						<button
-							type="button"
-							onclick={clearSearch}
-							class="h-9 shrink-0 cursor-pointer rounded-lg px-2 text-[13px] font-medium text-text-muted transition-colors hover:bg-surface-overlay"
-						>
-							Bersihkan
-						</button>
-					{/if}
-				</form>
+				<SearchForm
+					bind:value={searchInput}
+					placeholder="Cari nama laporan…"
+					ariaLabel="Cari laporan"
+					onSubmit={applySearch}
+					onClear={clearSearch}
+					class="sm:w-72"
+				/>
 				{#if !reportsQuery.isError}
 					<span class="shrink-0 text-xs text-text-muted sm:ml-auto">{total} laporan</span>
 				{/if}

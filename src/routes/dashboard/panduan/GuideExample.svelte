@@ -220,7 +220,7 @@
 					onChange={noop}
 				/>
 				<div class="flex flex-wrap items-center gap-2">
-					<Badge tone="cyan">Berlaku untuk semua PLTA</Badge>
+					<Badge tone="slate">Berlaku untuk semua PLTA</Badge>
 					<span class="text-xs text-text-muted">Excel Bulanan, Excel Harian, Gambar Hujan</span>
 				</div>
 				<div class="flex flex-wrap items-center gap-2">

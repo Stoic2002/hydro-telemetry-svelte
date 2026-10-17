@@ -5,15 +5,22 @@
 	import ErrorState from '$components/ui/ErrorState.svelte';
 	import {
 		createPlantTrendDataQuery,
+		describeResolution,
 		getTrendErrorMessage,
 		trendsRepository,
 		type TrendExportFormat,
 		type TrendResolution
 	} from '$features/trends';
+	import { createDailyHydrologyQuery } from '$features/hydrology';
 	import { downloadBlob } from '$shared/lib/download';
 	import { notificationStore } from '$shared/lib/notification.svelte';
 	import PlantTrendChartCard from './PlantTrendChartCard.svelte';
-	import { buildTrendChart, type TrendChartOption } from './plant-trend';
+	import {
+		buildTrendChart,
+		trendReferenceKeys,
+		withTrendReferences,
+		type TrendChartOption
+	} from './plant-trend';
 	import type { TimeRange } from './comparison';
 
 	interface Props {
@@ -57,7 +64,26 @@
 		() => comparison !== null
 	);
 
-	const chart = $derived(
+	/**
+	 * Batas TMA (Limpas, MOL, maks. hilir) dari panel Hidrologi Harian hari ini.
+	 * Hanya diminta bila grafik terpilih memuat metrik yang punya batas.
+	 */
+	const selectedItemKeys = $derived(
+		(dataQuery.data?.items ?? [])
+			.filter((item) => itemIds.includes(item.id))
+			.map((item) => item.key)
+	);
+	const needsReferences = $derived(trendReferenceKeys(selectedItemKeys).length > 0);
+	const dailyQuery = createDailyHydrologyQuery(() => (needsReferences ? pltaId : ''));
+
+	function referenceSource(key: string) {
+		const daily = dailyQuery.data?.daily;
+		if (!daily) return null;
+		const metric = daily.upstream[key] ?? daily.dam[key] ?? daily.downstream[key];
+		return metric ? { label: metric.label, value: metric.value, unit: metric.unit } : null;
+	}
+
+	const baseChart = $derived(
 		dataQuery.data
 			? buildTrendChart(
 					selected.chart,
@@ -71,6 +97,7 @@
 				)
 			: null
 	);
+	const referenced = $derived(baseChart ? withTrendReferences(baseChart, referenceSource) : null);
 
 	let downloading = $state<TrendExportFormat | null>(null);
 
@@ -107,7 +134,7 @@
 			/>
 		</div>
 		<span class="text-xs text-text-muted sm:ml-auto">
-			Unduhan berisi seluruh daftar tren, resolusi {range.resolution}
+			Unduhan berisi seluruh daftar tren, {describeResolution(range.resolution)}
 		</span>
 		{#each [{ format: 'xlsx' as const, label: 'Unduh Excel' }, { format: 'csv' as const, label: 'Unduh CSV' }] as option (option.format)}
 			<Button
@@ -145,8 +172,12 @@
 				>
 			</p>
 		{/if}
-		{#if chart}
-			<PlantTrendChartCard {chart} comparisonLabel={comparison?.label ?? null} />
+		{#if referenced}
+			<PlantTrendChartCard
+				chart={referenced.chart}
+				references={referenced.references}
+				comparisonLabel={comparison?.label ?? null}
+			/>
 		{/if}
 	{/if}
 </div>

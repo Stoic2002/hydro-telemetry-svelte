@@ -7,6 +7,7 @@
 	import IconEye from '~icons/ph/eye';
 	import IconEyeSlash from '~icons/ph/eye-slash';
 	import Button from '$components/controls/Button.svelte';
+	import Input from '$components/controls/Input.svelte';
 	import Banner from '$components/ui/Banner.svelte';
 	import { Form } from '$shared/lib/form.svelte';
 	import {
@@ -57,7 +58,7 @@
 	<div class="relative z-10 flex h-fit w-fit flex-col items-center gap-6">
 		<div class="flex flex-col items-center gap-3">
 			<div class="flex size-14 shrink-0 items-center justify-center">
-				<img src="/logo.png" alt="Logo PLN" class="size-14 object-contain" />
+				<img src="/logo.png" alt="Logo PLN Indonesia Power" class="size-14 object-contain" />
 			</div>
 			<div class="flex flex-col items-center gap-0.5">
 				<h1
@@ -92,84 +93,62 @@
 				<Banner tone="warning">Sesi Anda sudah berakhir. Masuk lagi untuk melanjutkan.</Banner>
 			{/if}
 
-			<div class="flex h-fit w-full flex-col gap-2">
-				<label
-					for="username"
-					class="font-sans text-[13px] leading-normal font-medium text-text-secondary"
-				>
-					Username
-				</label>
-				<div
-					class="flex h-12 w-full items-center gap-3 rounded-xl border border-border-subtle bg-surface-base px-4 py-0 transition-all duration-200 focus-within:border-brand-primary-strong focus-within:ring-[3px] focus-within:ring-brand-primary-strong/15"
-				>
-					<IconUser class="size-4 shrink-0 text-text-muted" />
-					<input
-						id="username"
-						type="text"
-						placeholder="contoh: budi.santoso"
-						autocomplete="username"
-						bind:value={form.values.username}
-						oninput={() => {
-							form.clearError('username');
-							authStore.clearError();
-						}}
-						aria-invalid={form.errors.username ? 'true' : undefined}
-						class="w-full border-none bg-transparent font-sans text-sm leading-normal text-text-primary outline-none placeholder:text-text-muted"
-					/>
-				</div>
-				{#if form.errors.username}
-					<span class="text-xs font-medium text-status-danger-strong">{form.errors.username}</span>
-				{/if}
-			</div>
+			<!--
+				Field memakai `Input` (kelas `.field`) seperti seluruh aplikasi — dulu
+				ditulis tangan dengan radius penampung 20px. Pesan galat terhubung ke
+				isiannya lewat `aria-describedby` di dalam `Input`.
+			-->
+			<Input
+				id="username"
+				label="Username"
+				placeholder="contoh: budi.santoso"
+				autocomplete="username"
+				bind:value={form.values.username}
+				error={form.errors.username}
+				oninput={() => {
+					form.clearError('username');
+					authStore.clearError();
+				}}
+			>
+				{#snippet leftIcon()}<IconUser class="size-4" aria-hidden="true" />{/snippet}
+			</Input>
 
-			<div class="flex h-fit w-full flex-col gap-2">
-				<label
-					for="password"
-					class="font-sans text-[13px] leading-normal font-medium text-text-secondary"
-				>
-					Password
-				</label>
-				<div
-					class="flex h-12 w-full items-center gap-3 rounded-xl border border-border-subtle bg-surface-base px-4 py-0 transition-all duration-200 focus-within:border-brand-primary-strong focus-within:ring-[3px] focus-within:ring-brand-primary-strong/15"
-				>
-					<IconLock class="size-4 shrink-0 text-text-muted" />
-					<input
-						id="password"
-						type={showPassword ? 'text' : 'password'}
-						placeholder="••••••••"
-						autocomplete="current-password"
-						bind:value={form.values.password}
-						oninput={() => {
-							form.clearError('password');
-							authStore.clearError();
-						}}
-						aria-invalid={form.errors.password ? 'true' : undefined}
-						class="w-full border-none bg-transparent font-sans text-sm leading-normal tracking-[1.4px] text-text-primary outline-none placeholder:text-text-muted"
-					/>
+			<!-- Tanpa placeholder "••••": titik-titik terbaca seperti password yang sudah terisi. -->
+			<Input
+				id="password"
+				label="Password"
+				type={showPassword ? 'text' : 'password'}
+				autocomplete="current-password"
+				bind:value={form.values.password}
+				error={form.errors.password}
+				oninput={() => {
+					form.clearError('password');
+					authStore.clearError();
+				}}
+			>
+				{#snippet leftIcon()}<IconLock class="size-4" aria-hidden="true" />{/snippet}
+				{#snippet rightIcon()}
 					<button
 						type="button"
 						aria-label={showPassword ? 'Sembunyikan password' : 'Tampilkan password'}
 						onclick={() => (showPassword = !showPassword)}
-						class="cursor-pointer rounded-sm text-text-muted transition-colors hover:text-text-secondary"
+						class="flex cursor-pointer rounded-sm text-text-muted transition-colors hover:text-text-secondary"
 					>
 						{#if showPassword}
-							<IconEyeSlash class="size-4" />
+							<IconEyeSlash class="size-4" aria-hidden="true" />
 						{:else}
-							<IconEye class="size-4" />
+							<IconEye class="size-4" aria-hidden="true" />
 						{/if}
 					</button>
-				</div>
-				{#if form.errors.password}
-					<span class="text-xs font-medium text-status-danger-strong">{form.errors.password}</span>
-				{/if}
-			</div>
+				{/snippet}
+			</Input>
 
 			<Button
 				type="submit"
 				variant="primary"
 				isLoading={authStore.isLoading}
-				disabled={!form.isValid}
-				class="h-12 w-full"
+				size="lg"
+				class="w-full"
 			>
 				{authStore.isLoading ? 'Memproses…' : 'Masuk'}
 			</Button>

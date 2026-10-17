@@ -40,9 +40,9 @@
 		ConfirmDialogVariant,
 		{ icon: string; button: 'danger' | 'primary' }
 	> = {
-		danger: { icon: 'bg-red-100 text-red-600', button: 'danger' },
-		warning: { icon: 'bg-amber-100 text-amber-600', button: 'primary' },
-		primary: { icon: 'bg-cyan-100 text-brand-primary-strong', button: 'primary' }
+		danger: { icon: 'bg-status-danger-soft text-status-danger-strong', button: 'danger' },
+		warning: { icon: 'bg-status-warning-soft text-status-warning-strong', button: 'primary' },
+		primary: { icon: 'bg-brand-tint text-brand-primary-strong', button: 'primary' }
 	};
 
 	const styles = $derived(variantStyles[variant]);

@@ -32,13 +32,11 @@
 		slate: 'bg-surface-overlay text-text-subtle'
 	};
 
-	const SPINNER_CLASSES: Record<BadgeTone, string> = {
-		cyan: 'border-cyan-700/30 border-t-cyan-700',
-		amber: 'border-amber-700/30 border-t-amber-700',
-		green: 'border-green-700/30 border-t-green-700',
-		red: 'border-red-700/30 border-t-red-700',
-		slate: 'border-text-subtle/30 border-t-text-subtle'
-	};
+	/**
+	 * Cincin berputar mewarisi warna teks badge (`currentColor`), jadi setiap
+	 * nada otomatis cocok — dulu lima kelas palet mentah per nada.
+	 */
+	const SPINNER_CLASS = 'border-current border-r-transparent opacity-70';
 </script>
 
 <span
@@ -49,7 +47,7 @@
 	{#if spinning}
 		<span
 			aria-hidden="true"
-			class={`size-[11px] shrink-0 animate-spin rounded-full border-[1.5px] ${SPINNER_CLASSES[tone]}`}
+			class={`size-[11px] shrink-0 animate-spin rounded-full border-[1.5px] ${SPINNER_CLASS}`}
 		></span>
 	{:else if icon}
 		<span class="shrink-0">{@render icon()}</span>

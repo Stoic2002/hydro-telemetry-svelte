@@ -10,7 +10,7 @@ export {
 export { trendsRepository } from './api/repository';
 export { getTrendErrorMessage, getTrendListErrorDetail } from './error';
 export { alignTrendRange } from './model';
-export { describeSeriesSource } from './series-source';
+export { describeResolution, describeSeriesSource } from './series-source';
 export type {
 	PlantTrendChart,
 	PlantTrendData,

@@ -196,7 +196,7 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
 				title: 'Hidrologi Bulanan',
 				steps: [
 					'Buka **Telemetering › Hidrologi Bulanan**.',
-					'Pilih **Bulan** dan **Tahun** pada bagian **Periode**.',
+					'Pilih bulan dan tahun di kanan atas, di sebelah pemilih PLTA.',
 					'Baca tabel di bagian **Ringkasan**: tiap parameter punya kolom **Target**, **Prediksi**, dan **Realisasi**. Tanda hubung (—) berarti parameter itu tidak punya nilai untuk kolom tersebut; **N/A** berarti seharusnya ada tetapi belum diisi.',
 					'Pada baris energi, kolom **Prediksi** adalah **prognosa ketersediaan energi primer**, sedangkan target dan realisasi adalah produksi energi listrik. **Prognosa pencapaian** adalah prognosa dibagi target, dan badge **Tercapai** / **Belum tercapai** adalah kesimpulannya.',
 					'Lihat juga peta **Curah Hujan** dan **Sifat Hujan** di bagian **Gambar Hujan**: baris **Prediksi** di atas, **Realisasi** di bawahnya. Klik gambar untuk memperbesar.'

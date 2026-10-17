@@ -38,7 +38,7 @@
 			{#if activeTab === 'eva'}
 				<Badge tone="slate">Per PLTA</Badge>
 			{:else}
-				<Badge tone="cyan">Berlaku untuk semua PLTA</Badge>
+				<Badge tone="slate">Berlaku untuk semua PLTA</Badge>
 			{/if}
 		{/snippet}
 	</PageHeader>

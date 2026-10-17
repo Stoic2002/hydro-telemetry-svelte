@@ -6,7 +6,9 @@ import {
 	selectTrendChart,
 	stepPoints,
 	trendChartOptions,
-	valueAt
+	trendReferenceKeys,
+	valueAt,
+	withTrendReferences
 } from './plant-trend';
 
 function point(time: string, value: number): TrendPoint {
@@ -160,5 +162,77 @@ describe('pemilih grafik daftar tren', () => {
 	it('jatuh ke grafik pertama bila kunci kosong atau tidak dikenal', () => {
 		expect(selectTrendChart(list, options, null)?.label).toBe('TMA');
 		expect(selectTrendChart(list, options, 'debit_spillway')?.label).toBe('TMA');
+	});
+
+	it('tanpa kunci, melewati grafik yang tidak memuat data sensor', () => {
+		const planFirst: PlantTrendList = {
+			...list,
+			items: [item('i-target', { key: 'target_tma', source: 'plan' }), ...list.items.slice(0, 1)],
+			charts: [
+				{ title: 'Target TMA', group: null, itemIds: ['i-target'] },
+				{ title: 'TMA Waduk', group: null, itemIds: ['i-tma'] }
+			]
+		};
+		const planOptions = trendChartOptions(planFirst);
+
+		expect(selectTrendChart(planFirst, planOptions, null)?.label).toBe('TMA Waduk');
+		// Kunci yang dikenal tetap dihormati, walau grafiknya hanya rencana.
+		expect(selectTrendChart(planFirst, planOptions, 'target_tma')?.label).toBe('Target TMA');
+	});
+
+	it('jatuh ke grafik pertama bila tidak ada grafik bersensor', () => {
+		const noSensor: PlantTrendList = {
+			...list,
+			items: list.items.map((entry) => ({ ...entry, source: 'plan' }))
+		};
+		expect(selectTrendChart(noSensor, trendChartOptions(noSensor), null)?.label).toBe('TMA');
+	});
+});
+
+describe('garis batas TMA', () => {
+	const tma = item('i-tma', { key: 'tma_waduk', unit: 'mdpl' }, [
+		point('2026-10-13T00:00:00Z', 230.1),
+		point('2026-10-14T00:00:00Z', 230.4)
+	]);
+	const limits: Record<string, { label: string; value: number | null; unit: string | null }> = {
+		batas_tma_limpas: { label: 'Batas TMA Limpas', value: 230.6, unit: 'mdpl' },
+		batas_tma_mol: { label: 'Batas TMA MOL', value: 225.7, unit: 'mdpl' }
+	};
+	const lookup = (key: string) => limits[key] ?? null;
+
+	it('hanya meminta batas untuk metrik yang punya batas', () => {
+		expect(trendReferenceKeys(['tma_waduk', 'inflow'])).toEqual([
+			'batas_tma_limpas',
+			'batas_tma_mol'
+		]);
+		expect(trendReferenceKeys(['inflow'])).toEqual([]);
+	});
+
+	it('menggambar batas yang dekat dan memperluas sumbu untuknya', () => {
+		const { chart, references } = withTrendReferences(chartOf(tma), lookup);
+		const limpas = references.find((reference) => reference.key === 'batas_tma_limpas');
+
+		expect(limpas?.isOnChart).toBe(true);
+		expect(chart.leftDomain[1]).toBeGreaterThan(230.6);
+		expect(limpas?.distanceFromLatest).toBeCloseTo(0.2);
+	});
+
+	it('batas yang jauh hanya tertulis, tanpa meratakan sumbu', () => {
+		const base = chartOf(tma);
+		const { chart, references } = withTrendReferences(base, lookup);
+		const mol = references.find((reference) => reference.key === 'batas_tma_mol');
+
+		expect(mol?.isOnChart).toBe(false);
+		expect(mol?.distanceFromLatest).toBeCloseTo(-4.7);
+		expect(chart.leftDomain[0]).toBe(base.leftDomain[0]);
+	});
+
+	it('melewati batas kosong atau bersatuan lain', () => {
+		const { references } = withTrendReferences(chartOf(tma), (key) =>
+			key === 'batas_tma_limpas'
+				? { label: 'Limpas', value: null, unit: 'mdpl' }
+				: { label: 'MOL', value: 225.7, unit: 'm' }
+		);
+		expect(references).toEqual([]);
 	});
 });

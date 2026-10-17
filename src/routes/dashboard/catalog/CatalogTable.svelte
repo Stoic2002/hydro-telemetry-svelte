@@ -8,7 +8,7 @@
 
 <script lang="ts">
 	import type { Snippet } from 'svelte';
-	import IconSearch from '~icons/ph/magnifying-glass';
+	import SearchForm from '$components/controls/SearchForm.svelte';
 	import EmptyState from '$components/ui/EmptyState.svelte';
 	import ErrorState from '$components/ui/ErrorState.svelte';
 	import RefetchBar from '$components/ui/RefetchBar.svelte';
@@ -73,29 +73,15 @@
 <div
 	class="flex flex-col gap-2.5 border-b border-border-subtle py-4 lg:flex-row lg:flex-wrap lg:items-center"
 >
-	<form onsubmit={onSearch} class="flex min-w-0 items-center gap-2 lg:w-72 lg:shrink-0">
-		<div class="relative flex min-w-0 flex-1 items-center">
-			<IconSearch class="pointer-events-none absolute left-3 size-4 shrink-0 text-text-muted" />
-			<input
-				type="search"
-				value={searchInput}
-				oninput={(event) => onSearchInputChange(event.currentTarget.value)}
-				maxlength={100}
-				placeholder={searchPlaceholder}
-				class="field h-9 pl-9 text-[13px]"
-			/>
-		</div>
-		<button type="submit" class="btn btn-ghost btn-sm h-9 shrink-0">Cari</button>
-		{#if onClearSearch && searchInput.length > 0}
-			<button
-				type="button"
-				onclick={onClearSearch}
-				class="h-9 shrink-0 cursor-pointer rounded-lg px-2 text-[13px] font-medium text-text-muted transition-colors hover:bg-surface-overlay"
-			>
-				Bersihkan
-			</button>
-		{/if}
-	</form>
+	<SearchForm
+		value={searchInput}
+		onValueChange={onSearchInputChange}
+		placeholder={searchPlaceholder}
+		ariaLabel={searchPlaceholder}
+		onSubmit={onSearch}
+		onClear={onClearSearch}
+		class="lg:w-72 lg:shrink-0"
+	/>
 
 	{#if filters}
 		<div class="flex flex-wrap items-center gap-2">{@render filters()}</div>

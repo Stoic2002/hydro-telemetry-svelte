@@ -157,31 +157,30 @@
 					Nama bidang
 				</Button>
 			{/if}
+			<!--
+				Periode di kepala halaman, sebaris dengan pemilih PLTA — dulu bagian
+				"Periode" tersendiri yang memakan satu baris penuh di atas tabel.
+				Lebar dipasang di pembungkus: `Select` memakai `w-full` di akarnya.
+			-->
+			<div class="w-[calc(50%-0.25rem)] sm:w-[150px]">
+				<Select
+					ariaLabel="Bulan"
+					value={month}
+					onValueChange={(next) => void setPeriod('bulan', next)}
+					options={MONTH_OPTIONS}
+				/>
+			</div>
+			<div class="w-[calc(50%-0.25rem)] sm:w-[110px]">
+				<Select
+					ariaLabel="Tahun"
+					value={year}
+					onValueChange={(next) => void setPeriod('tahun', next)}
+					options={YEAR_OPTIONS}
+				/>
+			</div>
 			<PlantSwitcher page="telemetering/bulanan" />
 		{/snippet}
 	</PageHeader>
-
-	<section>
-		<h2 class="section-title">Periode</h2>
-		<div class="mt-2.5 flex flex-wrap items-end gap-3">
-			<Select
-				label="Bulan"
-				value={month}
-				onValueChange={(next) => void setPeriod('bulan', next)}
-				options={MONTH_OPTIONS}
-				controlSize="sm"
-				class="w-full sm:w-[180px]"
-			/>
-			<Select
-				label="Tahun"
-				value={year}
-				onValueChange={(next) => void setPeriod('tahun', next)}
-				options={YEAR_OPTIONS}
-				controlSize="sm"
-				class="w-full sm:w-[140px]"
-			/>
-		</div>
-	</section>
 
 	{#if panelQuery.isError}
 		<Banner tone="warning" title="Data bulanan belum dapat dimuat">

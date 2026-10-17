@@ -1,11 +1,10 @@
 <script lang="ts">
-	import IconCheck from '~icons/ph/check';
 	import IconDownload from '~icons/ph/download-simple';
-	import IconTrash from '~icons/ph/trash';
-	import IconUploadCloud from '~icons/ph/cloud-arrow-up';
 	import IconWarning from '~icons/ph/warning';
 
+	import FileDropzone from '$components/controls/FileDropzone.svelte';
 	import Select from '$components/controls/Select.svelte';
+	import SelectedFile from '$components/controls/SelectedFile.svelte';
 	import UploadHistoryPanel from '$features/audit/components/UploadHistoryPanel.svelte';
 	import { getPlantDisplayName, type Plant } from '$features/plta';
 	import {
@@ -61,8 +60,6 @@
 	let selectionError = $state<string | null>(null);
 	let year = $state(String(CURRENT_YEAR));
 	let publish = $state(false);
-	let isDragging = $state(false);
-	let fileInput = $state<HTMLInputElement | null>(null);
 
 	const isUploading = $derived(elevationMutation.isPending);
 
@@ -116,16 +113,8 @@
 	}
 
 	function clearSelection() {
-		if (fileInput) fileInput.value = '';
 		selectedFile = null;
 		selectionError = null;
-	}
-
-	function handleDrop(event: DragEvent) {
-		event.preventDefault();
-		isDragging = false;
-		const file = event.dataTransfer?.files[0];
-		if (file) selectFile(file);
 	}
 
 	async function uploadElevation() {
@@ -171,91 +160,24 @@
 		<div class="mt-3.5 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_268px]">
 			<div class="flex flex-col gap-5">
 				{#if !selectedFile}
-					<!--
-						Area jatuh berkas. `role="button"` disengaja: seluruh kotak bisa
-						diklik dan dijangkau keyboard, bukan hanya tautan kecil di dalamnya.
-					-->
-					<div
-						role="button"
-						tabindex="0"
-						ondragenter={(event) => {
-							event.preventDefault();
-							isDragging = true;
-						}}
-						ondragover={(event) => {
-							event.preventDefault();
-							isDragging = true;
-						}}
-						ondragleave={() => (isDragging = false)}
-						ondrop={handleDrop}
-						onclick={() => fileInput?.click()}
-						onkeydown={(event) => {
-							if (event.key === 'Enter' || event.key === ' ') {
-								event.preventDefault();
-								fileInput?.click();
-							}
-						}}
-						class={`flex min-h-[190px] cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed px-5 py-8 text-center transition-colors ${
-							isDragging
-								? 'border-brand-primary-strong bg-brand-tint'
-								: 'border-border-strong bg-surface-base hover:border-brand-primary-strong'
-						}`}
-					>
-						<input
-							bind:this={fileInput}
-							type="file"
-							accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-							class="hidden"
-							onchange={(event) => {
-								const file = event.currentTarget.files?.[0];
-								if (file) selectFile(file);
-							}}
-						/>
-						<IconUploadCloud class="size-6 text-text-muted" />
-						<p class="mt-2 text-sm font-medium text-text-secondary">Tarik file Excel ke area ini</p>
-						<p class="mt-1 text-xs text-text-muted">atau klik untuk memilih file</p>
-						<span
-							class="mt-2.5 rounded-full border border-border-subtle bg-surface-raised px-2.5 py-[3px] font-mono text-xs text-text-muted"
-						>
-							.xlsx · maksimum 5 MB
-						</span>
-					</div>
+					<FileDropzone
+						accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+						title="Tarik file Excel ke area ini"
+						hint=".xlsx · maksimum 5 MB"
+						onSelect={selectFile}
+					/>
 				{:else}
 					<div class="flex min-h-[190px] flex-col">
 						<p class="table-head-cell">Setelah file dipilih</p>
 
-						<div
-							class={`mt-2 rounded-xl border p-3.5 ${
-								selectionError
-									? 'border-status-danger-strong/30 bg-status-danger-soft'
-									: 'border-status-success-strong/30 bg-status-success-soft'
-							}`}
-						>
-							<div class="flex items-start gap-3">
-								{#if selectionError}
-									<IconWarning class="mt-0.5 size-5 shrink-0 text-status-danger-strong" />
-								{:else}
-									<IconCheck class="mt-0.5 size-5 shrink-0 text-status-success-strong" />
-								{/if}
-								<div class="min-w-0 flex-1">
-									<p class="truncate text-sm font-medium text-text-primary">{selectedFile.name}</p>
-									<p class="mt-0.5 text-xs text-text-muted">
-										{(selectedFile.size / 1024).toLocaleString('id-ID', {
-											maximumFractionDigits: 1
-										})} KB · Tahun {year}
-									</p>
-								</div>
-								<button
-									type="button"
-									onclick={clearSelection}
-									disabled={isUploading}
-									aria-label="Hapus file terpilih"
-									title="Hapus file"
-									class="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-sm text-text-muted hover:bg-surface-raised hover:text-status-danger-strong disabled:cursor-not-allowed disabled:opacity-50"
-								>
-									<IconTrash class="size-4" aria-hidden="true" />
-								</button>
-							</div>
+						<div class="mt-2">
+							<SelectedFile
+								file={selectedFile}
+								error={selectionError}
+								detail={`Tahun ${year}`}
+								disabled={isUploading}
+								onClear={clearSelection}
+							/>
 						</div>
 
 						<button

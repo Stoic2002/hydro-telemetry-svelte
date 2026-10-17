@@ -18,7 +18,7 @@
 
 	import Banner from '$components/ui/Banner.svelte';
 	import ErrorState from '$components/ui/ErrorState.svelte';
-	import { describeSeriesSource, type TrendSeries } from '$features/trends';
+	import { describeResolution, describeSeriesSource, type TrendSeries } from '$features/trends';
 	import { formatDayMonthTimeWIB } from '$shared/lib/date';
 	import { chartValueDomain, timeAxisFormatter, valueAxisTicks } from '$shared/utils/chart';
 	import { formatNumber } from '$shared/utils/number';
@@ -353,9 +353,9 @@
 					{/if}
 					<span>
 						<!-- Spasi di dalam ekspresi: Svelte membuang spasi di awal blok `{#if}`. -->
-						{chartData.length.toLocaleString('id-ID')} titik · resolusi {series?.resolution}{series
-							? ` · ${describeSeriesSource(series)}`
-							: ''}
+						{chartData.length.toLocaleString('id-ID')} titik · {describeResolution(
+							series?.resolution
+						)}{series ? ` · ${describeSeriesSource(series)}` : ''}
 					</span>
 				</div>
 			</div>

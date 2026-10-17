@@ -18,3 +18,18 @@ export function describeSeriesSource(
 
 	return series.station === '' ? 'tingkat pembangkit' : `stasiun ${series.station}`;
 }
+
+/**
+ * Resolusi data dalam bahasa operator: "per jam", bukan kode API `1h`.
+ * Resolusi efektif dari server bisa berupa kode lain (mis. `15m`), jadi
+ * kode yang tak dikenal diterjemahkan dari pola angka + satuannya.
+ */
+export function describeResolution(resolution: string | null | undefined): string {
+	if (!resolution) return '';
+	if (resolution === 'raw') return 'data mentah';
+	const match = /^(\d+)([mhd])$/.exec(resolution);
+	if (!match) return resolution;
+	const amount = Number(match[1]);
+	const unit = { m: 'menit', h: 'jam', d: 'hari' }[match[2] as 'm' | 'h' | 'd'];
+	return amount === 1 ? `per ${unit}` : `per ${amount} ${unit}`;
+}

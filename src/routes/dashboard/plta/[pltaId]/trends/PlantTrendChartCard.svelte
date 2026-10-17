@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { scaleTime } from 'd3-scale';
-	import { Axis, Bars, Chart, Highlight, Spline, Svg, Tooltip } from 'layerchart';
+	import { Axis, Bars, Chart, Highlight, Rule, Spline, Svg, Tooltip } from 'layerchart';
 
 	import { formatDayMonthTimeWIB } from '$shared/lib/date';
 	import { timeAxisFormatter, valueAxisTicks } from '$shared/utils/chart';
@@ -10,6 +10,7 @@
 		valueAt,
 		type TrendChartDatum,
 		type TrendChartView,
+		type TrendReference,
 		type TrendSeriesView
 	} from './plant-trend';
 
@@ -17,6 +18,8 @@
 		chart: TrendChartView;
 		/** Label pembanding untuk legenda, mis. "Tahun lalu (…)"; `null` = tanpa pembanding. */
 		comparisonLabel?: string | null;
+		/** Batas TMA dari panel harian; yang dekat digambar, semuanya tertulis di keterangan. */
+		references?: TrendReference[];
 	}
 
 	/**
@@ -25,7 +28,17 @@
 	 * garis, kartu statistik tunggal seperti di grafik satu parameter tidak lagi
 	 * berarti.
 	 */
-	let { chart, comparisonLabel = null }: Props = $props();
+	let { chart, comparisonLabel = null, references = [] }: Props = $props();
+
+	const chartReferences = $derived(references.filter((reference) => reference.isOnChart));
+
+	function describeDistance(reference: TrendReference): string {
+		const distance = reference.distanceFromLatest;
+		if (distance === null) return '';
+		if (Math.abs(distance) < 0.005) return 'setara nilai terkini';
+		const amount = `${formatNumber(Math.abs(distance), 2)}${unitLabel(reference.unit)}`;
+		return `${amount} ${distance > 0 ? 'di atas' : 'di bawah'} nilai terkini`;
+	}
 
 	const mapping = $derived(
 		chart.rightDomain ? axisMapping(chart.leftDomain, chart.rightDomain) : null
@@ -145,6 +158,14 @@
 								{/if}
 							{/each}
 
+							<!-- Namanya di keterangan bawah grafik; atas = Limpas, bawah = MOL. -->
+							{#each chartReferences as reference (reference.key)}
+								<Rule
+									y={reference.value}
+									class="stroke-status-warning-strong stroke-[1.25] [stroke-dasharray:6_4]"
+								/>
+							{/each}
+
 							<Highlight lines />
 						</Svg>
 
@@ -234,6 +255,33 @@
 					</tbody>
 				</table>
 			</div>
+		{/if}
+
+		{#if references.length > 0}
+			<!--
+				Batas tertulis dengan jaraknya ke nilai terkini, termasuk yang terlalu
+				jauh untuk digambar tanpa meratakan garis datanya.
+			-->
+			<ul class="mt-3 flex flex-col gap-1.5 border-t border-surface-overlay pt-3">
+				{#each references as reference (reference.key)}
+					<li class="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs">
+						<span
+							aria-hidden="true"
+							class="w-4 shrink-0 border-t-[1.5px] border-dashed border-status-warning-strong"
+						></span>
+						<span class="text-text-secondary">{reference.label}</span>
+						<span class="metric-value text-text-primary">
+							{formatNumber(reference.value, 2)}{unitLabel(reference.unit)}
+						</span>
+						{#if reference.distanceFromLatest !== null}
+							<span class="text-text-muted">· {describeDistance(reference)}</span>
+						{/if}
+						{#if !reference.isOnChart}
+							<span class="text-text-muted">· di luar rentang grafik</span>
+						{/if}
+					</li>
+				{/each}
+			</ul>
 		{/if}
 
 		{#if hasComparison}

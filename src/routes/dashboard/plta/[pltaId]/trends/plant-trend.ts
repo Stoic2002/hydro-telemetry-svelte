@@ -38,9 +38,16 @@ export function trendChartOptions(list: PlantTrendList): TrendChartOption[] {
 }
 
 /**
- * Grafik untuk `?grafik=`, atau grafik pertama bila kosong atau tidak dikenal.
- * Dicari lewat kunci metrik mana pun di grafik — bukan hanya item pertama —
- * supaya tautan lama tetap kena walau admin mengubah urutan di dalam grup.
+ * Grafik untuk `?grafik=`. Dicari lewat kunci metrik mana pun di grafik —
+ * bukan hanya item pertama — supaya tautan lama tetap kena walau admin
+ * mengubah urutan di dalam grup.
+ *
+ * Tanpa kunci (atau kunci tak dikenal), bawaannya grafik pertama yang memuat
+ * data sensor (`measured`), baru grafik pertama bila tidak ada. Item `plan`
+ * dan `derived` sering kosong — Target TMA, misalnya, menunggu isian manual —
+ * dan dulu membuka halaman berarti menatap kotak "Belum ada data" padahal
+ * TMA Waduk tepat di bawahnya berdata. Data tiap grafik baru diminta setelah
+ * dipilih, jadi sumber item adalah petunjuk terbaik yang sudah tersedia.
  */
 export function selectTrendChart(
 	list: PlantTrendList,
@@ -52,7 +59,13 @@ export function selectTrendChart(
 		const match = itemId && options.find((option) => option.chart.itemIds.includes(itemId));
 		if (match) return match;
 	}
-	return options[0];
+
+	const measuredIds = new Set(
+		list.items.filter((item) => item.source === 'measured').map((item) => item.id)
+	);
+	return (
+		options.find((option) => option.chart.itemIds.some((id) => measuredIds.has(id))) ?? options[0]
+	);
 }
 
 export const TREND_SERIES_COLORS = [
@@ -76,6 +89,8 @@ export interface TrendSeriesStats {
 export interface TrendSeriesView {
 	/** Unik dalam satu grafik: `<id item>:<indeks deret>`. */
 	id: string;
+	/** Kunci metrik item asalnya, mis. `tma_waduk`. */
+	itemKey: string;
 	name: string;
 	unit: string | null;
 	color: string;
@@ -169,6 +184,7 @@ export function buildTrendChart(
 				item.series.length > 1 ? `${item.label} · ${deret.name || deret.station}` : item.label;
 			const view: TrendSeriesView = {
 				id: `${item.id}:${index}`,
+				itemKey: item.key,
 				name,
 				unit: item.unit,
 				color: TREND_SERIES_COLORS[colorIndex % TREND_SERIES_COLORS.length],
@@ -270,4 +286,88 @@ export function valueAt(view: TrendSeriesView, time: number): number | undefined
 		current = point.value;
 	}
 	return current;
+}
+
+/**
+ * Garis acuan per metrik: batas yang memberi arti pada angka TMA. Nilainya
+ * dibaca dari panel Hidrologi Harian hari ini (konstanta PLTA yang diisi
+ * operator), bukan dari daftar tren — admin tidak perlu memasukkannya ke
+ * grafik supaya ikut tampil.
+ */
+export const TREND_REFERENCE_KEYS: Readonly<Record<string, readonly string[]>> = {
+	tma_waduk: ['batas_tma_limpas', 'batas_tma_mol'],
+	tma_tailrace: ['batas_tma_hilir_maks']
+};
+
+export interface TrendReferenceSource {
+	label: string;
+	value: number | null;
+	unit: string | null;
+}
+
+export interface TrendReference {
+	key: string;
+	label: string;
+	value: number;
+	unit: string | null;
+	/** Digambar sebagai garis; batas yang jauh hanya tampil di keterangan. */
+	isOnChart: boolean;
+	/** Batas − nilai terkini deret acuannya; positif = batas di atas. */
+	distanceFromLatest: number | null;
+}
+
+/** Kunci batas yang perlu dibaca untuk grafik berisi metrik `itemKeys`. */
+export function trendReferenceKeys(itemKeys: readonly string[]): string[] {
+	return [...new Set(itemKeys.flatMap((key) => TREND_REFERENCE_KEYS[key] ?? []))];
+}
+
+/**
+ * Menempelkan batas ke grafik. Batas yang dekat dengan datanya — paling jauh
+ * selebar rentang data itu sendiri — dimasukkan ke sumbu dan digambar. Batas
+ * yang lebih jauh tidak: TMA Soedirman bergerak 0,3 m dalam seminggu sementara
+ * MOL 4,5 m di bawahnya, dan memaksanya masuk sumbu akan meratakan garis TMA.
+ * Jaraknya ke nilai terkini tetap tertulis di keterangan.
+ *
+ * Hanya untuk satuan sumbu kiri: deret acuan TMA selalu satuan pertama grafik.
+ */
+export function withTrendReferences(
+	chart: TrendChartView,
+	lookup: (key: string) => TrendReferenceSource | null
+): { chart: TrendChartView; references: TrendReference[] } {
+	if (!chart.hasData) return { chart, references: [] };
+
+	const [low, high] = chart.leftDomain;
+	const span = high - low || 1;
+	let domain: [number, number] = [low, high];
+	const references: TrendReference[] = [];
+
+	const leftSeries = chart.series.filter((view) => view.axis === 'left');
+	const itemKeys = [...new Set(leftSeries.map((view) => view.itemKey))];
+
+	itemKeys.forEach((itemKey) => {
+		const latest =
+			leftSeries.find((view) => view.itemKey === itemKey && view.stats)?.stats?.latest.value ??
+			null;
+		for (const key of TREND_REFERENCE_KEYS[itemKey] ?? []) {
+			const source = lookup(key);
+			if (!source || source.value === null || !Number.isFinite(source.value)) continue;
+			if (source.unit && chart.leftUnit && source.unit !== chart.leftUnit) continue;
+
+			const isOnChart = source.value >= low - span && source.value <= high + span;
+			if (isOnChart) {
+				const pad = span * 0.06;
+				domain = [Math.min(domain[0], source.value - pad), Math.max(domain[1], source.value + pad)];
+			}
+			references.push({
+				key,
+				label: source.label,
+				value: source.value,
+				unit: source.unit ?? chart.leftUnit,
+				isOnChart,
+				distanceFromLatest: latest === null ? null : source.value - latest
+			});
+		}
+	});
+
+	return { chart: { ...chart, leftDomain: domain }, references };
 }

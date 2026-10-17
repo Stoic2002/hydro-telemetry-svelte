@@ -153,7 +153,7 @@
 			>
 				<div class="flex items-center gap-2.5 border-b border-border-subtle px-[18px] py-3.5">
 					<div
-						class="flex size-[30px] shrink-0 items-center justify-center rounded-full border border-brand-tint-border bg-brand-tint text-brand-primary-strong"
+						class="flex size-[30px] shrink-0 items-center justify-center rounded-full border border-border-subtle bg-surface-overlay text-text-subtle"
 					>
 						<IconUser class="size-4" />
 					</div>
@@ -212,7 +212,7 @@
 			>
 				<div class="flex items-center gap-2.5 border-b border-border-subtle px-[18px] py-3.5">
 					<div
-						class="flex size-[30px] shrink-0 items-center justify-center rounded-full border border-amber-200 bg-amber-50 text-amber-600"
+						class="flex size-[30px] shrink-0 items-center justify-center rounded-full border border-border-subtle bg-surface-overlay text-text-subtle"
 					>
 						<IconKey class="size-4" />
 					</div>

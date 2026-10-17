@@ -156,6 +156,14 @@
 		return () => observer.disconnect();
 	});
 
+	/**
+	 * Tinggi kartu yang menempel di dasar peta (0 saat tersembunyi di bawah
+	 * `lg`). Peta digeser naik setengahnya supaya penanda di pantai selatan —
+	 * Wadaslintang, Pejengkolan, Wonogiri — tidak tertutup kartu. Laut di atas
+	 * pantai utara cukup lapang untuk menampung geserannya.
+	 */
+	let bottomOverlayHeight = $state(0);
+
 	const projection = $derived.by(() => {
 		const config = projectionConfig ?? DEFAULT_PROJECTION;
 		const viewportScale = Math.min(
@@ -173,7 +181,7 @@
 		return geoMercator()
 			.center([centerLongitude, baseLatitude])
 			.scale(effectiveScale)
-			.translate([mapSize.width / 2, mapSize.height / 2]);
+			.translate([mapSize.width / 2, mapSize.height / 2 - bottomOverlayHeight / 2]);
 	});
 
 	const path = $derived(geoPath(projection));
@@ -429,10 +437,10 @@
 								y={labelY}
 								text-anchor="middle"
 								dominant-baseline="central"
-								fill="#454545"
+								fill="#6e6e6e"
 								style:font-family="var(--font-sans)"
 								font-size={labelFontSize}
-								font-weight={700}
+								font-weight={500}
 								letter-spacing={0.08}
 								stroke="#ffffff"
 								stroke-opacity={0.94}
@@ -525,7 +533,6 @@
 								r={isHighlighted ? 20 : 12}
 								fill={statusColor}
 								fill-opacity={isHighlighted ? 0.2 : 0.1}
-								class={isHighlighted ? '' : 'animate-pulse'}
 							/>
 							{#if isRaining}
 								<!--
@@ -552,12 +559,21 @@
 								stroke="#ffffff"
 								stroke-width={2}
 							/>
+							<!--
+								Nama PLTA lebih tegas daripada nama kabupaten (abu, 500) dan diberi
+								halo putih: dulu keduanya setara dan nama PLTA tenggelam di klaster
+								Wonosobo–Banjarnegara. Kontrasnya penuh, tanpa opacity.
+							-->
 							<text
 								text-anchor="middle"
 								y={isHighlighted ? -26 : -16}
 								aria-hidden="true"
-								class={`font-sans text-[10px] font-bold transition-all ${
-									isHighlighted ? 'fill-text-primary opacity-100' : 'fill-text-muted opacity-70'
+								stroke="#ffffff"
+								stroke-width={3}
+								stroke-linejoin="round"
+								paint-order="stroke"
+								class={`font-sans font-semibold transition-all ${
+									isHighlighted ? 'fill-text-primary text-[12px]' : 'fill-text-strong text-[10.5px]'
 								}`}
 							>
 								{plantName}
@@ -640,7 +656,9 @@
 					yang merentang menutupi penanda di pantai selatan (Wonogiri, x ≈ 75%
 					lebar peta); isi kartunya hanya ±640px.
 				-->
-				<div class="pointer-events-auto w-fit max-w-full">{@render bottomOverlay()}</div>
+				<div class="pointer-events-auto w-fit max-w-full" bind:clientHeight={bottomOverlayHeight}>
+					{@render bottomOverlay()}
+				</div>
 			</div>
 		{/if}
 
