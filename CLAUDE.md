@@ -473,7 +473,10 @@ Hal-hal yang sudah pernah menggigit dan tidak akan terlihat dari membaca kode:
   SHFL dan DMN Beban Penuh.
 - **Penanda sumber panel harian hanya empat** (13 Okt 2026): Realtime
   (`measured`), Formulasi (`derived`), Input (`plan`), Konstanta (input)
-  (`constant`). "Konstanta" polos dan "Belum tersedia" dihapus atas permintaan
+  (`constant`). Sejak 23 Okt 2026 legendanya di kepala halaman, di bawah
+  pemilih PLTA, dan status koneksi digabung ke penanda Realtime ("Realtime
+  aktif"/"Realtime belum aktif") — dulu titik status terpisah yang terbaca
+  sama dengan penanda Realtime. "Konstanta" polos dan "Belum tersedia" dihapus atas permintaan
   tim; baris tanpa nilai tampil N/A dengan penanda sumbernya.
   `unavailable` hanya tersisa untuk sel kosong tabel Hidrologi Bulanan.
 - **Rekap Hidrologi sudah dipecah** (29 Sep 2026) dan submenunya dihapus dari

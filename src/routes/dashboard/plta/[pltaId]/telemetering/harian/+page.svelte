@@ -338,52 +338,65 @@
 		description="Kondisi hulu, bendungan, dan hilir hari ini"
 	>
 		{#snippet actions()}
-			{#if daily}
-				<span class="text-xs text-text-muted">{formatHydrologyDate(daily.date)}</span>
-			{/if}
-			<PlantSwitcher page="telemetering/harian" />
-			<!-- Di kepala halaman seperti filter halaman lain; dulu di ujung baris penanda. -->
-			<DailyViewModeMenu
-				zone={zoneFilter}
-				row={rowFilter}
-				rowOptions={rowFilterOptions}
-				onChange={setViewMode}
-			/>
+			<!--
+				Kontrol dan penanda sumber dalam SATU kolom yang rata kanan di layar
+				lebar. Baris penanda lebih lebar daripada kontrol; tanpa kolom ini
+				pemilih PLTA ikut rata kiri di blok yang melebar dan tampak di
+				tengah kepala halaman.
+			-->
+			<div class="flex w-full flex-col gap-2 xl:items-end">
+				<div class="flex flex-wrap items-center gap-2 xl:justify-end">
+					{#if daily}
+						<span class="text-xs text-text-muted">{formatHydrologyDate(daily.date)}</span>
+					{/if}
+					<PlantSwitcher page="telemetering/harian" />
+					<!-- Di kepala halaman seperti filter halaman lain; dulu di ujung baris penanda. -->
+					<DailyViewModeMenu
+						zone={zoneFilter}
+						row={rowFilter}
+						rowOptions={rowFilterOptions}
+						onChange={setViewMode}
+					/>
+				</div>
+				<!--
+					Penanda sumber di bawah pemilih PLTA (23 Okt 2026); dulu satu baris
+					sendiri di bawah kepala halaman. "Realtime aktif" dan penanda
+					Realtime digabung: dulu dua tanda terpisah yang terbaca sama.
+				-->
+				<div
+					class="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs font-medium tracking-wide text-text-muted uppercase xl:justify-end"
+				>
+					{#each DAILY_SOURCE_TYPES as type (type)}
+						{#if type === 'api'}
+							<span
+								class={`flex items-center gap-1.5 ${
+									monitoringStream.status === 'open' ? '' : 'text-status-warning-strong'
+								}`}
+							>
+								<SourceMarker {type} />
+								{monitoringStream.status === 'open' ? 'Realtime aktif' : 'Realtime belum aktif'}
+							</span>
+						{:else}
+							<span class="flex items-center gap-1.5"
+								><SourceMarker {type} />{SOURCE_MARKER_LABEL[type]}</span
+							>
+						{/if}
+					{/each}
+
+					{#if monitoringStream.status === 'error' || monitoringStream.status === 'closed'}
+						<button
+							type="button"
+							onclick={monitoringStream.reconnect}
+							class="inline-flex cursor-pointer items-center gap-1 text-status-danger-strong"
+						>
+							<IconRefresh class="size-3" />
+							Hubungkan ulang
+						</button>
+					{/if}
+				</div>
+			</div>
 		{/snippet}
 	</PageHeader>
-
-	<div
-		class="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs font-medium tracking-wide text-text-muted uppercase"
-	>
-		<span class="flex items-center gap-1.5">
-			<span
-				class={`size-2 rounded-full ${
-					monitoringStream.status === 'open'
-						? 'bg-status-success-strong'
-						: 'bg-status-warning-strong'
-				}`}
-			></span>
-			{monitoringStream.status === 'open' ? 'Realtime aktif' : 'Realtime belum aktif'}
-		</span>
-
-		<!-- Empat klasifikasi sumber; sama dengan penanda di setiap baris. -->
-		{#each DAILY_SOURCE_TYPES as type (type)}
-			<span class="flex items-center gap-1.5"
-				><SourceMarker {type} />{SOURCE_MARKER_LABEL[type]}</span
-			>
-		{/each}
-
-		{#if monitoringStream.status === 'error' || monitoringStream.status === 'closed'}
-			<button
-				type="button"
-				onclick={monitoringStream.reconnect}
-				class="inline-flex cursor-pointer items-center gap-1 text-status-danger-strong"
-			>
-				<IconRefresh class="size-3" />
-				Hubungkan ulang
-			</button>
-		{/if}
-	</div>
 
 	{#if dailyQuery.isError}
 		<Banner tone="warning" title="Sebagian data harian belum lengkap">

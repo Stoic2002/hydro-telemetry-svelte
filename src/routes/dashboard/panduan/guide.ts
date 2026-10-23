@@ -74,19 +74,8 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
 	{
 		id: 'memulai',
 		title: 'Memulai',
-		summary: 'Masuk, berpindah menu, memilih PLTA, dan keluar dari aplikasi.',
+		summary: 'Berpindah menu, memilih PLTA, peran pengguna, dan keluar dari aplikasi.',
 		blocks: [
-			{
-				title: 'Masuk ke aplikasi',
-				steps: [
-					'Buka alamat aplikasi di browser.',
-					'Isi **Username** dan **Password** yang diberikan administrator.',
-					'Tekan **Masuk**. Halaman pertama yang terbuka adalah **Overview**.'
-				],
-				notes: [
-					'Sesi tetap tersimpan saat halaman di-refresh. Anda baru diminta masuk kembali bila sesi sudah berakhir.'
-				]
-			},
 			{
 				title: 'Berpindah menu',
 				notes: [
@@ -226,8 +215,8 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
 				example: 'source-markers',
 				notes: [
 					'Menampilkan kondisi **hari ini** untuk tiga zona: hulu, bendungan, dan hilir.',
-					'Penanda **Realtime aktif** berarti koneksi ke server terbuka dan nilai baru langsung masuk begitu dikirim sensor. Bila tertulis **Realtime belum aktif**, tekan **Hubungkan ulang** bila tombol itu muncul.',
-					'Penanda di depan setiap nilai menunjukkan asalnya: **Realtime** (sensor), **Formulasi** (dihitung), **Input** (diisi manual), atau **Konstanta (input)** (konstanta yang diisi operator). Baris yang belum berisi nilai menampilkan N/A dengan penanda sumbernya.',
+					'Penanda sumber ada di kanan atas, di bawah pemilih PLTA. Penanda **Realtime aktif** berarti koneksi ke server terbuka dan nilai sensor langsung masuk begitu dikirim. Bila tertulis **Realtime belum aktif**, tekan **Hubungkan ulang** bila tombol itu muncul.',
+					'Penanda di depan setiap nilai menunjukkan asalnya: **Realtime** (sensor; di legenda tertulis **Realtime aktif**), **Formulasi** (dihitung), **Input** (diisi manual), atau **Konstanta (input)** (konstanta yang diisi operator). Baris yang belum berisi nilai menampilkan N/A dengan penanda sumbernya.',
 					'Untuk mempersempit tampilan, tekan **Mode** di kanan atas, di sebelah pemilih PLTA. Pilih **Zona** (Hulu, Bendungan, atau Hilir) dan **Baris** (Perlu perhatian, Isian manual, atau Ringkas). Mode yang aktif tertulis di tombol itu menggantikan kata Mode; **Tampilkan semua** mengembalikannya.'
 				]
 			},
