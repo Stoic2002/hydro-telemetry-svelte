@@ -25,6 +25,8 @@
 		onSearch: (event: SubmitEvent) => void;
 		onClearSearch?: () => void;
 		filters?: Snippet;
+		/** Aksi di ujung kanan baris filter, mis. tombol Tambah khusus admin. */
+		actions?: Snippet;
 		isLoading: boolean;
 		isFetching: boolean;
 		isError: boolean;
@@ -51,6 +53,7 @@
 		onSearch,
 		onClearSearch,
 		filters,
+		actions,
 		isLoading,
 		isFetching,
 		isError,
@@ -87,9 +90,12 @@
 		<div class="flex flex-wrap items-center gap-2">{@render filters()}</div>
 	{/if}
 
-	{#if !isLoading && !isError}
-		<span class="text-xs text-text-muted lg:ml-auto">{total} {itemLabel}</span>
-	{/if}
+	<div class="flex items-center justify-between gap-3 lg:ml-auto">
+		{#if !isLoading && !isError}
+			<span class="text-xs text-text-muted">{total} {itemLabel}</span>
+		{/if}
+		{@render actions?.()}
+	</div>
 </div>
 
 <section

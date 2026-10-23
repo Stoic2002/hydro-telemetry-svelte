@@ -259,6 +259,16 @@ Hal-hal yang sudah pernah menggigit dan tidak akan terlihat dari membaca kode:
   ke jam (`forecastAccuracyWindow`) — rentang yang dihitung ulang tiap render
   mengubah kunci query dan memicu permintaan tanpa henti.
 - **User Management**: limit paginasi 10 item.
+- **Manajemen PLTA dan Wilayah Sungai (23 Okt 2026)** ada di **Katalog Data**,
+  bukan menu baru: tombol **Tambah** di toolbar dan **Ubah** per baris pada tab
+  Wilayah Sungai dan PLTA, khusus admin (`canManagePlants`; Swagger tidak
+  menyebut perannya, keputusan frontend). Sheet-nya `PlantFormSheet` dan
+  `RiverBasinFormSheet`; validasi murni di `features/plta/plant-form.ts`. Kode
+  tidak bisa diubah (`PATCH` tidak menerimanya), dan server tidak punya hapus —
+  menonaktifkan lewat status. `PATCH` hanya mengirim bidang yang berubah.
+  **`constants` tidak pernah dikirim**: server menimpanya utuh, dan editor
+  konstanta (batas TMA, SWC, formula inflow) menunggu daftar kuncinya
+  dipastikan ke backend. Tag (`POST/PATCH/DELETE /tags`, OPC browse) belum.
 - **Overview**: peta Jawa Tengah dengan batas kabupaten/kota, garis aliran
   sungai, dan overlay **awan hujan Himawari-9** (NASA GIBS, kanal 13
   inframerah, tertinggal ~30–40 menit). Dulu RainViewer, tetapi RainViewer

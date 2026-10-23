@@ -34,6 +34,37 @@ export interface Plant {
 	constants: Record<string, unknown>;
 }
 
+/** Isian Wilayah Sungai baru (`POST /wilayah-sungai`). `code` unik, maks. 32 karakter. */
+export interface RiverBasinInput {
+	code: string;
+	name: string;
+	description: string | null;
+}
+
+/** Kode Wilayah Sungai tidak bisa diubah setelah dibuat. */
+export type RiverBasinChanges = Partial<Pick<RiverBasinInput, 'name' | 'description'>>;
+
+/**
+ * Isian PLTA (`POST /plta`). `constants` sengaja tidak ada: server menimpanya
+ * UTUH, jadi form identitas tidak pernah mengirimnya — konstanta diatur
+ * terpisah setelah daftar kuncinya dipastikan.
+ */
+export interface PlantInput {
+	code: string;
+	name: string;
+	riverBasinId: string;
+	latitude: number | null;
+	longitude: number | null;
+	capacityMw: number | null;
+	description: string | null;
+	isActive: boolean;
+	bebanToOutflowNum: number;
+	bebanToOutflowDen: number;
+}
+
+/** Hanya bidang yang berubah; kode PLTA tidak bisa diubah setelah dibuat. */
+export type PlantChanges = Partial<Omit<PlantInput, 'code'>>;
+
 export type PlantTagProtocol = 'opcua' | 'modbus' | 'sql' | 'rest' | 'upload' | 'derived';
 
 export interface PlantTag {

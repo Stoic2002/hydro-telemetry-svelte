@@ -13,6 +13,7 @@ export {
 	canConfigureDisplay,
 	canEditHydrologyData,
 	canEditTagBounds,
+	canManagePlants,
 	canManageUsers,
 	canUploadMonthlyHydrology
 } from './permissions';

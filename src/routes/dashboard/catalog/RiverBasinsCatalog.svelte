@@ -1,12 +1,27 @@
 <script lang="ts">
+	import IconPencil from '~icons/ph/pencil-simple';
+	import IconPlus from '~icons/ph/plus';
+	import Button from '$components/controls/Button.svelte';
 	import Skeleton from '$components/controls/Skeleton.svelte';
+	import { authStore, canManagePlants } from '$features/auth';
 	import {
 		createPlantCatalogQuery,
 		createRiverBasinsQuery,
-		getPLTAErrorMessage
+		getPLTAErrorMessage,
+		type RiverBasin
 	} from '$features/plta';
+	import RiverBasinFormSheet from '$features/plta/components/RiverBasinFormSheet.svelte';
 	import CatalogTable from './CatalogTable.svelte';
 	import { PAGE_LIMIT } from './model';
+
+	const canManage = $derived(canManagePlants(authStore.user));
+	let isFormOpen = $state(false);
+	let editingRiverBasin = $state<RiverBasin | null>(null);
+
+	function openForm(riverBasin: RiverBasin | null) {
+		editingRiverBasin = riverBasin;
+		isFormOpen = true;
+	}
 
 	let page = $state(1);
 	let searchInput = $state('');
@@ -53,7 +68,8 @@
 		{ key: 'code', label: 'Kode', class: 'w-32' },
 		{ key: 'name', label: 'Wilayah Sungai' },
 		{ key: 'description', label: 'Deskripsi', class: 'w-[38%]' },
-		{ key: 'plants', label: 'Jumlah PLTA', class: 'w-36 text-center' }
+		{ key: 'plants', label: 'Jumlah PLTA', class: 'w-36 text-center' },
+		...(canManage ? [{ key: 'action', label: 'Aksi', class: 'w-28' }] : [])
 	]}
 	minWidthClass="min-w-[760px]"
 	{searchInput}
@@ -81,6 +97,15 @@
 	onPreviousPage={() => (page = Math.max(page - 1, 1))}
 	onNextPage={() => (page = Math.min(page + 1, totalPages))}
 >
+	{#snippet actions()}
+		{#if canManage}
+			<Button type="button" size="sm" onclick={() => openForm(null)} class="whitespace-nowrap">
+				{#snippet leftIcon()}<IconPlus class="size-4" />{/snippet}
+				Tambah Wilayah Sungai
+			</Button>
+		{/if}
+	{/snippet}
+
 	{#snippet rows()}
 		{#each riverBasins as riverBasin (riverBasin.id)}
 			<tr
@@ -102,7 +127,28 @@
 						{plantCountsByRiverBasin[riverBasin.id] ?? 0}
 					{/if}
 				</td>
+				{#if canManage}
+					<td class="px-3.5 py-2.5">
+						<button
+							type="button"
+							onclick={() => openForm(riverBasin)}
+							aria-label={`Ubah Wilayah Sungai ${riverBasin.name}`}
+							class="btn btn-ghost btn-sm"
+						>
+							<IconPencil class="size-3.5" aria-hidden="true" />
+							Ubah
+						</button>
+					</td>
+				{/if}
 			</tr>
 		{/each}
 	{/snippet}
 </CatalogTable>
+
+{#if canManage}
+	<RiverBasinFormSheet
+		isOpen={isFormOpen}
+		riverBasin={editingRiverBasin}
+		onClose={() => (isFormOpen = false)}
+	/>
+{/if}

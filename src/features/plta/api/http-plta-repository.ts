@@ -1,9 +1,18 @@
 import { ApiError, apiRequest, createApiResponseParser } from '../../../api/http';
-import type { ListParams, PaginatedResult, Plant, PlantTag, RiverBasin } from '../model';
+import type {
+	ListParams,
+	PaginatedResult,
+	Plant,
+	PlantChanges,
+	PlantTag,
+	RiverBasin,
+	RiverBasinChanges
+} from '../model';
 import type { PLTARepository } from './plta-repository';
 import {
 	apiPlantSchema,
 	apiPlantTagSchema,
+	apiRiverBasinSchema,
 	paginatedPlantTagsSchema,
 	paginatedPlantsSchema,
 	paginatedRiverBasinsSchema,
@@ -75,6 +84,32 @@ function mapPage<TApiItem, TItem>(
 		...page,
 		items: page.items.map(mapItem)
 	};
+}
+
+/** Nama bidang model → nama bidang API untuk badan `POST`/`PATCH` PLTA. */
+const PLANT_FIELD: Record<keyof PlantChanges, string> = {
+	name: 'name',
+	riverBasinId: 'ws_id',
+	latitude: 'latitude',
+	longitude: 'longitude',
+	capacityMw: 'capacity_mw',
+	description: 'description',
+	isActive: 'is_active',
+	bebanToOutflowNum: 'beban_to_outflow_num',
+	bebanToOutflowDen: 'beban_to_outflow_den'
+};
+
+/**
+ * Hanya bidang yang ADA di `changes` yang dikirim. `null` tetap dikirim karena
+ * artinya mengosongkan (mis. koordinat), sedangkan bidang yang tidak disebut
+ * dibiarkan server apa adanya — termasuk `constants`.
+ */
+function plantBody(changes: PlantChanges): Record<string, unknown> {
+	const body: Record<string, unknown> = {};
+	for (const [key, field] of Object.entries(PLANT_FIELD) as [keyof PlantChanges, string][]) {
+		if (key in changes && changes[key] !== undefined) body[field] = changes[key];
+	}
+	return body;
 }
 
 function listQuery(params: ListParams) {
@@ -153,5 +188,46 @@ export const httpPltaRepository: PLTARepository = {
 		});
 
 		return mapPlantTag(parseResponse(payload, apiPlantTagSchema, endpoint));
+	},
+
+	async createRiverBasin(input) {
+		const endpoint = '/api/v1/wilayah-sungai';
+		const payload = await apiRequest<unknown>(endpoint, {
+			method: 'POST',
+			json: { code: input.code, name: input.name, description: input.description }
+		});
+
+		return mapRiverBasin(parseResponse(payload, apiRiverBasinSchema, endpoint));
+	},
+
+	async updateRiverBasin(riverBasinId, changes: RiverBasinChanges) {
+		const endpoint = `/api/v1/wilayah-sungai/${encodeURIComponent(riverBasinId)}`;
+		const json: Record<string, unknown> = {};
+		if (changes.name !== undefined) json.name = changes.name;
+		if (changes.description !== undefined) json.description = changes.description;
+		const payload = await apiRequest<unknown>(endpoint, { method: 'PATCH', json });
+
+		return mapRiverBasin(parseResponse(payload, apiRiverBasinSchema, endpoint));
+	},
+
+	async createPlant(input) {
+		const endpoint = '/api/v1/plta';
+		const { code, ...rest } = input;
+		const payload = await apiRequest<unknown>(endpoint, {
+			method: 'POST',
+			json: { code, ...plantBody(rest) }
+		});
+
+		return mapPlant(parseResponse(payload, apiPlantSchema, endpoint));
+	},
+
+	async updatePlant(pltaId, changes) {
+		const endpoint = `/api/v1/plta/${encodeURIComponent(pltaId)}`;
+		const payload = await apiRequest<unknown>(endpoint, {
+			method: 'PATCH',
+			json: plantBody(changes)
+		});
+
+		return mapPlant(parseResponse(payload, apiPlantSchema, endpoint));
 	}
 };

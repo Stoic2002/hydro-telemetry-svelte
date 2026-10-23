@@ -593,6 +593,21 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
 				]
 			},
 			{
+				title: 'Menambah dan mengubah PLTA atau Wilayah Sungai',
+				access: 'userManagement',
+				steps: [
+					'Di tab **Wilayah Sungai** atau **PLTA**, tekan **Tambah Wilayah Sungai** atau **Tambah PLTA** di kanan atas tabel. Untuk mengubah, tekan **Ubah** pada barisnya.',
+					'Buat Wilayah Sungai lebih dulu bila PLTA-nya berada di wilayah baru.',
+					'Isi **Kode**, **Nama**, dan untuk PLTA juga **Wilayah Sungai**. **Lintang** dan **Bujur** diisi berpasangan; tanpa keduanya PLTA tidak tampil di peta Overview.',
+					'Tekan **Tambah** atau **Simpan**.'
+				],
+				notes: [
+					'**Kode** tidak bisa diubah setelah dibuat, karena dipakai sebagai kunci di template Excel.',
+					'PLTA dan Wilayah Sungai tidak bisa dihapus. Untuk menghentikan PLTA, ubah **Status PLTA** menjadi **Nonaktif**.',
+					'Konstanta PLTA (batas TMA, SWC, formula inflow) belum bisa diubah dari sini dan tidak ikut berubah saat PLTA disimpan.'
+				]
+			},
+			{
 				title: 'Mengatur batas valid tag',
 				steps: [
 					'Di tab **Tag & Parameter**, tekan **Atur batas** pada tag yang dimaksud.',

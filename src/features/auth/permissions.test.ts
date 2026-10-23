@@ -4,6 +4,7 @@ import {
 	canAccessDataTools,
 	canEditHydrologyData,
 	canEditTagBounds,
+	canManagePlants,
 	canManageUsers,
 	canUploadMonthlyHydrology
 } from './permissions';
@@ -26,6 +27,14 @@ describe('permissions', () => {
 		expect(canManageUsers(userWithRole('Admin UBP'))).toBe(true);
 		expect(canManageUsers(userWithRole('Operator PLTA'))).toBe(false);
 		expect(canManageUsers(userWithRole('Viewer'))).toBe(false);
+	});
+
+	it('hanya admin yang boleh menambah dan mengubah PLTA serta Wilayah Sungai', () => {
+		expect(canManagePlants(userWithRole('Super Admin'))).toBe(true);
+		expect(canManagePlants(userWithRole('Admin UBP'))).toBe(true);
+		expect(canManagePlants(userWithRole('Operator PLTA'))).toBe(false);
+		expect(canManagePlants(userWithRole('Viewer'))).toBe(false);
+		expect(canManagePlants(null)).toBe(false);
 	});
 
 	it('menutup Input GHW dan Katalog Data untuk Viewer saja', () => {

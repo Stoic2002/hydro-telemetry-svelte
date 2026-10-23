@@ -1,9 +1,28 @@
 <script lang="ts">
-	import { createPLTAListQuery, createRiverBasinsQuery, getPLTAErrorMessage } from '$features/plta';
+	import IconPencil from '~icons/ph/pencil-simple';
+	import IconPlus from '~icons/ph/plus';
+	import Button from '$components/controls/Button.svelte';
+	import { authStore, canManagePlants } from '$features/auth';
+	import {
+		createPLTAListQuery,
+		createRiverBasinsQuery,
+		getPLTAErrorMessage,
+		type Plant
+	} from '$features/plta';
+	import PlantFormSheet from '$features/plta/components/PlantFormSheet.svelte';
 	import CatalogTable from './CatalogTable.svelte';
 	import { PAGE_LIMIT, RIVER_BASIN_LOOKUP_LIMIT, formatCoordinate } from './model';
 
 	let { onOpenTags }: { onOpenTags: (pltaId: string) => void } = $props();
+
+	const canManage = $derived(canManagePlants(authStore.user));
+	let isFormOpen = $state(false);
+	let editingPlant = $state<Plant | null>(null);
+
+	function openForm(plant: Plant | null) {
+		editingPlant = plant;
+		isFormOpen = true;
+	}
 
 	let page = $state(1);
 	let searchInput = $state('');
@@ -65,7 +84,7 @@
 		{ key: 'capacity', label: 'Kapasitas', class: 'w-32' },
 		{ key: 'coordinates', label: 'Koordinat', class: 'min-w-52' },
 		{ key: 'status', label: 'Status', class: 'w-28' },
-		{ key: 'action', label: 'Aksi', class: 'w-36' }
+		{ key: 'action', label: 'Aksi', class: canManage ? 'w-56' : 'w-36' }
 	]}
 	minWidthClass="min-w-[1040px]"
 	{searchInput}
@@ -93,6 +112,15 @@
 	onPreviousPage={() => (page = Math.max(page - 1, 1))}
 	onNextPage={() => (page = Math.min(page + 1, totalPages))}
 >
+	{#snippet actions()}
+		{#if canManage}
+			<Button type="button" size="sm" onclick={() => openForm(null)} class="whitespace-nowrap">
+				{#snippet leftIcon()}<IconPlus class="size-4" />{/snippet}
+				Tambah PLTA
+			</Button>
+		{/if}
+	{/snippet}
+
 	{#snippet rows()}
 		{#each plants as plant (plant.id)}
 			<tr
@@ -122,11 +150,33 @@
 					</span>
 				</td>
 				<td class="px-3.5 py-2.5">
-					<button type="button" onclick={() => onOpenTags(plant.id)} class="btn btn-ghost btn-sm">
-						Lihat Parameter
-					</button>
+					<div class="flex items-center gap-2">
+						<button type="button" onclick={() => onOpenTags(plant.id)} class="btn btn-ghost btn-sm">
+							Lihat Parameter
+						</button>
+						{#if canManage}
+							<button
+								type="button"
+								onclick={() => openForm(plant)}
+								aria-label={`Ubah PLTA ${plant.name}`}
+								class="btn btn-ghost btn-sm"
+							>
+								<IconPencil class="size-3.5" aria-hidden="true" />
+								Ubah
+							</button>
+						{/if}
+					</div>
 				</td>
 			</tr>
 		{/each}
 	{/snippet}
 </CatalogTable>
+
+{#if canManage}
+	<PlantFormSheet
+		isOpen={isFormOpen}
+		plant={editingPlant}
+		riverBasins={riverBasinsQuery.data?.items ?? []}
+		onClose={() => (isFormOpen = false)}
+	/>
+{/if}

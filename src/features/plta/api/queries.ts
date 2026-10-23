@@ -5,7 +5,16 @@ import {
 	useQueryClient,
 	type QueryClient
 } from '@tanstack/svelte-query';
-import type { ListParams, Plant, PlantTagListParams, TagBounds } from '../model';
+import type {
+	ListParams,
+	Plant,
+	PlantChanges,
+	PlantInput,
+	PlantTagListParams,
+	RiverBasinChanges,
+	RiverBasinInput,
+	TagBounds
+} from '../model';
 import { pltaRepository } from './repository';
 
 /**
@@ -171,6 +180,48 @@ export async function ensurePlantDetail(queryClient: QueryClient, pltaId: string
 		queryFn: () => pltaRepository.getById(pltaId),
 		staleTime: CATALOG_STALE_TIME
 	});
+}
+
+/**
+ * Perubahan PLTA atau Wilayah Sungai menyegarkan SELURUH cache `plta`: daftar
+ * katalog, katalog sidebar dan pemilih PLTA, detail PLTA aktif (nama di kepala
+ * halaman), dan daftar Wilayah Sungai — semuanya bisa memuat nama yang baru
+ * diubah.
+ */
+function createPLTAWriteMutation<TVariables, TResult>(
+	mutationFn: (variables: TVariables) => Promise<TResult>
+) {
+	const queryClient = useQueryClient();
+
+	return createMutation(() => ({
+		mutationFn,
+		onSuccess: async () => {
+			await queryClient.invalidateQueries({ queryKey: pltaQueryKeys.all });
+		}
+	}));
+}
+
+export function createCreateRiverBasinMutation() {
+	return createPLTAWriteMutation((input: RiverBasinInput) =>
+		pltaRepository.createRiverBasin(input)
+	);
+}
+
+export function createUpdateRiverBasinMutation() {
+	return createPLTAWriteMutation(
+		({ riverBasinId, changes }: { riverBasinId: string; changes: RiverBasinChanges }) =>
+			pltaRepository.updateRiverBasin(riverBasinId, changes)
+	);
+}
+
+export function createCreatePlantMutation() {
+	return createPLTAWriteMutation((input: PlantInput) => pltaRepository.createPlant(input));
+}
+
+export function createUpdatePlantMutation() {
+	return createPLTAWriteMutation(({ pltaId, changes }: { pltaId: string; changes: PlantChanges }) =>
+		pltaRepository.updatePlant(pltaId, changes)
+	);
 }
 
 /** Daftar tag PLTA itu diambil ulang agar kolom batas valid langsung menyesuaikan. */

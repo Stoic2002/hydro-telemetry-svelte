@@ -59,3 +59,12 @@ export function canUploadMonthlyHydrology(user: User | null): boolean {
 export function canConfigureDisplay(user: User | null): boolean {
 	return canManageUsers(user);
 }
+
+/**
+ * Menambah dan mengubah PLTA serta Wilayah Sungai di Katalog Data. Swagger
+ * tidak menyebut perannya; frontend membatasinya ke admin seperti pengaturan
+ * lain yang berlaku untuk seluruh pengguna.
+ */
+export function canManagePlants(user: User | null): boolean {
+	return canManageUsers(user);
+}

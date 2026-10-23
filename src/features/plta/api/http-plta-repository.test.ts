@@ -96,3 +96,99 @@ describe('updateTagBounds', () => {
 		expect(updated).toMatchObject({ id: TAG_ID, pltaId: PLTA_ID, minValid: 1, maxValid: 9 });
 	});
 });
+
+const WS_ID = '22222222-2222-4222-8222-222222222222';
+
+function plant(patch: Record<string, unknown> = {}) {
+	return {
+		id: PLTA_ID,
+		code: 'PBS',
+		name: 'Soedirman',
+		ws_id: WS_ID,
+		latitude: -7.39,
+		longitude: 109.68,
+		capacity_mw: 184.5,
+		description: null,
+		is_active: true,
+		beban_to_outflow_num: 204,
+		beban_to_outflow_den: 180,
+		constants: { tma_limpas: 231.5 },
+		...patch
+	};
+}
+
+describe('PLTA dan Wilayah Sungai: tambah dan ubah', () => {
+	it('tambah PLTA mengirim nama bidang API dan tidak pernah mengirim constants', async () => {
+		apiRequestMock.mockResolvedValue(plant());
+
+		await httpPltaRepository.createPlant({
+			code: 'PBS',
+			name: 'Soedirman',
+			riverBasinId: WS_ID,
+			latitude: null,
+			longitude: null,
+			capacityMw: 184.5,
+			description: null,
+			isActive: true,
+			bebanToOutflowNum: 204,
+			bebanToOutflowDen: 180
+		});
+
+		const [endpoint, options] = apiRequestMock.mock.calls[0];
+		expect(endpoint).toBe('/api/v1/plta');
+		expect(options?.method).toBe('POST');
+		expect(options?.json).toStrictEqual({
+			code: 'PBS',
+			name: 'Soedirman',
+			ws_id: WS_ID,
+			latitude: null,
+			longitude: null,
+			capacity_mw: 184.5,
+			description: null,
+			is_active: true,
+			beban_to_outflow_num: 204,
+			beban_to_outflow_den: 180
+		});
+	});
+
+	it('ubah PLTA hanya mengirim bidang yang berubah, termasuk null untuk mengosongkan', async () => {
+		apiRequestMock.mockResolvedValue(plant({ latitude: null, longitude: null }));
+
+		const updated = await httpPltaRepository.updatePlant(PLTA_ID, {
+			latitude: null,
+			longitude: null,
+			isActive: false
+		});
+
+		const [endpoint, options] = apiRequestMock.mock.calls[0];
+		expect(endpoint).toBe(`/api/v1/plta/${PLTA_ID}`);
+		expect(options?.method).toBe('PATCH');
+		// Tanpa `constants`: server menimpanya utuh bila dikirim.
+		expect(options?.json).toStrictEqual({ latitude: null, longitude: null, is_active: false });
+		expect(updated.constants).toEqual({ tma_limpas: 231.5 });
+	});
+
+	it('tambah dan ubah Wilayah Sungai', async () => {
+		const riverBasin = { id: WS_ID, code: 'WS-SERAYU', name: 'Serayu', description: null };
+		apiRequestMock.mockResolvedValue(riverBasin);
+
+		await httpPltaRepository.createRiverBasin({
+			code: 'WS-SERAYU',
+			name: 'Serayu',
+			description: null
+		});
+		await httpPltaRepository.updateRiverBasin(WS_ID, { name: 'Serayu Bogowonto' });
+
+		expect(apiRequestMock.mock.calls[0][0]).toBe('/api/v1/wilayah-sungai');
+		expect(apiRequestMock.mock.calls[0][1]?.json).toStrictEqual({
+			code: 'WS-SERAYU',
+			name: 'Serayu',
+			description: null
+		});
+		expect(apiRequestMock.mock.calls[1][0]).toBe(`/api/v1/wilayah-sungai/${WS_ID}`);
+		expect(apiRequestMock.mock.calls[1][1]).toMatchObject({
+			method: 'PATCH',
+			json: { name: 'Serayu Bogowonto' }
+		});
+	});
+});
