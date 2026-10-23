@@ -12,11 +12,10 @@
 	import {
 		createDownloadDailyTemplateMutation,
 		createUploadDailyHydrologyExcelMutation,
+		getDailyExcelErrorDetail,
 		getMonthlyExcelErrorMessage,
-		getMonthlyExcelRowErrors,
 		type DailyEmptyCellMode,
-		type DailyHydrologyExcelResult,
-		type MonthlyHydrologyExcelRowError
+		type DailyHydrologyExcelResult
 	} from '$features/hydrology';
 	import { downloadBlob } from '$shared/lib/download';
 	import { notificationStore } from '$shared/lib/notification.svelte';
@@ -27,6 +26,7 @@
 		dailyTemplateRangeError,
 		formatUploadedPeriods
 	} from './model';
+	import UploadTips from './UploadTips.svelte';
 
 	/**
 	 * Unggah Excel hidrologi harian SELURUH PLTA: satu baris per (PLTA, tanggal),
@@ -46,7 +46,7 @@
 	let selectedFile = $state<File | null>(null);
 	let selectionError = $state<string | null>(null);
 	let result = $state<DailyHydrologyExcelResult | null>(null);
-	let rowErrors = $state<MonthlyHydrologyExcelRowError[]>([]);
+	let problems = $state<string[]>([]);
 	let errorMessage = $state<string | null>(null);
 	const today = toISODateWIB(new Date());
 	let fromDate = $state(today);
@@ -89,7 +89,7 @@
 		selectedFile = file;
 		selectionError = validateWorkbook(file);
 		result = null;
-		rowErrors = [];
+		problems = [];
 		errorMessage = null;
 	}
 
@@ -118,7 +118,7 @@
 		try {
 			const uploaded = await uploadMutation.mutateAsync({ file: selectedFile, emptyCells });
 			result = uploaded;
-			rowErrors = [];
+			problems = [];
 			errorMessage = null;
 			clearSelection();
 			notificationStore.addToast({
@@ -131,8 +131,9 @@
 			});
 		} catch (error) {
 			result = null;
-			rowErrors = getMonthlyExcelRowErrors(error);
-			errorMessage = getMonthlyExcelErrorMessage(error);
+			const detail = getDailyExcelErrorDetail(error);
+			problems = detail.problems;
+			errorMessage = detail.message;
 		}
 	}
 </script>
@@ -186,10 +187,9 @@
 							/>
 							<p class="text-xs leading-relaxed text-text-muted">
 								{#if emptyCells === 'skip'}
-									Sel kosong tidak mengubah apa pun; nilai lama tetap.
+									Sel kosong tidak mengubah nilai lama.
 								{:else}
-									Sel kosong diisi nilai terisi terakhir pada kolom dan PLTA yang sama, diurut
-									waktu. Nilai yang diisi ini tersimpan sebagai data.
+									Sel kosong diisi nilai terakhir di kolom yang sama, dan ikut tersimpan.
 								{/if}
 							</p>
 						</div>
@@ -204,9 +204,7 @@
 						<div class="mt-3 flex items-start gap-2">
 							<IconInfo class="mt-0.5 size-3.5 shrink-0 text-text-muted" />
 							<p class="text-xs leading-relaxed text-text-muted">
-								Berkas langsung tersimpan begitu dikirim — tidak ada tahap pratinjau. Bila ada satu
-								baris bermasalah, seluruh berkas ditolak dan tidak ada data yang berubah. Sel kosong
-								tidak pernah menghapus nilai lama; tanggal yang sama menimpa nilai sebelumnya.
+								Langsung tersimpan tanpa pratinjau. Satu sel bermasalah menolak seluruh berkas.
 							</p>
 						</div>
 					{/if}
@@ -217,34 +215,21 @@
 				<Banner tone="danger" title="Berkas ditolak">{errorMessage}</Banner>
 			{/if}
 
-			{#if rowErrors.length > 0}
+			{#if problems.length > 0}
 				<section>
-					<h2 class="section-title">Baris bermasalah</h2>
+					<h2 class="section-title">Sel bermasalah</h2>
 					<p class="mt-1 text-xs text-text-muted">
-						Perbaiki baris di bawah lalu unggah ulang berkasnya.
+						Perbaiki lalu unggah ulang. Paling banyak 50 masalah ditampilkan.
 					</p>
 
-					<div class="mt-3 overflow-x-auto">
-						<table class="w-full min-w-[440px] border-collapse text-left">
-							<thead>
-								<tr class="bg-surface-overlay">
-									<th class="table-head-cell w-20 px-3 py-2">Baris</th>
-									<th class="table-head-cell w-36 px-3 py-2">Kode PLTA</th>
-									<th class="table-head-cell px-3 py-2">Keterangan</th>
-								</tr>
-							</thead>
-							<tbody>
-								{#each rowErrors as row (`${row.row}-${row.pltaCode ?? ''}`)}
-									<tr class="border-b border-border-subtle">
-										<td class="px-3 py-2.5 font-mono text-xs text-text-secondary">{row.row}</td>
-										<td class="px-3 py-2.5 font-mono text-xs text-text-secondary">
-											{row.pltaCode ?? '—'}
-										</td>
-										<td class="px-3 py-2.5 text-sm text-text-secondary">{row.message}</td>
-									</tr>
-								{/each}
-							</tbody>
-						</table>
+					<div class="mt-3">
+						<ul class="flex flex-col">
+							{#each problems as problem, index (index)}
+								<li class="border-b border-border-subtle px-3 py-2.5 text-sm text-text-secondary">
+									{problem}
+								</li>
+							{/each}
+						</ul>
 					</div>
 				</section>
 			{/if}
@@ -346,32 +331,20 @@
 			</button>
 
 			<p class="text-xs leading-relaxed text-text-muted">
-				{#if perHour}
-					24 baris per PLTA per tanggal, satu per jam 0–23.
-				{:else}
-					Satu baris per PLTA per tanggal, kolom jam kosong.
-				{/if}
-				Maksimal {MAX_DAILY_TEMPLATE_RANGE_DAYS} hari. Nilai yang sudah tersimpan sudah terisi, jadi tinggal
-				dikoreksi.
+				{perHour ? '24 baris' : 'Satu baris'} per PLTA per tanggal, maks. {MAX_DAILY_TEMPLATE_RANGE_DAYS}
+				hari. Sudah berisi nilai tersimpan.
 			</p>
 
-			<div class="flex flex-col gap-2 border-t border-border-subtle pt-2.5">
-				<p class="table-head-cell">Cara mengisi</p>
-				<p class="text-xs leading-relaxed text-text-muted">
-					<span class="font-medium text-text-secondary">Sel berlatar gelap</span> berarti PLTA itu tidak
-					punya parameter tersebut — biarkan kosong, karena isinya akan ditolak.
-				</p>
-				<p class="text-xs leading-relaxed text-text-muted">
-					<span class="font-medium text-text-secondary">kode_plta</span> dan
-					<span class="font-medium text-text-secondary">tanggal</span> adalah kuncinya;
-					<span class="font-medium text-text-secondary">nama_plta</span> hanya rujukan. Nilai dicatat
-					pukul 00:00 WIB.
-				</p>
-				<p class="text-xs leading-relaxed text-text-muted">
-					Konstanta (batas TMA, SWC) tidak ada di template — isi lewat Input data di Hidrologi
-					Harian.
-				</p>
-			</div>
+			<UploadTips
+				tips={[
+					{ term: 'Sel gelap:', text: 'tidak berlaku untuk PLTA itu, biarkan kosong.' },
+					{ term: 'kode_plta + tanggal', text: 'adalah kuncinya; nama_plta hanya rujukan.' },
+					{
+						term: 'Konstanta',
+						text: '(batas TMA, SWC) diisi lewat Input data di Hidrologi Harian.'
+					}
+				]}
+			/>
 		</aside>
 	</div>
 </div>

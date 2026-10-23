@@ -1,6 +1,8 @@
 <script lang="ts">
 	import IconDownload from '~icons/ph/download-simple';
+	import Button from '$components/controls/Button.svelte';
 	import Input from '$components/controls/Input.svelte';
+	import Sheet from '$components/ui/Sheet.svelte';
 	import {
 		MAX_TIMESERIES_DAYS,
 		MAX_TREND_EXPORT_DAYS,
@@ -32,9 +34,14 @@
 	 * dengan grafik Tren & Grafik. Excel 13 kolom lama (`timeseries.xlsx`,
 	 * deprecated — kolom mockup PBS yang sebagian besar kosong di PLTA lain)
 	 * tinggal cadangan untuk PLTA yang daftarnya belum diatur.
+	 *
+	 * Sejak 23 Okt 2026 berupa tombol di toolbar daftar laporan yang membuka
+	 * sheet, bukan kartu permanen di atas daftar: kartu itu berebut perhatian
+	 * dengan tab, daftar, dan tombol Buat Laporan dalam satu layar.
 	 */
 	let { pltaId, plantCode, plantName }: Props = $props();
 
+	let isOpen = $state(false);
 	const today = toISODateWIB(new Date());
 	let start = $state(shiftIsoDate(today, -6));
 	let end = $state(today);
@@ -73,6 +80,7 @@
 				const blob = await mutation.mutateAsync({ pltaId, start, end });
 				downloadBlob(blob, `timeseries-${plantCode.toLowerCase()}-${range}.xlsx`);
 			}
+			isOpen = false;
 		} catch (error) {
 			notificationStore.addToast({ type: 'error', message: getTrendErrorMessage(error) });
 		} finally {
@@ -81,51 +89,68 @@
 	}
 </script>
 
-<section
-	aria-labelledby="timeseries-quick-title"
-	class="flex flex-col gap-3 rounded-xl border border-border-subtle bg-surface-raised px-4 py-4 lg:flex-row lg:items-end lg:justify-between"
+<button type="button" onclick={() => (isOpen = true)} class="btn btn-ghost btn-sm h-9">
+	<IconDownload class="size-3.5" aria-hidden="true" />
+	Excel per jam
+</button>
+
+<Sheet
+	{isOpen}
+	title="Unduh Excel per jam"
+	isDismissible={!isPending}
+	onClose={() => (isOpen = false)}
 >
-	<div class="min-w-0 lg:max-w-[46ch]">
-		<h2 id="timeseries-quick-title" class="card-title">Unduh langsung: Excel per jam</h2>
-		<p class="mt-1 text-xs leading-relaxed text-text-muted">
-			{#if usesTrendList}
-				Satu kolom per item daftar tren {plantName}, per jam — isinya sama dengan Tren & Grafik.
-				Langsung tanpa antrean. Maksimal {maxDays} hari.
-			{:else}
-				13 kolom rata-rata per jam untuk {plantName}, langsung tanpa antrean. Maksimal {maxDays} hari.
-				Daftar tren PLTA ini belum diatur, jadi memakai format lama.
-			{/if}
-		</p>
+	{#snippet description()}
+		{#if usesTrendList}
+			Satu kolom per item daftar tren {plantName} — isinya sama dengan Tren & Grafik. Langsung diunduh,
+			tanpa antrean.
+		{:else}
+			13 kolom rata-rata per jam untuk {plantName}, langsung diunduh tanpa antrean. Daftar tren PLTA
+			ini belum diatur, jadi memakai format lama.
+		{/if}
+	{/snippet}
+
+	<div class="grid gap-3 sm:grid-cols-2">
+		<Input
+			type="date"
+			label="Dari"
+			bind:value={start}
+			max={end || undefined}
+			disabled={isPending}
+		/>
+		<Input
+			type="date"
+			label="Sampai"
+			bind:value={end}
+			min={start || undefined}
+			max={today}
+			disabled={isPending}
+			error={rangeError ?? undefined}
+			helperText={`Maksimal ${maxDays} hari.`}
+		/>
 	</div>
-	<div class="flex flex-wrap items-start gap-2">
-		<div class="w-[160px]">
-			<Input
-				type="date"
-				label="Dari"
-				bind:value={start}
-				max={end || undefined}
+
+	{#snippet footer()}
+		<div class="flex flex-col-reverse gap-2.5 sm:flex-row sm:justify-end">
+			<Button
+				type="button"
+				variant="ghost"
 				disabled={isPending}
-			/>
+				onclick={() => (isOpen = false)}
+				class="w-full sm:w-auto"
+			>
+				Batal
+			</Button>
+			<Button
+				type="button"
+				isLoading={isPending}
+				disabled={Boolean(rangeError) || listQuery.isLoading}
+				onclick={() => void download()}
+				class="w-full sm:w-auto"
+			>
+				{#snippet leftIcon()}<IconDownload class="size-4" />{/snippet}
+				{isPending ? 'Menyiapkan…' : 'Unduh Excel'}
+			</Button>
 		</div>
-		<div class="w-[160px]">
-			<Input
-				type="date"
-				label="Sampai"
-				bind:value={end}
-				min={start || undefined}
-				max={today}
-				disabled={isPending}
-				error={rangeError ?? undefined}
-			/>
-		</div>
-		<button
-			type="button"
-			onclick={() => void download()}
-			disabled={Boolean(rangeError) || isPending || listQuery.isLoading}
-			class="btn btn-ghost btn-sm mt-[26px] h-10 text-brand-primary-strong"
-		>
-			<IconDownload class="size-4" aria-hidden="true" />
-			{isPending ? 'Menyiapkan…' : 'Unduh Excel'}
-		</button>
-	</div>
-</section>
+	{/snippet}
+</Sheet>

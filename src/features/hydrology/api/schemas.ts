@@ -283,6 +283,15 @@ export const apiMonthlyFieldLabelsSchema = z.object({
 export type ApiMonthlyFieldLabels = z.infer<typeof apiMonthlyFieldLabelsSchema>;
 
 /** `400` dari kedua `PUT …/labels` — tidak ada yang disimpan. */
+/**
+ * `400` impor Excel harian bila isi berkasnya bermasalah. Berbeda dengan
+ * bulanan, `rincian` berupa satu kalimat per baris/sel (maks. 50), bukan objek.
+ */
+export const apiDailyHydrologyExcelErrorSchema = z.object({
+	pesan: z.string(),
+	rincian: z.array(z.string()).optional().default([])
+});
+
 export const apiLabelErrorSchema = z.object({
 	pesan: z.string(),
 	masalah: z.array(z.string()).optional().default([])

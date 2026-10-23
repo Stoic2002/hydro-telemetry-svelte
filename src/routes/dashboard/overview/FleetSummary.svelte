@@ -2,16 +2,9 @@
 	import IconArrowRight from '~icons/ph/arrow-right';
 
 	import Badge from '$components/controls/Badge.svelte';
-	import Select from '$components/controls/Select.svelte';
 	import type { MonthlyHydrologyOverview } from '$features/hydrology';
 	import { formatNumber } from '$shared/utils/number';
-	import {
-		NO_RANGE,
-		REPORT_END_MONTH_OPTIONS,
-		REPORT_END_YEAR_OPTIONS,
-		hasReportRange,
-		reportPeriodLabel
-	} from '../hydrology-report';
+	import { hasReportRange, reportPeriodLabel } from '../hydrology-report';
 	import { createFleetSummary } from './fleet-summary.svelte';
 
 	interface Props {
@@ -31,10 +24,11 @@
 	 * (`FleetSummaryControls`).
 	 *
 	 * Sejak 13 Okt 2026 kartu ini juga memuat isi "Detail ringkasan" yang dulu
-	 * terlipat di kolom kanan peta — rata-rata per PLTA, rentang periode, dan
-	 * unduhan Excel — dipadatkan jadi dua baris di kakinya supaya selalu
-	 * terlihat tanpa menutupi pantai selatan. Catatan cakupan cukup dari angka
-	 * Cakupan dan "belum dinilai" di baris atas.
+	 * terlipat di kolom kanan peta — rata-rata per PLTA — di kakinya supaya
+	 * selalu terlihat tanpa menutupi pantai selatan. Catatan cakupan cukup dari
+	 * angka Cakupan dan "belum dinilai" di baris atas. Rentang ("Sampai") dan
+	 * tautan laporan Excel pindah ke kepala halaman sejak 23 Okt 2026, bersama
+	 * pemilih bulan dan tahun (`FleetSummaryControls`).
 	 *
 	 * Angka utamanya **pencapaian agregat** (total prediksi ÷ total target) —
 	 * menurut backend itulah angka gabungan sesungguhnya. Rata-rata antar-PLTA
@@ -101,7 +95,7 @@
 		</div>
 	{:else if summary.rangeError}
 		<p role="alert" class="mt-1.5 text-sm text-status-warning-strong">
-			Rentang periode tidak valid — atur di bawah.
+			Rentang periode tidak valid — {summary.rangeError}
 		</p>
 	{:else if summary.query.isError}
 		<p
@@ -220,59 +214,14 @@
 		</div>
 	{/if}
 
-	{#if !summary.query.isLoading}
-		<div
-			class="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-surface-overlay pt-2.5"
-		>
-			<div class="flex items-center gap-1.5">
-				<span class="text-xs font-medium text-text-secondary">Sampai</span>
-				<div class="w-[116px]">
-					<Select
-						ariaLabel="Bulan akhir ringkasan"
-						value={summary.endMonth ? String(summary.endMonth) : NO_RANGE}
-						onValueChange={(value) => summary.setPeriods({ bulan_akhir: value })}
-						options={REPORT_END_MONTH_OPTIONS}
-						controlSize="sm"
-					/>
-				</div>
-				<div class="w-[84px]">
-					<Select
-						ariaLabel="Tahun akhir ringkasan"
-						value={summary.endYear ? String(summary.endYear) : NO_RANGE}
-						onValueChange={(value) => summary.setPeriods({ tahun_akhir: value })}
-						options={REPORT_END_YEAR_OPTIONS}
-						controlSize="sm"
-					/>
-				</div>
-				{#if hasReportRange(summary.period) && !summary.rangeError}
-					<button
-						type="button"
-						onclick={() => summary.setPeriods({ tahun_akhir: NO_RANGE, bulan_akhir: NO_RANGE })}
-						class="cursor-pointer text-xs font-medium text-brand-primary-strong hover:text-brand-primary-pressed"
-					>
-						Hapus rentang
-					</button>
-				{/if}
-			</div>
-			{#if summary.rangeError}
-				<p role="alert" class="text-xs text-status-danger-strong">{summary.rangeError}</p>
-			{:else if overview && overview.rowCount > 0 && (hasReportRange(summary.period) || summary.month === undefined)}
-				<!--
-					Server merangkum blok akumulasi dari SATU bulan: yang terakhir
-					berdata. Menjumlahkan akumulasi lintas bulan menghitung bulan yang
-					sama berkali-kali.
-				-->
-				<p class="text-xs text-text-muted">
-					Akumulasi = posisi {summary.accumulatedThrough}, bukan jumlah seluruh bulan.
-				</p>
-			{/if}
-			<a
-				href={summary.reportHref}
-				class="ml-auto inline-flex items-center gap-1 text-xs font-medium text-brand-primary-strong hover:underline"
-			>
-				Unduh laporan Excel
-				<IconArrowRight class="size-3.5 shrink-0" aria-hidden="true" />
-			</a>
-		</div>
+	{#if !summary.query.isLoading && !summary.rangeError && overview && overview.rowCount > 0 && (hasReportRange(summary.period) || summary.month === undefined)}
+		<!--
+			Server merangkum blok akumulasi dari SATU bulan: yang terakhir
+			berdata. Menjumlahkan akumulasi lintas bulan menghitung bulan yang
+			sama berkali-kali.
+		-->
+		<p class="mt-2.5 border-t border-surface-overlay pt-2.5 text-xs text-text-muted">
+			Akumulasi = posisi {summary.accumulatedThrough}, bukan jumlah seluruh bulan.
+		</p>
 	{/if}
 </section>

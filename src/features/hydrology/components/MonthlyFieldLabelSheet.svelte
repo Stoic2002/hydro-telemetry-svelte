@@ -1,5 +1,6 @@
 <script lang="ts">
 	import IconRefresh from '~icons/ph/arrow-clockwise';
+	import IconReset from '~icons/ph/arrow-counter-clockwise';
 	import IconSave from '~icons/ph/floppy-disk';
 	import Button from '$components/controls/Button.svelte';
 	import Input from '$components/controls/Input.svelte';
@@ -11,7 +12,7 @@
 		createSetMonthlyFieldLabelsMutation
 	} from '../api/queries';
 	import { getHydrologyErrorMessage, getLabelErrorDetail } from '../error';
-	import { LABEL_MAX_LENGTH, labelChanges } from '../labels';
+	import { LABEL_MAX_LENGTH, isCustomLabelValue, labelChanges } from '../labels';
 
 	interface Props {
 		isOpen: boolean;
@@ -45,7 +46,12 @@
 	const fields = $derived(labelsQuery.data?.fields ?? []);
 	const changes = $derived(
 		labelChanges(
-			fields.map((field) => ({ key: field.key, label: field.label, isCustom: field.isCustom })),
+			fields.map((field) => ({
+				key: field.key,
+				label: field.label,
+				defaultLabel: field.defaultLabel,
+				isCustom: field.isCustom
+			})),
 			draft
 		)
 	);
@@ -109,26 +115,43 @@
 				</Banner>
 			{/if}
 			<p class="text-xs text-text-muted">
-				Kosongkan isian untuk kembali ke nama bawaan. Untuk bidang akumulasi tulis nama dasarnya
-				saja — "s.d. Bulan …" ditambahkan sistem.
+				Ubah nama langsung di kotaknya; ikon putar balik mengembalikan nama bawaan. Untuk bidang
+				akumulasi tulis nama dasarnya saja — "s.d. Bulan …" ditambahkan sistem.
 			</p>
-			<ul class="flex flex-col divide-y divide-surface-overlay">
+			<ul class="flex flex-col">
 				{#each fields as field (field.key)}
-					<li class="flex flex-col gap-1.5 py-2.5">
-						<span class="text-xs text-text-secondary">
-							{field.defaultLabel}{#if field.isAccumulated}<span class="text-text-muted">
-									· s.d. Bulan …</span
-								>{/if}
-						</span>
+					{@const value = draft[field.key] ?? (field.isCustom ? field.label : field.defaultLabel)}
+					{#snippet resetName()}
+						<button
+							type="button"
+							disabled={isPending}
+							onclick={() => (draft = { ...draft, [field.key]: field.defaultLabel })}
+							aria-label={`Kembalikan nama bawaan: ${field.defaultLabel}`}
+							title={`Nama bawaan: ${field.defaultLabel}`}
+							class="flex size-6 cursor-pointer items-center justify-center rounded-md transition-colors hover:bg-surface-overlay hover:text-text-primary disabled:cursor-not-allowed"
+						>
+							<IconReset class="size-3.5" aria-hidden="true" />
+						</button>
+					{/snippet}
+					<!--
+						Satu kotak per bidang (23 Okt 2026): dulu nama bawaan ditulis di atas
+						kotak isian, sehingga setiap bidang memakan dua baris.
+					-->
+					<li class="flex items-center gap-2 py-2">
 						<Input
 							size="sm"
-							aria-label={`Nama ${field.defaultLabel}`}
+							class="flex-1"
+							aria-label={`Nama ${field.defaultLabel}${field.isAccumulated ? ' s.d. Bulan' : ''}`}
 							placeholder={field.defaultLabel}
 							maxlength={LABEL_MAX_LENGTH}
-							value={draft[field.key] ?? (field.isCustom ? field.label : '')}
+							{value}
 							disabled={isPending}
 							oninput={(event) => (draft = { ...draft, [field.key]: event.currentTarget.value })}
+							rightIcon={isCustomLabelValue(value, field.defaultLabel) ? resetName : undefined}
 						/>
+						{#if field.isAccumulated}
+							<span class="shrink-0 text-xs text-text-muted">s.d. Bulan …</span>
+						{/if}
 					</li>
 				{/each}
 			</ul>

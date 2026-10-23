@@ -271,21 +271,20 @@
 		onsubmit={(event) => void submit(event)}
 		class="flex flex-col gap-6"
 	>
-		<section class="border-b border-surface-overlay pb-5">
-			<p class="font-mono text-xs font-medium text-brand-primary-pressed">{target.parameter}</p>
-			<p class="mt-1 text-sm font-semibold text-text-strong">{target.label}</p>
-			<p class="mt-1 text-xs text-text-muted">
-				Satuan {unit || 'mengikuti konfigurasi tag'}
-			</p>
-		</section>
-
+		<!--
+			Nama parameter sudah di deskripsi sheet; yang tersisa satuan dan
+			station dalam satu baris. Dulu blok tersendiri yang juga menampilkan
+			kunci parameter mentah (23 Okt 2026).
+		-->
 		{#if target.stations.length > 1}
 			<Select label="Station" bind:value={station} disabled={isPending} options={stationOptions} />
+			{#if unit}<p class="-mt-4 text-xs text-text-muted">Satuan {unit}</p>{/if}
 		{:else}
-			<div class="flex items-center justify-between border-b border-surface-overlay pb-4 text-xs">
-				<span class="font-medium text-text-muted">Station</span>
+			<p class="text-xs text-text-muted">
+				Satuan <span class="font-medium text-text-secondary">{unit || '—'}</span>
+				· Station
 				<span class="font-medium text-text-secondary">{selectedStation?.label ?? 'Default'}</span>
-			</div>
+			</p>
 		{/if}
 
 		<div class="grid grid-cols-3 border-b border-border-subtle">
@@ -307,13 +306,7 @@
 
 		{#if mode === 'manual'}
 			<section class="flex flex-col gap-4">
-				<div>
-					<h3 class="text-sm font-semibold text-text-strong">Titik data</h3>
-					<p class="mt-1 text-xs leading-5 text-text-muted">
-						Waktu tanpa zona waktu diproses server sebagai WIB. Timestamp yang pernah tersimpan akan
-						diperbarui.
-					</p>
-				</div>
+				<p class="text-xs text-text-muted">Waktu dalam WIB. Waktu yang sama menimpa nilai lama.</p>
 
 				<div class="divide-y divide-surface-overlay border-y border-surface-overlay">
 					{#each rows as row, index (row.id)}
@@ -333,7 +326,8 @@
 								{/if}
 							</div>
 
-							<div class="grid gap-3 sm:grid-cols-2">
+							<!-- Tanggal, jam, dan nilai sebaris: satu titik data = satu baris. -->
+							<div class="grid gap-3 sm:grid-cols-[1.3fr_1fr_1fr]">
 								<label class="field-label flex flex-col gap-1.5">
 									Tanggal
 									<input
@@ -352,19 +346,18 @@
 										class="field h-10"
 									/>
 								</label>
+								<label class="field-label flex flex-col gap-1.5">
+									Nilai {unit ? `(${unit})` : ''}
+									<input
+										type="number"
+										step="any"
+										placeholder="0"
+										bind:value={row.value}
+										disabled={isPending}
+										class="field h-10"
+									/>
+								</label>
 							</div>
-
-							<label class="field-label mt-3 flex flex-col gap-1.5">
-								Nilai {unit ? `(${unit})` : ''}
-								<input
-									type="number"
-									step="any"
-									placeholder="0"
-									bind:value={row.value}
-									disabled={isPending}
-									class="field h-10"
-								/>
-							</label>
 						</div>
 					{/each}
 				</div>
@@ -381,23 +374,15 @@
 			</section>
 		{:else if mode === 'excel'}
 			<section class="flex flex-col gap-4">
-				<div>
-					<h3 class="text-sm font-semibold text-text-strong">File time-series</h3>
-					<p class="mt-1 text-xs leading-5 text-text-muted">
-						Satu file hanya untuk parameter ini. Header yang diterima: datetime + value, atau
-						tanggal + jam + value.
-					</p>
-				</div>
+				<p class="text-xs text-text-muted">
+					Satu berkas untuk parameter ini saja. Paling mudah mulai dari template.
+				</p>
 
 				<div class="flex flex-col gap-3 rounded-xl border border-border-subtle p-4">
 					<div>
-						<h4 class="text-xs font-semibold text-text-strong">Template parameter ini</h4>
-						<p class="mt-1 text-xs leading-5 text-text-muted">
-							Kolom tanggal, jam, dan nilai sudah disiapkan untuk {target.label}{target.stations
-								.length > 1
-								? ` station ${selectedStation?.label}`
-								: ''}. Nilai yang sudah tersimpan ikut terisi, jadi tinggal dikoreksi lalu diunggah
-							ulang.
+						<h4 class="text-xs font-semibold text-text-strong">Template</h4>
+						<p class="mt-1 text-xs text-text-muted">
+							Sudah berisi nilai tersimpan; cukup dikoreksi.
 						</p>
 					</div>
 
@@ -455,14 +440,11 @@
 			</section>
 		{:else}
 			<section class="flex flex-col gap-4">
-				<div>
-					<h3 class="text-sm font-semibold text-text-strong">Hapus data salah unggah</h3>
-					<p class="mt-1 text-xs leading-5 text-text-muted">
-						Untuk jam, parameter, atau station yang keliru. Nilai yang salah cukup diunggah ulang
-						pada waktu yang sama. Hanya data isian manual dan unggahan yang terhapus; data sensor
-						tidak tersentuh. Waktu awal dan akhir ikut terhapus.
-					</p>
-				</div>
+				<!-- Nilai salah cukup diunggah ulang di waktu yang sama; tab ini untuk jam/station keliru. -->
+				<p class="text-xs text-text-muted">
+					Untuk jam atau station yang keliru. Hanya isian manual dan unggahan yang terhapus — data
+					sensor aman. Waktu awal dan akhir ikut terhapus.
+				</p>
 
 				{#each [{ label: 'Dari', boundary: deleteFrom }, { label: 'Sampai', boundary: deleteTo }] as item (item.label)}
 					<fieldset class="grid gap-3 sm:grid-cols-2">

@@ -75,6 +75,12 @@ function getErrorMessage(payload: unknown, response: Response): string {
 	const detail = getPayloadField(payload, 'detail');
 	if (typeof detail === 'string' && detail.trim()) return detail;
 
+	// Galat yang membawa rincian (impor Excel, kurva kembar `409`, tata letak
+	// harian) mengirim `detail` sebagai objek `{pesan, …}`. Tanpa ini yang tampil
+	// hanya "Bad Request" atau "Conflict".
+	const detailMessage = getPayloadField(detail, 'pesan');
+	if (typeof detailMessage === 'string' && detailMessage.trim()) return detailMessage;
+
 	if (typeof payload === 'string' && payload.trim()) return payload;
 
 	if (response.status === 401) return 'Sesi tidak valid atau telah berakhir';

@@ -11,15 +11,17 @@
 		queryClient,
 		pltaId,
 		panel = 'hulu',
+		canRename = false,
 		onClose = () => {}
 	}: {
 		queryClient: QueryClient;
 		pltaId: string;
 		panel?: DailyReportPanel;
+		canRename?: boolean;
 		onClose?: () => void;
 	} = $props();
 </script>
 
 <QueryClientProvider client={queryClient}>
-	<DailyVisibilitySheet isOpen {pltaId} {panel} plantName="Soedirman" {onClose} />
+	<DailyVisibilitySheet isOpen {pltaId} {panel} {canRename} plantName="Soedirman" {onClose} />
 </QueryClientProvider>

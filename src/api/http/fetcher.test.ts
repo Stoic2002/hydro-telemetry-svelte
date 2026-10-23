@@ -165,6 +165,18 @@ describe('pesan error', () => {
 		await expect(apiRequest('/api/v1/plta')).rejects.toMatchObject({ message: 'Format salah' });
 	});
 
+	it('memakai detail.pesan bila detail berupa objek, dan menyimpan objeknya', async () => {
+		// Bentuk `409` kurva kembar; dulu yang tampil hanya "Conflict".
+		const detail = { pesan: 'Kurva identik dengan PLTA Garung 2024', kembar: [] };
+		fetchMock.mockResolvedValue(makeResponse({ status: 409, body: { detail } }));
+
+		await expect(apiRequest('/api/v1/elevations/upload-excel')).rejects.toMatchObject({
+			message: 'Kurva identik dengan PLTA Garung 2024',
+			status: 409,
+			details: detail
+		});
+	});
+
 	it.each([
 		[401, 'Sesi tidak valid atau telah berakhir'],
 		[403, 'Anda tidak memiliki akses untuk aksi ini']

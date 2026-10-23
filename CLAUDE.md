@@ -234,7 +234,8 @@ Hal-hal yang sudah pernah menggigit dan tidak akan terlihat dari membaca kode:
   Untuk curah hujan pembandingnya juga garis, bukan batang berdampingan — 168
   batang per jam (7 hari) tidak terbaca bila digandakan.
 - **Laporan**: alur = pilih laporan → masuk daftar tabel → status `completed` →
-  download. Di atas daftar ada **Unduh langsung: Excel per jam**: sejak 13 Okt
+  download. Tombol **Excel per jam** di toolbar daftar (sheet; dulu kartu permanen
+  "Unduh langsung" di atas daftar, diubah 23 Okt 2026): sejak 13 Okt
   2026 `GET /trends/plta/{id}/data.xlsx` (resolusi 1h, kolom = daftar tren PLTA,
   maks. 366 hari) bila daftar trennya sudah diatur; selain itu cadangan
   `GET /dashboard/plta/{id}/timeseries.xlsx?start=&end=` (**deprecated**, 13
@@ -369,9 +370,12 @@ Hal-hal yang sudah pernah menggigit dan tidak akan terlihat dari membaca kode:
   **Ganti nama (13 Okt 2026, khusus admin = `canConfigureDisplay`)**: metrik
   harian per PLTA lewat isian di `DailyVisibilitySheet` (`PUT …/daily/labels`,
   dikirim sesudah tata letak — dua endpoint, dua hak akses); bidang bulanan
-  untuk seluruh PLTA lewat tombol **Nama bidang** di Hidrologi Bulanan
+  untuk seluruh PLTA lewat **Nama bidang** di menu ⋯ (`OverflowMenu`, sejak 23 Okt 2026; dulu tombol sebaris filter) di Hidrologi Bulanan
   (`MonthlyFieldLabelSheet`, `PUT /hydrology/monthly/labels`). Draf hanya
-  memuat isian yang disentuh (`labelChanges`); kosong = `null` = nama bawaan.
+  memuat isian yang disentuh (`labelChanges`); kosong **atau sama dengan nama
+  bawaan** = `null` = nama bawaan. Sejak 23 Okt 2026 kotak nama berisi nama yang
+  berlaku (bawaan pun) dan menggantikan teks nama di atasnya — satu baris per
+  metrik/bidang, sakelar Tampil di kanannya, ikon putar balik = nama bawaan.
   Panel harian sudah merender `label` server, jadi nama baru langsung tampil;
   tabel bulanan **belum** (masih di-hold, lihat di bawah) — nama bulanan baru
   terlihat di template, Excel, dan pesan impor.
@@ -445,7 +449,11 @@ Hal-hal yang sudah pernah menggigit dan tidak akan terlihat dari membaca kode:
   Swagger template menyebut `resolusi=hari` untuk "Target TMA", padahal
   daily tetap menulis Target TMA `input: null` ("ubah lewat RTOW") — **perlu
   ditanyakan ke backend**.
-- **Mode tampilan Hidrologi Harian** (13 Okt 2026): dua sumbu di URL yang bisa
+- **Mode tampilan Hidrologi Harian** (13 Okt 2026; sejak 23 Okt 2026 di balik
+  tombol **Mode** ⋯ `DailyViewModeMenu` di kepala halaman, bukan dua
+  segmented control; ikon polos di baris penanda tidak terlihat tim — nama mode
+  aktif menggantikan kata Mode; bukan "Tampilan" karena ikon pengatur panel
+  sudah bernama "Atur tampilan"): dua sumbu di URL yang bisa
   dipadukan — `?zona=` (hulu/bendungan/hilir; satu zona = kartu selebar
   halaman, baris dua kolom) dan `?baris=` (perhatian/manual/ringkas;
   `filterMetricRows`). Baris tersaring tampil semua tanpa batas ringkas lima
@@ -465,9 +473,9 @@ Hal-hal yang sudah pernah menggigit dan tidak akan terlihat dari membaca kode:
   (slot `bottomOverlay` di `JavaMap`, hanya dari `lg`; di layar sempit kartu
   turun ke bawah peta). Isinya pencapaian seluruh PLTA, rata-rata antar-PLTA,
   status per PLTA, dan cakupan. **Pemilih bulan/tahun tetap di kepala halaman**
-  (`FleetSummaryControls`, satu baris). Rata-rata per PLTA, rentang
-  ("Sampai"), dan unduh Excel ada di **kaki kartu yang sama**, dua baris padat,
-  selalu terlihat (13 Okt 2026). Dulu kartu **Detail ringkasan** terlipat di
+  (`FleetSummaryControls`), **bersama rentang ("Sampai") dan Unduh laporan
+  Excel sejak 23 Okt 2026** — dulu keduanya di kaki kartu. Rata-rata per PLTA
+  tetap di kaki kartu, selalu terlihat (13 Okt 2026). Dulu kartu **Detail ringkasan** terlipat di
   kolom kanan peta (`FleetSummaryDetail`, slot `rightPanel` — keduanya dihapus);
   tim menilai buka-tutupnya membuat isinya tidak ketahuan. Keduanya membaca
   periode yang sama dari URL lewat `overview/fleet-summary.svelte.ts`.
@@ -482,7 +490,9 @@ Hal-hal yang sudah pernah menggigit dan tidak akan terlihat dari membaca kode:
   bawaannya seluruh PLTA. Periode (`?tahun=`, `?bulan=` atau `bulan=semua`) dan
   `?plta=` tetap di URL; alamat lama `/dashboard/telemetering/rekap` dialihkan
   ke tab itu beserta query-nya. Aturan bersama keduanya di
-  `routes/dashboard/hydrology-report.ts`.
+  `routes/dashboard/hydrology-report.ts`. Sejak 23 Okt 2026 seluruh pemilih
+  (Bulan, Tahun, Sampai, Cakupan) satu baris di atas kedua kartu; kartu harian
+  hanya menyisakan pilihan panel.
 - **Hapus gambar hujan** ada di Upload › Gambar Hujan (dulu "Prakiraan Hujan"; kunci
   tab `?tab=prakiraan` tidak berubah), lewat
   pratinjau gambar lalu `ConfirmDialog`. Berlaku untuk seluruh PLTA dan tidak

@@ -314,13 +314,6 @@
 		{#if activeTab === 'hidrologi'}
 			<HydrologyReportDownloads />
 		{:else}
-			{#key pltaId}
-				<TimeseriesQuickDownload
-					{pltaId}
-					plantCode={activePLTA.plant?.code ?? pltaId}
-					plantName={displayName}
-				/>
-			{/key}
 			<div
 				class="flex flex-col gap-2.5 border-b border-border-subtle pb-4 sm:flex-row sm:items-center"
 			>
@@ -332,9 +325,19 @@
 					onClear={clearSearch}
 					class="sm:w-72"
 				/>
-				{#if !reportsQuery.isError}
-					<span class="shrink-0 text-xs text-text-muted sm:ml-auto">{total} laporan</span>
-				{/if}
+				<div class="flex items-center justify-between gap-3 sm:ml-auto">
+					{#if !reportsQuery.isError}
+						<span class="shrink-0 text-xs text-text-muted">{total} laporan</span>
+					{/if}
+					<!-- Unduhan langsung tanpa antrean; dulu kartu permanen di atas daftar. -->
+					{#key pltaId}
+						<TimeseriesQuickDownload
+							{pltaId}
+							plantCode={activePLTA.plant?.code ?? pltaId}
+							plantName={displayName}
+						/>
+					{/key}
+				</div>
 			</div>
 
 			<section

@@ -1,5 +1,9 @@
 import { ApiError } from '../../api/http';
-import { apiLabelErrorSchema, apiMonthlyHydrologyExcelErrorSchema } from './api/schemas';
+import {
+	apiDailyHydrologyExcelErrorSchema,
+	apiLabelErrorSchema,
+	apiMonthlyHydrologyExcelErrorSchema
+} from './api/schemas';
 import type { MonthlyHydrologyExcelRowError } from './model';
 
 export function getHydrologyErrorMessage(error: unknown): string {
@@ -46,6 +50,22 @@ export function getMonthlyExcelRowErrors(error: unknown): MonthlyHydrologyExcelR
 		pltaCode: item.kode_plta,
 		message: item.pesan
 	}));
+}
+
+/**
+ * `400` impor Excel harian: `detail` berupa teks untuk galat parameter
+ * (mis. `isi_kosong` tak dikenal), atau `{pesan, rincian}` dengan satu kalimat
+ * per baris/sel bermasalah. Tidak ada baris yang tersimpan pada keduanya.
+ */
+export function getDailyExcelErrorDetail(error: unknown): { message: string; problems: string[] } {
+	if (ApiError.isApiError(error)) {
+		const parsed = apiDailyHydrologyExcelErrorSchema.safeParse(error.details);
+		if (parsed.success) return { message: parsed.data.pesan, problems: parsed.data.rincian };
+		if (error.status === 400 && typeof error.details === 'string' && error.details.trim()) {
+			return { message: error.details, problems: [] };
+		}
+	}
+	return { message: getMonthlyExcelErrorMessage(error), problems: [] };
 }
 
 /**

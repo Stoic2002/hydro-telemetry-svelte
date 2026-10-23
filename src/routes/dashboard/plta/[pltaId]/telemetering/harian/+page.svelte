@@ -10,7 +10,6 @@
 		DAILY_SOURCE_TYPES,
 		SOURCE_MARKER_LABEL
 	} from '$components/controls/SourceMarker.svelte';
-	import SegmentedControl from '$components/controls/SegmentedControl.svelte';
 	import Banner from '$components/ui/Banner.svelte';
 	import PageHeader from '$components/ui/PageHeader.svelte';
 	import { authStore, canConfigureDisplay, canEditHydrologyData } from '$features/auth';
@@ -25,12 +24,12 @@
 	import PlantSwitcher from '$features/plta/components/PlantSwitcher.svelte';
 	import type { DailyTelemetryUploadTarget } from '$features/telemetry-upload';
 	import TelemetryUploadSheet from '$features/telemetry-upload/components/TelemetryUploadSheet.svelte';
+	import DailyViewModeMenu from './DailyViewModeMenu.svelte';
 	import DmnUnitPicker from './DmnUnitPicker.svelte';
 	import HydrologySpatialLayout from '../HydrologySpatialLayout.svelte';
 	import {
 		DAILY_ROW_FILTERS,
 		DAILY_ROW_FILTER_EMPTY_MESSAGE,
-		DAILY_ZONE_FILTERS,
 		currentWibDate,
 		dashboardMetricRows,
 		filterMetricRows,
@@ -166,12 +165,12 @@
 		hilir: ['downstream']
 	};
 
-	function setZoneFilter(value: DailyZoneFilter) {
-		void setSearchParams({ zona: value === 'semua' ? undefined : value });
-	}
-
-	function setRowFilter(value: DailyRowFilter) {
-		void setSearchParams({ baris: value === 'semua' ? undefined : value });
+	/** Zona dan baris diubah dalam satu `goto`; dua `goto` beruntun saling membatalkan. */
+	function setViewMode(changes: { zone?: DailyZoneFilter; row?: DailyRowFilter }) {
+		const params: Record<string, string | undefined> = {};
+		if (changes.zone) params.zona = changes.zone === 'semua' ? undefined : changes.zone;
+		if (changes.row) params.baris = changes.row === 'semua' ? undefined : changes.row;
+		void setSearchParams(params);
 	}
 
 	const pendingFormulaKeys = $derived(new Set(daily?.pendingFormulas ?? []));
@@ -343,6 +342,13 @@
 				<span class="text-xs text-text-muted">{formatHydrologyDate(daily.date)}</span>
 			{/if}
 			<PlantSwitcher page="telemetering/harian" />
+			<!-- Di kepala halaman seperti filter halaman lain; dulu di ujung baris penanda. -->
+			<DailyViewModeMenu
+				zone={zoneFilter}
+				row={rowFilter}
+				rowOptions={rowFilterOptions}
+				onChange={setViewMode}
+			/>
 		{/snippet}
 	</PageHeader>
 
@@ -454,27 +460,6 @@
 			onChange={(units, dmn) => void applyDmnFilter(units, dmn)}
 		/>
 	{/snippet}
-
-	<div class="flex flex-wrap items-center gap-x-5 gap-y-2">
-		<div class="flex max-w-full items-center gap-2 overflow-x-auto">
-			<span class="text-xs font-medium text-text-muted">Zona</span>
-			<SegmentedControl
-				ariaLabel="Zona yang ditampilkan"
-				value={zoneFilter}
-				onChange={setZoneFilter}
-				options={DAILY_ZONE_FILTERS}
-			/>
-		</div>
-		<div class="flex max-w-full items-center gap-2 overflow-x-auto">
-			<span class="text-xs font-medium text-text-muted">Baris</span>
-			<SegmentedControl
-				ariaLabel="Baris yang ditampilkan"
-				value={rowFilter}
-				onChange={setRowFilter}
-				options={rowFilterOptions}
-			/>
-		</div>
-	</div>
 
 	<HydrologySpatialLayout
 		{plant}

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import IconRefresh from '~icons/ph/arrow-clockwise';
+	import IconReset from '~icons/ph/arrow-counter-clockwise';
 	import IconSave from '~icons/ph/floppy-disk';
 	import Button from '$components/controls/Button.svelte';
 	import Input from '$components/controls/Input.svelte';
@@ -13,7 +14,7 @@
 		createSetDailyLabelsMutation,
 		createSetDailyVisibilityMutation
 	} from '../api/queries';
-	import { LABEL_MAX_LENGTH, labelChanges } from '../labels';
+	import { LABEL_MAX_LENGTH, isCustomLabelValue, labelChanges } from '../labels';
 	import {
 		DAILY_PANEL_LABEL,
 		panelOrderChanges,
@@ -98,6 +99,7 @@
 					metrics.map((metric) => ({
 						key: metric.key,
 						label: metric.label,
+						defaultLabel: metric.defaultLabel,
 						isCustom: metric.isLabelCustom
 					})),
 					labelDraft
@@ -109,8 +111,9 @@
 	);
 	const changeCount = $derived(layoutChangeCount + Object.keys(nameChanges).length);
 
-	function labelInputValue(key: string, label: string, isCustom: boolean): string {
-		return labelDraft[key] ?? (isCustom ? label : '');
+	/** Kotak nama selalu berisi nama yang berlaku, bawaan pun. */
+	function labelInputValue(key: string, label: string, defaultLabel: string, isCustom: boolean) {
+		return labelDraft[key] ?? (isCustom ? label : defaultLabel);
 	}
 	const hiddenInDraft = $derived(
 		metrics.filter((metric) => isHiddenInDraft(metric.key, metric.hidden)).length
@@ -235,7 +238,7 @@
 			{/if}
 			{#if canRename}
 				<p class="text-xs text-text-muted">
-					Isi nama untuk mengganti nama metrik di PLTA ini; kosongkan untuk kembali ke nama bawaan.
+					Ubah nama metrik langsung di kotaknya; ikon putar balik mengembalikan nama bawaan.
 				</p>
 			{/if}
 			<div class="flex flex-col gap-2">
@@ -276,29 +279,66 @@
 					onReorder={setPanelOrder}
 				>
 					{#snippet row(metric)}
-						<div class="flex min-w-0 flex-1 flex-col gap-1.5">
+						{@const isVisible = !isHiddenInDraft(metric.key, metric.hidden)}
+						{#if canRename}
+							<!--
+								Nama dan sakelar satu baris (23 Okt 2026): dulu nama tampil di
+								sakelar dan kotak ganti nama di bawahnya, sehingga setiap metrik
+								memakan dua baris.
+							-->
+							{@const value = labelInputValue(
+								metric.key,
+								metric.label,
+								metric.defaultLabel,
+								metric.isLabelCustom
+							)}
+							{#snippet resetName()}
+								<button
+									type="button"
+									disabled={isPending}
+									onclick={() =>
+										(labelDraft = { ...labelDraft, [metric.key]: metric.defaultLabel })}
+									aria-label={`Kembalikan nama bawaan: ${metric.defaultLabel}`}
+									title={`Nama bawaan: ${metric.defaultLabel}`}
+									class="flex size-6 cursor-pointer items-center justify-center rounded-md transition-colors hover:bg-surface-overlay hover:text-text-primary disabled:cursor-not-allowed"
+								>
+									<IconReset class="size-3.5" aria-hidden="true" />
+								</button>
+							{/snippet}
+							<div class="flex min-w-0 flex-1 items-center gap-2">
+								<Input
+									size="sm"
+									class={isVisible ? '' : 'opacity-60'}
+									aria-label={`Nama ${metric.defaultLabel}`}
+									placeholder={metric.defaultLabel}
+									maxlength={LABEL_MAX_LENGTH}
+									{value}
+									disabled={isPending}
+									oninput={(event) =>
+										(labelDraft = { ...labelDraft, [metric.key]: event.currentTarget.value })}
+									rightIcon={isCustomLabelValue(value, metric.defaultLabel) ? resetName : undefined}
+								/>
+								<StatusToggle
+									variant="inline"
+									label={metric.label}
+									activeLabel="Tampil"
+									inactiveLabel="Sembunyi"
+									isActive={isVisible}
+									disabled={isPending}
+									onChange={(visible) => setHidden(metric.key, !visible)}
+								/>
+							</div>
+						{:else}
 							<StatusToggle
 								label={metric.label}
 								activeLabel="Tampil"
 								align="stretch"
 								inactiveLabel="Sembunyi"
-								isActive={!isHiddenInDraft(metric.key, metric.hidden)}
+								isActive={isVisible}
 								disabled={isPending}
 								onChange={(visible) => setHidden(metric.key, !visible)}
 							/>
-							{#if canRename}
-								<Input
-									size="sm"
-									aria-label={`Nama tampilan ${metric.defaultLabel}`}
-									placeholder={metric.defaultLabel}
-									maxlength={LABEL_MAX_LENGTH}
-									value={labelInputValue(metric.key, metric.label, metric.isLabelCustom)}
-									disabled={isPending}
-									oninput={(event) =>
-										(labelDraft = { ...labelDraft, [metric.key]: event.currentTarget.value })}
-								/>
-							{/if}
-						</div>
+						{/if}
 					{/snippet}
 				</SortableList>
 			</div>

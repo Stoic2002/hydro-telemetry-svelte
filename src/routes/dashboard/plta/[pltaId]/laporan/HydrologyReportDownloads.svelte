@@ -3,6 +3,7 @@
 	import { page } from '$app/state';
 	import IconDownload from '~icons/ph/download-simple';
 	import IconFileXls from '~icons/ph/file-xls';
+	import IconX from '~icons/ph/x';
 
 	import Button from '$components/controls/Button.svelte';
 	import Select from '$components/controls/Select.svelte';
@@ -44,6 +45,11 @@
 	 * Periode dan cakupan tetap disimpan di URL (`?tahun=`, `?bulan=`,
 	 * `?plta=`) supaya tautan lama ke Rekap bisa dialihkan ke sini tanpa
 	 * kehilangan pilihannya.
+	 *
+	 * Sejak 23 Okt 2026 seluruh pemilih periode (termasuk "Sampai") dan cakupan
+	 * satu baris di atas; dulu "Sampai" ada di dalam kartu laporan bulanan,
+	 * sehingga enam pemilih tersebar di tiga tempat. Kartu harian hanya
+	 * menyisakan pilihan panel, satu-satunya yang khusus laporan itu.
 	 */
 
 	const CURRENT_YEAR = new Date().getFullYear();
@@ -160,35 +166,73 @@
 </script>
 
 <div class="flex flex-col gap-5">
-	<div
-		class="flex flex-col gap-3 border-b border-border-subtle pb-4 sm:flex-row sm:flex-wrap sm:items-end"
-	>
-		<Select
-			label="Bulan"
-			value={month ? String(month) : ALL_MONTHS}
-			onValueChange={(value) => setFilter('bulan', value)}
-			options={REPORT_MONTH_OPTIONS}
-			controlSize="sm"
-			class="w-full sm:w-[180px]"
-		/>
-		<Select
-			label="Tahun"
-			value={String(year)}
-			onValueChange={(value) => setFilter('tahun', value)}
-			options={REPORT_YEAR_OPTIONS}
-			controlSize="sm"
-			class="w-full sm:w-[140px]"
-		/>
-		<Select
-			label="Cakupan PLTA"
-			value={selectedPlant?.id ?? ALL_PLANTS}
-			onValueChange={(value) => setFilter('plta', value)}
-			options={plantOptions}
-			disabled={plantsQuery.isPending}
-			controlSize="sm"
-			class="w-full sm:w-[260px]"
-		/>
-		<span class="text-xs text-text-muted sm:ml-auto">{periodLabel} · {scopeLabel}</span>
+	<div class="flex flex-col gap-2 border-b border-border-subtle pb-4">
+		<div class="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+			<Select
+				label="Bulan"
+				value={month ? String(month) : ALL_MONTHS}
+				onValueChange={(value) => setFilter('bulan', value)}
+				options={REPORT_MONTH_OPTIONS}
+				controlSize="sm"
+				class="w-full sm:w-[180px]"
+			/>
+			<Select
+				label="Tahun"
+				value={String(year)}
+				onValueChange={(value) => setFilter('tahun', value)}
+				options={REPORT_YEAR_OPTIONS}
+				controlSize="sm"
+				class="w-full sm:w-[110px]"
+			/>
+			<div class="flex flex-col gap-1.5">
+				<span class="field-label"
+					>Sampai <span class="font-normal text-text-muted">· bulanan</span></span
+				>
+				<div class="flex items-center gap-2">
+					<div class="w-[130px] shrink-0">
+						<Select
+							ariaLabel="Bulan akhir laporan bulanan"
+							value={endMonth ? String(endMonth) : NO_RANGE}
+							onValueChange={(value) => setFilter('bulan_akhir', value)}
+							options={REPORT_END_MONTH_OPTIONS}
+							controlSize="sm"
+						/>
+					</div>
+					<div class="w-[96px] shrink-0">
+						<Select
+							ariaLabel="Tahun akhir laporan bulanan"
+							value={endYear ? String(endYear) : NO_RANGE}
+							onValueChange={(value) => setFilter('tahun_akhir', value)}
+							options={REPORT_END_YEAR_OPTIONS}
+							controlSize="sm"
+						/>
+					</div>
+					{#if hasReportRange(monthlyPeriod)}
+						<button
+							type="button"
+							onclick={() => setFilters({ tahun_akhir: NO_RANGE, bulan_akhir: NO_RANGE })}
+							aria-label="Hapus rentang"
+							title="Hapus rentang"
+							class="flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-surface-overlay hover:text-text-primary"
+						>
+							<IconX class="size-3.5" aria-hidden="true" />
+						</button>
+					{/if}
+				</div>
+			</div>
+			<Select
+				label="Cakupan PLTA"
+				value={selectedPlant?.id ?? ALL_PLANTS}
+				onValueChange={(value) => setFilter('plta', value)}
+				options={plantOptions}
+				disabled={plantsQuery.isPending}
+				controlSize="sm"
+				class="w-full sm:w-[240px]"
+			/>
+		</div>
+		{#if rangeError}
+			<p role="alert" class="text-xs text-status-danger-strong">{rangeError}</p>
+		{/if}
 	</div>
 
 	<ul
@@ -203,45 +247,10 @@
 				</span>
 				<div class="min-w-0">
 					<h3 class="card-title">Laporan Hidrologi Bulanan</h3>
-					<p class="mt-0.5 text-xs leading-relaxed text-text-muted">
-						Lembar DATA berisi rekap tiap PLTA per bulan, lengkap dengan persentase dan status
-						pencapaian. Lembar RINGKASAN berisi rata-rata seluruh PLTA dan jumlah tercapai/tidak.
+					<p class="mt-0.5 text-xs text-text-muted">
+						{monthlyPeriodLabel} · {scopeLabel}. Rekap per PLTA dengan status pencapaian, plus
+						lembar ringkasan.
 					</p>
-					<div class="mt-3 flex flex-wrap items-end gap-2">
-						<span class="field-label w-full sm:w-auto sm:pb-2.5">Sampai (opsional)</span>
-						<div class="w-[150px] shrink-0">
-							<Select
-								ariaLabel="Bulan akhir laporan bulanan"
-								value={endMonth ? String(endMonth) : NO_RANGE}
-								onValueChange={(value) => setFilter('bulan_akhir', value)}
-								options={REPORT_END_MONTH_OPTIONS}
-								controlSize="sm"
-							/>
-						</div>
-						<div class="w-[110px] shrink-0">
-							<Select
-								ariaLabel="Tahun akhir laporan bulanan"
-								value={endYear ? String(endYear) : NO_RANGE}
-								onValueChange={(value) => setFilter('tahun_akhir', value)}
-								options={REPORT_END_YEAR_OPTIONS}
-								controlSize="sm"
-							/>
-						</div>
-						{#if hasReportRange(monthlyPeriod)}
-							<button
-								type="button"
-								onclick={() => setFilters({ tahun_akhir: NO_RANGE, bulan_akhir: NO_RANGE })}
-								class="cursor-pointer pb-2.5 text-xs font-medium text-brand-primary-strong hover:text-brand-primary-pressed"
-							>
-								Hapus rentang
-							</button>
-						{/if}
-					</div>
-					{#if rangeError}
-						<p role="alert" class="mt-1.5 text-xs text-status-danger-strong">{rangeError}</p>
-					{:else if hasReportRange(monthlyPeriod)}
-						<p class="mt-1.5 text-xs text-text-muted">Periode laporan: {monthlyPeriodLabel}</p>
-					{/if}
 				</div>
 			</div>
 			<Button
@@ -266,9 +275,11 @@
 				</span>
 				<div class="min-w-0">
 					<h3 class="card-title">Laporan Hidrologi Harian</h3>
-					<p class="mt-0.5 text-xs leading-relaxed text-text-muted">
-						Satu lembar per panel, satu baris per PLTA per tanggal. Curah hujan dijumlah, besaran
-						lain dirata-rata; pembacaan dari alat yang rusak tidak ikut.
+					<p class="mt-0.5 text-xs text-text-muted">
+						{periodLabel} · {scopeLabel}. Satu lembar per panel, satu baris per PLTA per tanggal.
+						{#if hasReportRange(monthlyPeriod)}
+							<span class="text-status-warning-strong">Tidak mendukung rentang.</span>
+						{/if}
 					</p>
 				</div>
 			</div>

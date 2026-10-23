@@ -20,6 +20,7 @@ export {
 	createUploadMonthlyHydrologyExcelMutation
 } from './api/queries';
 export {
+	getDailyExcelErrorDetail,
 	getHydrologyErrorMessage,
 	getLabelErrorDetail,
 	getMonthlyExcelErrorMessage,

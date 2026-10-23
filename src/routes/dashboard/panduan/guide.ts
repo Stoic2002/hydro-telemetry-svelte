@@ -175,8 +175,8 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
 					'Kartu **Ringkasan hidrologi seluruh PLTA** menempel di dasar peta Overview — di layar kecil, di bawah peta. Bawaannya bulan berjalan.',
 					'Pilih bulan — atau **Sepanjang tahun** — dan tahun di kanan atas halaman. Bila bulan itu belum ada datanya, tekan **Lihat** bulan sebelumnya di kartu.',
 					'Di kaki kartu yang sama tampil **Rata-rata per PLTA** dalam MWh — prognosa, target, dan realisasi untuk bulan itu dan akumulasinya.',
-					'Isi **Sampai** di kaki kartu untuk merangkum beberapa bulan sekaligus, misalnya Januari sampai September. Kosongkan (—) untuk satu periode saja; tekan **Hapus rentang** untuk kembali.',
-					'Untuk laporan Excel periode yang sama, tekan **Unduh laporan Excel** di kanan bawah kartu.'
+					'Isi **Sampai** di kanan atas halaman, di sebelah pemilih bulan dan tahun, untuk merangkum beberapa bulan sekaligus, misalnya Januari sampai September. Kosongkan (—) untuk satu periode saja; tekan tanda silang di sebelahnya untuk menghapus rentang.',
+					'Untuk laporan Excel periode yang sama, tekan **Unduh laporan Excel** di kanan atas halaman.'
 				],
 				notes: [
 					'**Pencapaian seluruh PLTA** adalah total prediksi dibagi total target seluruh PLTA — angka yang dipakai untuk melaporkan kinerja gabungan. **Rata-rata antar-PLTA** memberi bobot sama pada setiap PLTA, besar maupun kecil.',
@@ -227,7 +227,8 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
 				notes: [
 					'Menampilkan kondisi **hari ini** untuk tiga zona: hulu, bendungan, dan hilir.',
 					'Penanda **Realtime aktif** berarti koneksi ke server terbuka dan nilai baru langsung masuk begitu dikirim sensor. Bila tertulis **Realtime belum aktif**, tekan **Hubungkan ulang** bila tombol itu muncul.',
-					'Penanda di depan setiap nilai menunjukkan asalnya: **Realtime** (sensor), **Formulasi** (dihitung), **Input** (diisi manual), atau **Konstanta (input)** (konstanta yang diisi operator). Baris yang belum berisi nilai menampilkan N/A dengan penanda sumbernya.'
+					'Penanda di depan setiap nilai menunjukkan asalnya: **Realtime** (sensor), **Formulasi** (dihitung), **Input** (diisi manual), atau **Konstanta (input)** (konstanta yang diisi operator). Baris yang belum berisi nilai menampilkan N/A dengan penanda sumbernya.',
+					'Untuk mempersempit tampilan, tekan **Mode** di kanan atas, di sebelah pemilih PLTA. Pilih **Zona** (Hulu, Bendungan, atau Hilir) dan **Baris** (Perlu perhatian, Isian manual, atau Ringkas). Mode yang aktif tertulis di tombol itu menggantikan kata Mode; **Tampilkan semua** mengembalikannya.'
 				]
 			},
 			{
@@ -250,9 +251,9 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
 				title: 'Mengganti nama parameter',
 				access: 'userManagement',
 				steps: [
-					'Harian: di sheet yang sama, isi kotak nama di bawah sakelar parameter, lalu tekan **Simpan**. Nama berlaku untuk PLTA yang sedang dibuka.',
-					'Bulanan: di Hidrologi Bulanan, tekan **Nama bidang** di kanan atas. Nama berlaku untuk **seluruh PLTA**.',
-					'Kosongkan kotak nama untuk kembali ke nama bawaan.'
+					'Harian: di sheet yang sama, ubah langsung nama parameter di kotaknya (sakelar Tampil/Sembunyi ada di kanan kotak itu), lalu tekan **Simpan**. Nama berlaku untuk PLTA yang sedang dibuka.',
+					'Bulanan: di Hidrologi Bulanan, tekan tombol titik tiga di kanan atas lalu pilih **Nama bidang**. Nama berlaku untuk **seluruh PLTA**.',
+					'Untuk kembali ke nama bawaan, tekan ikon putar balik di ujung kotak nama, atau kosongkan kotaknya.'
 				],
 				notes: [
 					'Nama bidang bulanan dipakai di template unggah, laporan Excel, dan pesan galat impor. Template lama tetap bisa diunggah.',
@@ -444,8 +445,8 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
 			{
 				title: 'Unduh langsung Excel per jam',
 				steps: [
-					'Di tab **Laporan Time Series**, bagian **Unduh langsung: Excel per jam**, isi **Dari** dan **Sampai**.',
-					'Tekan **Unduh Excel**.'
+					'Di tab **Laporan Time Series**, tekan **Excel per jam** di kanan atas daftar laporan.',
+					'Isi **Dari** dan **Sampai**, lalu tekan **Unduh Excel**.'
 				],
 				notes: [
 					'Berkasnya langsung terunduh, tanpa antrean. Bila daftar tren PLTA itu sudah diatur, kolomnya mengikuti daftar tren — isinya sama dengan Tren & Grafik — dan rentang maksimal 366 hari.',
@@ -469,8 +470,8 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
 				title: 'Laporan hidrologi seluruh PLTA',
 				steps: [
 					'Buka menu **Laporan**, tab **Laporan Hidrologi**.',
-					'Pilih **Bulan** — atau **Sepanjang tahun** — dan **Tahun**.',
-					'Untuk **Laporan Hidrologi Bulanan**, isi **Sampai (opsional)** bila ingin beberapa bulan dalam satu berkas.',
+					'Di baris pemilih di atas, pilih **Bulan** — atau **Sepanjang tahun** — dan **Tahun**.',
+					'Untuk **Laporan Hidrologi Bulanan**, isi **Sampai** di baris yang sama bila ingin beberapa bulan dalam satu berkas; tanda silang di sebelahnya menghapus rentang.',
 					'Unduh **Laporan Hidrologi Bulanan** atau **Laporan Hidrologi Harian** dengan **Unduh Excel**.'
 				],
 				notes: [
@@ -524,7 +525,7 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
 				notes: [
 					'Template sudah terisi nilai yang tersimpan, jadi cukup dikoreksi. Sel kosong tidak menghapus nilai lama.',
 					'**Dilewati** (bawaan): sel kosong tidak mengubah apa pun. **Isi nilai terakhir**: sel kosong diisi nilai terisi terakhir pada kolom dan PLTA yang sama, diurut waktu — nilai yang diisi itu tersimpan sebagai data, dan jumlahnya tampil di hasil unggahan sebagai **Diisi nilai lama**.',
-					'Bila satu baris bermasalah, **seluruh berkas ditolak** dan tabel **Baris bermasalah** menunjukkan barisnya.',
+					'Bila satu sel bermasalah, **seluruh berkas ditolak** dan daftar **Sel bermasalah** menyebut baris dan kolomnya.',
 					'Konstanta seperti batas TMA dan SWC tidak ada di template — isi lewat **Input data** di Hidrologi Harian.'
 				]
 			},
@@ -549,12 +550,12 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
 					'Pilih **PLTA** dan **Tahun data** di panel kanan.',
 					'Tekan **Unduh Template** untuk mendapatkan kurva yang sudah tersimpan.',
 					'Isi kolom **Elevasi**, **Volume**, dan **Area**, lalu pilih berkasnya.',
-					'Centang **Publikasikan kurva elevasi–volume setelah diproses** bila kurva langsung dipakai.',
+					'Setel sakelar **Setelah diproses** ke **Publish** bila kurva langsung dipakai.',
 					'Tekan **Unggah ke Server**.'
 				],
 				notes: [
 					'Mengganti PLTA setelah memilih berkas akan mengosongkan pilihan berkas, supaya berkas tidak terunggah ke PLTA yang salah.',
-					'Kurva yang diunggah tanpa centang publish tersimpan sebagai **Draft** dan belum dipakai menghitung volume waduk.'
+					'Kurva yang diunggah dengan sakelar **Draft** tersimpan sebagai **Draft** dan belum dipakai menghitung volume waduk.'
 				]
 			},
 			{

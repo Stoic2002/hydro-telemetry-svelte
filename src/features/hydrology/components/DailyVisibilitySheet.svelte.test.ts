@@ -16,7 +16,8 @@ import Harness from './DailyVisibilitySheet.test-harness.svelte';
 vi.mock('../api/repository', () => ({
 	hydrologyRepository: {
 		getDailyVisibility: vi.fn(),
-		setDailyVisibility: vi.fn()
+		setDailyVisibility: vi.fn(),
+		setDailyLabels: vi.fn()
 	}
 }));
 
@@ -46,10 +47,10 @@ function visibility(
 	return { pltaId, hiddenCount: hiddenKeys.length, metrics };
 }
 
-function renderSheet(pltaId = PLTA_A, panel: 'hulu' | 'dam' | 'hilir' = 'hulu') {
+function renderSheet(pltaId = PLTA_A, panel: 'hulu' | 'dam' | 'hilir' = 'hulu', canRename = false) {
 	const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
 	const onClose = vi.fn();
-	const result = render(Harness, { props: { queryClient, pltaId, panel, onClose } });
+	const result = render(Harness, { props: { queryClient, pltaId, panel, canRename, onClose } });
 
 	return {
 		onClose,
@@ -246,6 +247,49 @@ describe('sheet atur tampilan metrik', () => {
 		expect(repository.setDailyVisibility).toHaveBeenCalledWith(PLTA_A, {
 			hidden: { debit_spillway: true },
 			order: {}
+		});
+	});
+
+	describe('ganti nama (admin)', () => {
+		it('nama dan sakelar satu baris; kotaknya berisi nama yang berlaku', async () => {
+			repository.getDailyVisibility.mockResolvedValue(visibility(PLTA_A));
+
+			renderSheet(PLTA_A, 'hulu', true);
+
+			const input = await screen.findByRole('textbox', { name: 'Nama pH Hulu' });
+			expect(input).toHaveValue('pH Hulu');
+			expect(screen.getByRole('switch', { name: /pH Hulu/ })).toBeInTheDocument();
+			// Belum diganti: tidak ada tombol putar balik.
+			expect(
+				screen.queryByRole('button', { name: /Kembalikan nama bawaan: pH Hulu/ })
+			).not.toBeInTheDocument();
+		});
+
+		it('mengirim nama baru, dan putar balik membatalkannya tanpa mengirim apa pun', async () => {
+			const user = userEvent.setup();
+			repository.getDailyVisibility.mockResolvedValue(visibility(PLTA_A));
+			repository.setDailyLabels.mockResolvedValue(visibility(PLTA_A));
+
+			const { onClose } = renderSheet(PLTA_A, 'hulu', true);
+
+			const input = await screen.findByRole('textbox', { name: 'Nama Inflow' });
+			await user.clear(input);
+			await user.type(input, 'Debit Masuk');
+			expect(await screen.findByRole('button', { name: 'Simpan (1)' })).toBeEnabled();
+
+			await user.click(screen.getByRole('button', { name: 'Kembalikan nama bawaan: Inflow' }));
+			expect(input).toHaveValue('Inflow');
+			expect(screen.getByRole('button', { name: 'Simpan' })).toBeDisabled();
+
+			await user.clear(input);
+			await user.type(input, 'Debit Masuk');
+			await user.click(screen.getByRole('button', { name: 'Simpan (1)' }));
+
+			await waitFor(() =>
+				expect(repository.setDailyLabels).toHaveBeenCalledWith(PLTA_A, { inflow: 'Debit Masuk' })
+			);
+			expect(repository.setDailyVisibility).not.toHaveBeenCalled();
+			await waitFor(() => expect(onClose).toHaveBeenCalled());
 		});
 	});
 });

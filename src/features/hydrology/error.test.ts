@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ApiError } from '../../api/http';
 import {
+	getDailyExcelErrorDetail,
 	getHydrologyErrorMessage,
 	getMonthlyExcelErrorMessage,
 	getMonthlyExcelRowErrors
@@ -77,5 +78,43 @@ describe('getMonthlyExcelRowErrors', () => {
 
 	it('tidak meledak untuk galat yang sama sekali bukan ApiError', () => {
 		expect(getMonthlyExcelRowErrors(new Error('offline'))).toEqual([]);
+	});
+});
+
+describe('getDailyExcelErrorDetail', () => {
+	it('memetakan pesan dan kalimat per sel dari impor harian', () => {
+		// Berbeda dengan bulanan: `rincian` berupa kalimat, bukan objek baris.
+		const error = excelError({
+			pesan: '2 sel bermasalah — tidak ada data yang disimpan',
+			rincian: ['Baris 3 (PLTA-GRG): kolom debit_hjv bukan angka', 'Baris 5: tanggal kosong']
+		});
+
+		expect(getDailyExcelErrorDetail(error)).toEqual({
+			message: '2 sel bermasalah — tidak ada data yang disimpan',
+			problems: ['Baris 3 (PLTA-GRG): kolom debit_hjv bukan angka', 'Baris 5: tanggal kosong']
+		});
+	});
+
+	it('memakai detail teks untuk galat parameter', () => {
+		const error = excelError('isi_kosong tidak dikenal: apa_saja');
+
+		expect(getDailyExcelErrorDetail(error)).toEqual({
+			message: 'isi_kosong tidak dikenal: apa_saja',
+			problems: []
+		});
+	});
+
+	it('memberi kalimat cadangan saat 400 tanpa detail yang bisa dibaca', () => {
+		const detail = getDailyExcelErrorDetail(excelError(null));
+
+		expect(detail.message).toContain('.xlsx');
+		expect(detail.problems).toEqual([]);
+	});
+
+	it('tidak meledak untuk galat yang sama sekali bukan ApiError', () => {
+		expect(getDailyExcelErrorDetail(new Error('offline'))).toEqual({
+			message: 'offline',
+			problems: []
+		});
 	});
 });

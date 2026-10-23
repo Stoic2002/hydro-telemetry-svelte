@@ -5,6 +5,7 @@
 	import FileDropzone from '$components/controls/FileDropzone.svelte';
 	import Select from '$components/controls/Select.svelte';
 	import SelectedFile from '$components/controls/SelectedFile.svelte';
+	import StatusToggle from '$components/controls/StatusToggle.svelte';
 	import UploadHistoryPanel from '$features/audit/components/UploadHistoryPanel.svelte';
 	import { getPlantDisplayName, type Plant } from '$features/plta';
 	import {
@@ -168,9 +169,7 @@
 					/>
 				{:else}
 					<div class="flex min-h-[190px] flex-col">
-						<p class="table-head-cell">Setelah file dipilih</p>
-
-						<div class="mt-2">
+						<div>
 							<SelectedFile
 								file={selectedFile}
 								error={selectionError}
@@ -241,23 +240,16 @@
 					options={YEAR_OPTIONS}
 				/>
 
-				<label class="flex cursor-pointer items-start gap-2.5">
-					<input
-						type="checkbox"
-						bind:checked={publish}
-						disabled={isUploading}
-						class="mt-0.5 size-4 shrink-0 accent-brand-primary-strong"
-					/>
-					<span class="text-sm leading-snug text-text-secondary">
-						Publikasikan kurva elevasi–volume setelah diproses
-					</span>
-				</label>
-
-				<p class="border-t border-border-subtle pt-2.5 text-xs leading-relaxed text-text-muted">
-					Kolom wajib: <strong class="font-medium text-text-secondary">Elevasi</strong>,
-					<strong class="font-medium text-text-secondary">Volume</strong>, dan
-					<strong class="font-medium text-text-secondary">Area</strong>.
-				</p>
+				<!-- Sakelar, bukan checkbox: aturan komponen untuk pilihan ya/tidak. -->
+				<StatusToggle
+					label="Setelah diproses"
+					activeLabel="Publish"
+					inactiveLabel="Draft"
+					align="stretch"
+					isActive={publish}
+					disabled={isUploading}
+					onChange={(next) => (publish = next)}
+				/>
 
 				<button
 					type="button"
@@ -269,14 +261,11 @@
 					{templateMutation.isPending ? 'Menyiapkan…' : 'Unduh Template'}
 				</button>
 				<p class="text-xs leading-relaxed text-text-muted">
-					Template terisi kurva {displayName} tahun {year} yang tersimpan.
+					Kolom wajib <span class="font-medium text-text-secondary">Elevasi, Volume, Area</span>.
+					Sudah berisi kurva {displayName}
+					{year} yang tersimpan.
 				</p>
 			</aside>
 		</div>
 	</section>
-
-	<p class="text-xs leading-relaxed text-text-muted">
-		File Excel tidak diparsing di browser — validasi kolom dan jumlah baris baru terlihat setelah
-		server membalas.
-	</p>
 </div>

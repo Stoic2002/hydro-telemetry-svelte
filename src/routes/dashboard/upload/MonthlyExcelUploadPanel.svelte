@@ -19,6 +19,7 @@
 	import { downloadBlob } from '$shared/lib/download';
 	import { notificationStore } from '$shared/lib/notification.svelte';
 	import { MONTHS } from '../plta/[pltaId]/telemetering/presentation';
+	import UploadTips from './UploadTips.svelte';
 
 	/**
 	 * Unggah Excel ringkasan hidrologi bulanan. Satu berkas mengisi seluruh PLTA
@@ -41,9 +42,10 @@
 	 * kontrak 5 Okt 2026; server masih memetakan header lama, tetapi menolak
 	 * berkas yang memuat nama lama dan baru untuk bidang yang sama.
 	 *
-	 * Yang ditonjolkan nama tampilannya (baris 1 berkas); kunci kolom (baris 2)
-	 * kecil di bawahnya. Dulu hanya kunci mentah yang tampil, terpotong di
-	 * tengah kata. Nama bidang yang diganti admin dibaca dari server; daftar di
+	 * Yang tampil nama tampilannya (baris 1 berkas), satu baris per kolom; kunci
+	 * kolom (baris 2) di `title`. Dulu hanya kunci mentah yang tampil, terpotong
+	 * di tengah kata, lalu kunci di baris kedua yang menggandakan panjang daftar
+	 * (dipadatkan 23 Okt 2026). Nama bidang yang diganti admin dibaca dari server; daftar di
 	 * bawah cadangan bila belum termuat.
 	 */
 	const TEMPLATE_COLUMNS: { key: string; label: string }[] = [
@@ -202,9 +204,7 @@
 						<div class="mt-3 flex items-start gap-2">
 							<IconInfo class="mt-0.5 size-3.5 shrink-0 text-text-muted" />
 							<p class="text-xs leading-relaxed text-text-muted">
-								Berkas langsung tersimpan begitu dikirim — tidak ada tahap pratinjau. Bila ada satu
-								baris bermasalah, seluruh berkas ditolak dan tidak ada data yang berubah. Sel yang
-								dikosongkan tidak menghapus nilai lama.
+								Langsung tersimpan tanpa pratinjau. Satu baris bermasalah menolak seluruh berkas.
 							</p>
 						</div>
 					{/if}
@@ -218,9 +218,7 @@
 			{#if rowErrors.length > 0}
 				<section>
 					<h2 class="section-title">Baris bermasalah</h2>
-					<p class="mt-1 text-xs text-text-muted">
-						Perbaiki baris di bawah lalu unggah ulang berkasnya.
-					</p>
+					<p class="mt-1 text-xs text-text-muted">Perbaiki lalu unggah ulang.</p>
 
 					<div class="mt-3 overflow-x-auto">
 						<table class="w-full min-w-[440px] border-collapse text-left">
@@ -327,30 +325,25 @@
 			</button>
 
 			<p class="text-xs leading-relaxed text-text-muted">
-				Template berisi satu baris per PLTA dan sudah terisi nilai yang tersimpan untuk periode itu,
-				jadi tinggal dikoreksi.
+				Satu baris per PLTA, sudah berisi nilai tersimpan.
 			</p>
 
 			<div class="border-t border-border-subtle pt-2.5">
 				<p class="table-head-cell">Kolom template</p>
-				<ul class="mt-1.5 flex flex-col gap-1.5">
+				<ul class="mt-1.5 flex flex-col gap-1">
 					{#each templateColumns as column (column.key)}
-						<li class="flex flex-col">
-							<span class="text-xs text-text-secondary">{column.label}</span>
-							<span class="font-mono text-[11px] [overflow-wrap:anywhere] text-text-muted">
-								{column.key}
-							</span>
-						</li>
+						<li class="truncate text-xs text-text-secondary" title={column.key}>{column.label}</li>
 					{/each}
 				</ul>
-				<p class="mt-2 text-xs leading-relaxed text-text-muted">
-					Baris 1 berkas berisi nama tampilan, baris 2 kunci kolom di atas — jangan ubah baris 2.
-					Kolom akumulasi diisi posisi Januari s.d. bulan barisnya.
-					<span class="font-medium text-text-secondary">kode_plta</span> adalah kuncinya.
-					<span class="font-medium text-text-secondary">nama_plta</span> hanya rujukan dan diabaikan saat
-					impor.
-				</p>
 			</div>
+
+			<UploadTips
+				tips={[
+					{ term: 'Baris 2', text: 'berisi kunci kolom — jangan diubah.' },
+					{ term: 'Kolom akumulasi', text: 'diisi posisi Januari s.d. bulan barisnya.' },
+					{ term: 'kode_plta', text: 'adalah kuncinya; nama_plta hanya rujukan.' }
+				]}
+			/>
 		</aside>
 	</div>
 </div>

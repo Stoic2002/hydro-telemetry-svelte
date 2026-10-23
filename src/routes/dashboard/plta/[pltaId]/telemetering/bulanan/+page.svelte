@@ -10,6 +10,7 @@
 	import Button from '$components/controls/Button.svelte';
 	import Select from '$components/controls/Select.svelte';
 	import Banner from '$components/ui/Banner.svelte';
+	import OverflowMenu from '$components/ui/OverflowMenu.svelte';
 	import PageHeader from '$components/ui/PageHeader.svelte';
 	import {
 		authStore,
@@ -151,12 +152,6 @@
 		description="Prediksi dan realisasi kondisi hidrologi bulanan"
 	>
 		{#snippet actions()}
-			{#if canRenameFields}
-				<Button type="button" variant="ghost" size="sm" onclick={() => (isLabelSheetOpen = true)}>
-					{#snippet leftIcon()}<IconTextAa class="size-4" />{/snippet}
-					Nama bidang
-				</Button>
-			{/if}
 			<!--
 				Periode di kepala halaman, sebaris dengan pemilih PLTA — dulu bagian
 				"Periode" tersendiri yang memakan satu baris penuh di atas tabel.
@@ -179,6 +174,15 @@
 				/>
 			</div>
 			<PlantSwitcher page="telemetering/bulanan" />
+			<!-- Pengaturan admin yang jarang dipakai; dulu tombol sebaris dengan filter. -->
+			{#if canRenameFields}
+				<OverflowMenu
+					ariaLabel="Pengaturan lain"
+					items={[
+						{ label: 'Nama bidang', icon: IconTextAa, onSelect: () => (isLabelSheetOpen = true) }
+					]}
+				/>
+			{/if}
 		{/snippet}
 	</PageHeader>
 

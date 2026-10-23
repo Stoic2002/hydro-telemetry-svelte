@@ -112,6 +112,40 @@
 		return formatDayMonthYearTimeWIB(value);
 	}
 
+	/**
+	 * Catatan mutu data di atas grafik, digabung dalam SATU banner. Dulu tiap
+	 * catatan banner sendiri, dan pada hari yang buruk empat banner kuning
+	 * bertumpuk sebelum grafiknya (23 Okt 2026).
+	 */
+	const dataNotes = $derived.by(() => {
+		const notes: { title: string; detail: string }[] = [];
+		const discarded = actualQuery.data?.discardedPoints ?? 0;
+		if (discarded > 0) {
+			notes.push({
+				title: 'Sebagian pembacaan aktual tidak wajar',
+				detail: `${discarded} pembacaan jauh di luar batas wajar tidak ikut digambar.`
+			});
+		}
+		if (isEmptyRun) {
+			notes.push({
+				title: 'Prediksi terbaru belum berisi nilai',
+				detail: `Model berjalan ${formatDateTime(series?.generatedAt)} tanpa menghasilkan angka; prediksi berikutnya pukul 00.30 WIB.`
+			});
+		} else if (valuedPoints.length < points.length) {
+			notes.push({
+				title: 'Sebagian jam belum berisi prediksi',
+				detail: `${points.length - valuedPoints.length} dari ${points.length} jam tampil "—" di tabel.`
+			});
+		}
+		if (series?.accuracy && !series.accuracy.isPresentable) {
+			notes.push({
+				title: 'Akurasi model belum layak jadi acuan tunggal',
+				detail: 'Gunakan bersama data aktual dan pertimbangan operator.'
+			});
+		}
+		return notes;
+	});
+
 	function errorMessage(error: unknown): string {
 		if (error instanceof Error && error.message.trim()) return error.message;
 		return 'Data Forecasting belum dapat dimuat.';
@@ -293,29 +327,15 @@
 			/>
 		</section>
 	{:else}
-		{#if (actualQuery.data?.discardedPoints ?? 0) > 0}
-			<Banner tone="warning" title="Sebagian pembacaan aktual tidak wajar">
-				{actualQuery.data?.discardedPoints} pembacaan bernilai jauh di luar batas wajar dan tidak ikut
-				digambar. Garis prediksi dan pembacaan lain tetap ditampilkan apa adanya.
-			</Banner>
-		{/if}
-
-		{#if isEmptyRun}
-			<Banner tone="warning" title="Prediksi terbaru belum berisi nilai">
-				Model berjalan pada {formatDateTime(series?.generatedAt)}, tetapi tidak menghasilkan angka
-				untuk satu jam pun. Garis prediksi dan statistik dikosongkan; prediksi berikutnya dibuat
-				pukul 00.30 WIB.
-			</Banner>
-		{:else if valuedPoints.length < points.length}
-			<Banner tone="warning" title="Sebagian jam belum berisi prediksi">
-				{points.length - valuedPoints.length} dari {points.length} jam tidak punya nilai dari model dan
-				tampil sebagai "—" di tabel.
-			</Banner>
-		{/if}
-
-		{#if series?.accuracy && !series.accuracy.isPresentable}
-			<Banner tone="warning" title="Akurasi model belum layak jadi acuan tunggal">
-				Gunakan bersama data aktual dan pertimbangan operator.
+		{#if dataNotes.length === 1}
+			<Banner tone="warning" title={dataNotes[0].title}>{dataNotes[0].detail}</Banner>
+		{:else if dataNotes.length > 1}
+			<Banner tone="warning" title={`${dataNotes.length} hal perlu diperhatikan`}>
+				<ul class="flex list-disc flex-col gap-0.5 pl-4">
+					{#each dataNotes as note (note.title)}
+						<li><span class="font-medium">{note.title}.</span> {note.detail}</li>
+					{/each}
+				</ul>
 			</Banner>
 		{/if}
 
