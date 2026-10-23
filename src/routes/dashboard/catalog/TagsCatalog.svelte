@@ -180,10 +180,17 @@
 			<tr
 				class="border-b border-surface-overlay transition-colors last:border-b-0 hover:bg-surface-base/60"
 			>
+				<!--
+					Nama tampilan di atas, kunci parameter kecil di bawahnya (23 Okt
+					2026); dulu kunci mentah yang ditonjolkan. Tag tanpa nama tampilan
+					hanya punya kuncinya.
+				-->
 				<td class="px-3.5 py-2.5">
-					<span class="font-mono text-xs font-medium text-text-primary">{tag.parameter}</span>
 					{#if tag.label}
-						<span class="mt-0.5 block text-xs text-text-muted">{tag.label}</span>
+						<span class="block text-sm font-medium text-text-primary">{tag.label}</span>
+						<span class="mt-0.5 block font-mono text-xs text-text-muted">{tag.parameter}</span>
+					{:else}
+						<span class="font-mono text-xs font-medium text-text-primary">{tag.parameter}</span>
 					{/if}
 				</td>
 				<td class="px-3.5 py-2.5 text-sm text-text-secondary">{tag.station || '—'}</td>
@@ -217,7 +224,7 @@
 							size="sm"
 							variant="ghost"
 							onclick={() => (editingTag = tag)}
-							aria-label={`Atur batas valid ${[tag.parameter, tag.station].filter(Boolean).join(' ')}`}
+							aria-label={`Atur batas valid ${[tag.label ?? tag.parameter, tag.station].filter(Boolean).join(' ')}`}
 							class="whitespace-nowrap text-brand-primary-strong"
 						>
 							{#snippet leftIcon()}<IconPencil class="size-3" />{/snippet}
