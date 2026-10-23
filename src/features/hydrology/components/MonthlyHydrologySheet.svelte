@@ -69,10 +69,14 @@
 	let valuesBaseline = $state('');
 
 	// Panel dibuka ulang untuk periode berbeda; isian mengikuti data periode itu.
+	// Baseline diambil dari objek biasa `next`, bukan dari `values`: membaca
+	// `values` sesudah menulisnya menjadikannya dependensi efek ini sendiri, dan
+	// efek berputar tanpa henti (`effect_update_depth_exceeded`) — tombol
+	// "Edit data" dulu membuat seluruh halaman gagal ditampilkan.
 	$effect(() => {
 		if (!isOpen) return;
 
-		values = {
+		const next: MonthlyHydrologyFormValues = {
 			hydrologyPrediction: record?.hydrologyPrediction ?? '',
 			hydrologyActual: record?.hydrologyActual ?? '',
 			predictedProductionMwh: record?.predictedProductionMwh ?? null,
@@ -82,7 +86,8 @@
 			targetAccumulatedMwh: record?.targetAccumulatedMwh ?? null,
 			actualAccumulatedMwh: record?.actualAccumulatedMwh ?? null
 		};
-		valuesBaseline = JSON.stringify(values);
+		values = next;
+		valuesBaseline = JSON.stringify(next);
 	});
 
 	const isPending = $derived(upsertMutation.isPending);

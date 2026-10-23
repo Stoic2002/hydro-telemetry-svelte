@@ -3,6 +3,7 @@
 	import {
 		HYDROLOGY_ZONES,
 		HYDROLOGY_ZONE_PRESENTATION,
+		fitDamViewBox,
 		projectDamAnchor,
 		resolveDamZoneField,
 		type DamImagery,
@@ -95,14 +96,48 @@
 			return `${x},${y}`;
 		}).join(' ')
 	);
+
+	let containerWidth = $state(0);
+	let containerHeight = $state(0);
+
+	const viewBox = $derived(
+		fitDamViewBox(
+			frame,
+			HYDROLOGY_ZONES.map((zone) => projectAnchor(zone)),
+			containerWidth,
+			containerHeight
+		)
+	);
+
+	/**
+	 * Penanda digambar dalam satuan citra, jadi ikut mengecil bersama citranya.
+	 * Di ponsel lingkarannya dulu tinggal ±4 px; di sini dijaga minimal
+	 * `MIN_MARKER_RADIUS_PX`. Di lebar desktop pengalinya 1 — tampilan tidak berubah.
+	 */
+	const MARKER_RADIUS = 13;
+	const MIN_MARKER_RADIUS_PX = 6;
+	const markerScale = $derived.by(() => {
+		if (containerWidth <= 0) return 1;
+		const pxPerUnit = containerWidth / viewBox.width;
+		return Math.min(3, Math.max(1, MIN_MARKER_RADIUS_PX / (MARKER_RADIUS * pxPerUnit)));
+	});
+
+	/**
+	 * Di wadah sempit nama zona tidak muat berdampingan tanpa saling tumpuk;
+	 * cukup nomornya, karena kartu zona tepat di bawah citra berjudul dengan nomor
+	 * yang sama (1 Hulu · 2 Bendungan · 3 Hilir).
+	 */
+	const showZoneChips = $derived(containerWidth === 0 || containerWidth >= 480);
 </script>
 
 <figure
 	class="relative max-h-[480px] min-h-[220px] w-full overflow-hidden bg-[#0f172a]"
 	style={`aspect-ratio: ${frame.width} / ${frame.height}`}
+	bind:clientWidth={containerWidth}
+	bind:clientHeight={containerHeight}
 >
 	<svg
-		viewBox={`0 0 ${frame.width} ${frame.height}`}
+		viewBox={`${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`}
 		preserveAspectRatio="xMidYMid slice"
 		role="group"
 		aria-label={`Pemetaan hidrologi ${imagery.damName}`}
@@ -231,13 +266,13 @@
 			{@const presentation = HYDROLOGY_ZONE_PRESENTATION[zone]}
 			{@const isActive = activeZone === zone}
 			{@const isMuted = activeZone !== null && !isActive}
-			{@const radius = isActive ? 15 : 13}
+			{@const radius = isActive ? MARKER_RADIUS + 2 : MARKER_RADIUS}
 			{@const chipWidth = 20 + presentation.title.length * 11}
-			{@const flip = anchor.x > frame.width * 0.7}
+			{@const flip = anchor.x > viewBox.x + viewBox.width * 0.7}
 			{@const chipOffset = flip ? -(radius + 8 + chipWidth) : radius + 8}
 
 			<g
-				transform={`translate(${anchor.x} ${anchor.y})`}
+				transform={`translate(${anchor.x} ${anchor.y}) scale(${markerScale})`}
 				role="button"
 				tabindex="0"
 				aria-label={`Sorot parameter ${presentation.title}`}
@@ -280,29 +315,31 @@
 					bolak-balik ke legenda untuk tahu titik 2 itu bendungan. Label dibalik
 					ke kiri bila penanda dekat tepi kanan supaya tidak terpotong.
 				-->
-				<g transform={`translate(${chipOffset} 0)`} pointer-events="none">
-					<rect
-						x={0}
-						y={-15}
-						rx={7}
-						width={chipWidth}
-						height={30}
-						fill={presentation.accentColor}
-						opacity={0.95}
-					/>
-					<text
-						x={chipWidth / 2}
-						y={1}
-						text-anchor="middle"
-						dominant-baseline="central"
-						style:font-family="var(--font-sans)"
-						font-weight={700}
-						font-size={17}
-						fill={presentation.accentTextColor}
-					>
-						{presentation.title}
-					</text>
-				</g>
+				{#if showZoneChips}
+					<g transform={`translate(${chipOffset} 0)`} pointer-events="none">
+						<rect
+							x={0}
+							y={-15}
+							rx={7}
+							width={chipWidth}
+							height={30}
+							fill={presentation.accentColor}
+							opacity={0.95}
+						/>
+						<text
+							x={chipWidth / 2}
+							y={1}
+							text-anchor="middle"
+							dominant-baseline="central"
+							style:font-family="var(--font-sans)"
+							font-weight={700}
+							font-size={17}
+							fill={presentation.accentTextColor}
+						>
+							{presentation.title}
+						</text>
+					</g>
+				{/if}
 			</g>
 		{/each}
 	</svg>

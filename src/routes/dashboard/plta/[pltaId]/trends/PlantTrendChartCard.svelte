@@ -8,6 +8,7 @@
 	import { formatDayMonthTimeWIB } from '$shared/lib/date';
 	import { timeAxisFormatter, valueAxisTicks } from '$shared/utils/chart';
 	import { formatNumber } from '$shared/utils/number';
+	import { displayUnit } from '$shared/utils/unit';
 	import {
 		axisMapping,
 		valueAt,
@@ -92,7 +93,7 @@
 	}
 
 	function unitLabel(unit: string | null): string {
-		return unit ? ` ${unit}` : '';
+		return unit ? ` ${displayUnit(unit)}` : '';
 	}
 </script>
 
@@ -117,7 +118,7 @@
 					</p>
 					<p class="metric-value mt-0.5 text-2xl font-semibold tracking-tight">
 						{formatNumber(headline.stats.latest.value, 2)}<span class="metric-unit ml-1.5 text-xs"
-							>{headline.unit ?? ''}</span
+							>{displayUnit(headline.unit) ?? ''}</span
 						>
 					</p>
 					<p
@@ -275,7 +276,7 @@
 						<dt class="table-head-cell">{statistic.label}</dt>
 						<dd class="metric-value mt-0.5 text-sm text-text-strong">
 							{formatNumber(statistic.value, 2)}<span class="metric-unit ml-1"
-								>{headline.unit ?? ''}</span
+								>{displayUnit(headline.unit) ?? ''}</span
 							>
 						</dd>
 					</div>

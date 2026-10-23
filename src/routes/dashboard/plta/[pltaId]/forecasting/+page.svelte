@@ -25,8 +25,9 @@
 	} from '$features/plta';
 	import { createTrendQuery } from '$features/trends';
 	import { formatDayMonthWIB, formatDayMonthYearTimeWIB, formatTimeWIB } from '$shared/lib/date';
-	import { chartValueDomain } from '$shared/utils/chart';
+	import { chartValueDomain, minimumAxisSpan, valueAxisTicks } from '$shared/utils/chart';
 	import { formatNumber } from '$shared/utils/number';
+	import { displayUnit } from '$shared/utils/unit';
 
 	interface ForecastChartDatum {
 		time: Date;
@@ -106,11 +107,6 @@
 	/** Run ada tetapi tidak berisi satu pun nilai — bukan galat jaringan. */
 	const isEmptyRun = $derived(points.length > 0 && valuedPoints.length === 0);
 
-	function normalizeUnit(unit: string | null | undefined): string {
-		if (!unit) return '';
-		return unit.replace('m3/', 'm³/');
-	}
-
 	function formatDateTime(value: string | null | undefined): string {
 		if (!value) return '—';
 		return formatDayMonthYearTimeWIB(value);
@@ -121,7 +117,7 @@
 		return 'Data Forecasting belum dapat dimuat.';
 	}
 
-	const unit = $derived(normalizeUnit(series?.unit));
+	const unit = $derived(displayUnit(series?.unit) ?? '');
 
 	const firstPoint = $derived(valuedPoints[0]);
 	const peakPoint = $derived(
@@ -182,9 +178,13 @@
 				[datum.actual, datum.forecast, datum.p10, datum.p90].filter(
 					(value): value is number => typeof value === 'number'
 				)
-			)
+			),
+			minimumAxisSpan(series?.unit)
 		)
 	);
+	// Desimal label mengikuti jarak antar-tick: TMA 230,0–231,0 dulu berlabel
+	// "230, 230, 230, 230, 231" karena nilai ≥ 100 selalu dibulatkan.
+	const yAxis = $derived(valueAxisTicks(yDomain));
 
 	const hasBand = $derived(bandData.length > 0);
 	const parameterLabel = $derived(
@@ -365,7 +365,8 @@
 								placement="left"
 								rule={false}
 								grid={{ class: 'stroke-chart-grid' }}
-								format={(value: number) => formatNumber(value, Math.abs(value) >= 100 ? 0 : 1)}
+								ticks={yAxis.ticks}
+								format={(value: number) => formatNumber(value, yAxis.fractionDigits)}
 								classes={{ tickLabel: 'fill-chart-axis text-[11px]' }}
 							/>
 							<Axis

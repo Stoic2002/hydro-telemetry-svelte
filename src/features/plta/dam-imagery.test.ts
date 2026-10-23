@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
 	DEFAULT_DAM_FRAME,
 	HYDROLOGY_ZONES,
+	fitDamViewBox,
 	getDamImagery,
 	projectDamAnchor,
 	resolveDamZoneField
@@ -256,6 +257,107 @@ describe('resolveDamZoneField', () => {
 			rx: DEFAULT_DAM_FRAME.width * 0.25,
 			ry: DEFAULT_DAM_FRAME.height * 0.1,
 			angle: 12
+		});
+	});
+});
+
+describe('fitDamViewBox', () => {
+	const frame = { width: 1600, height: 667 };
+
+	function contains(
+		box: ReturnType<typeof fitDamViewBox>,
+		point: { x: number; y: number },
+		paddingUnits: number
+	) {
+		return (
+			point.x - paddingUnits >= box.x - 1e-6 &&
+			point.x + paddingUnits <= box.x + box.width + 1e-6 &&
+			point.y - paddingUnits >= box.y - 1e-6 &&
+			point.y + paddingUnits <= box.y + box.height + 1e-6
+		);
+	}
+
+	it('sama dengan potongan tengah biasa bila ketiga penanda sudah masuk', () => {
+		const points = [
+			{ x: 600, y: 300 },
+			{ x: 800, y: 330 },
+			{ x: 1000, y: 360 }
+		];
+
+		const box = fitDamViewBox(frame, points, 960, 400);
+
+		expect(box.x).toBe(0);
+		expect(box.width).toBe(1600);
+		expect(box.width / box.height).toBeCloseTo(960 / 400);
+	});
+
+	// Di ponsel 375 px wadahnya 349 × 220: `slice` biasa hanya memperlihatkan
+	// ±1058 dari 1600 satuan lebar, dan penanda di tepi citra hilang.
+	it('memasukkan seluruh penanda di wadah sempit, termasuk yang di tepi citra', () => {
+		const points = [
+			{ x: 40, y: 280 },
+			{ x: 820, y: 330 },
+			{ x: 1560, y: 360 }
+		];
+
+		const box = fitDamViewBox(frame, points, 349, 220, 28);
+		const paddingUnits = (28 * box.width) / 349;
+
+		expect(box.width / box.height).toBeCloseTo(349 / 220);
+		for (const point of points) expect(contains(box, point, paddingUnits)).toBe(true);
+	});
+
+	it('menggeser potongan ke arah penanda tanpa memperkecil citra bila cukup', () => {
+		const points = [
+			{ x: 1100, y: 300 },
+			{ x: 1300, y: 320 },
+			{ x: 1500, y: 340 }
+		];
+
+		const box = fitDamViewBox(frame, points, 349, 220, 28);
+
+		expect(box.height).toBeCloseTo(667);
+		expect(box.x + box.width).toBeCloseTo(1600);
+		for (const point of points) expect(contains(box, point, 0)).toBe(true);
+	});
+
+	it('memperlihatkan ketiga penanda setiap citra bendungan di layar ponsel', () => {
+		const names = [
+			'Soedirman',
+			'Wonogiri',
+			'Kedungombo',
+			'Wadaslintang',
+			'Sempor',
+			'Sidorejo',
+			'Klambu',
+			'Pejengkolan',
+			'Garung',
+			'Jelok',
+			'Timo',
+			'Ketenger',
+			'Tulis'
+		];
+
+		for (const name of names) {
+			const imagery = getDamImagery({ code: '', name: `PLTA ${name}` });
+			expect(imagery, name).not.toBeNull();
+			if (!imagery) continue;
+
+			const points = HYDROLOGY_ZONES.map((zone) =>
+				projectDamAnchor(imagery.anchors[zone], imagery.frame)
+			);
+			const box = fitDamViewBox(imagery.frame, points, 349, 220, 28);
+			const paddingUnits = (28 * box.width) / 349;
+			for (const point of points) expect(contains(box, point, paddingUnits), name).toBe(true);
+		}
+	});
+
+	it('memakai seluruh bingkai sebelum ukuran wadah diketahui', () => {
+		expect(fitDamViewBox(frame, [{ x: 10, y: 10 }], 0, 0)).toEqual({
+			x: 0,
+			y: 0,
+			width: 1600,
+			height: 667
 		});
 	});
 });

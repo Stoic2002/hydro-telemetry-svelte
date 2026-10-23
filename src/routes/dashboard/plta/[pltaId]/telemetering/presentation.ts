@@ -12,6 +12,7 @@ import type {
 	DailyTelemetryUploadTarget
 } from '$features/telemetry-upload';
 import { formatLongCalendarDate, toISODateWIB } from '$shared/lib/date';
+import { displayUnit } from '$shared/utils/unit';
 
 export const MONTHS = [
 	'Januari',
@@ -272,7 +273,7 @@ function metricSubRows(metric: DashboardMetric): MetricSubRow[] | undefined {
 	return stations.map((station) => ({
 		label: station.label || station.station,
 		value: formatHydrologyMetric(station.value),
-		unit: metric.unit ?? undefined
+		unit: displayUnit(metric.unit)
 	}));
 }
 
@@ -330,7 +331,7 @@ export function dashboardMetricRow(
 		key,
 		label: metric.label,
 		value: formatHydrologyMetric(value),
-		unit: metric.unit ?? undefined,
+		unit: displayUnit(metric.unit),
 		source,
 		sourceType,
 		hasData: true,

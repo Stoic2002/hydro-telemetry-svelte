@@ -7,7 +7,8 @@ export type UploadAuditKind =
 	| 'monthly_form'
 	| 'elevation_curve';
 
-export type UploadAuditAction = 'upload' | 'hapus';
+/** `publish` dan `ubah_status` dicatat untuk kurva EVA (terlihat di staging 12 Okt 2026). */
+export type UploadAuditAction = 'upload' | 'hapus' | 'publish' | 'ubah_status';
 
 export interface UploadAuditEntry {
 	id: string;

@@ -148,6 +148,83 @@ export function projectDamAnchor(
 	};
 }
 
+export interface DamViewBox {
+	x: number;
+	y: number;
+	width: number;
+	height: number;
+}
+
+/**
+ * Bagian citra yang digambar di wadah berukuran `containerWidth` × `containerHeight`.
+ *
+ * Wadahnya punya tinggi minimum, jadi di layar sempit bentuknya lebih tegak
+ * daripada citranya. Dulu SVG cukup memakai `slice` yang memotong sama rata di
+ * kiri-kanan: di ponsel 375 px penanda Hulu dan Hilir Soedirman jatuh di luar
+ * bingkai dan hanya Bendungan yang terlihat. Sekarang potongannya digeser ke
+ * tengah ketiga penanda, dan bila itu pun belum cukup, citra diperkecil sampai
+ * semuanya masuk dengan jarak `paddingPx` dari tepi — sisanya latar gelap.
+ * Selama ketiganya sudah masuk, hasilnya sama dengan `slice` biasa.
+ */
+export function fitDamViewBox(
+	frame: DamImageryFrame,
+	points: readonly { x: number; y: number }[],
+	containerWidth: number,
+	containerHeight: number,
+	paddingPx = 28
+): DamViewBox {
+	const full = { x: 0, y: 0, width: frame.width, height: frame.height };
+	if (containerWidth <= 0 || containerHeight <= 0 || points.length === 0) return full;
+
+	const aspect = containerWidth / containerHeight;
+	let width = aspect < frame.width / frame.height ? frame.height * aspect : frame.width;
+	let height = width / aspect;
+
+	const xs = points.map((point) => point.x);
+	const ys = points.map((point) => point.y);
+	const minX = Math.min(...xs);
+	const maxX = Math.max(...xs);
+	const minY = Math.min(...ys);
+	const maxY = Math.max(...ys);
+
+	// Padding dalam piksel layar; dalam satuan citra ia ikut membesar saat citra
+	// diperkecil, jadi lebar yang dibutuhkan = rentang ÷ (1 − 2·padding/lebar).
+	const freeX = 1 - (2 * paddingPx) / containerWidth;
+	const freeY = 1 - (2 * paddingPx) / containerHeight;
+	const neededWidth = freeX > 0 ? (maxX - minX) / freeX : frame.width;
+	const neededHeight = freeY > 0 ? (maxY - minY) / freeY : frame.height;
+
+	if (neededWidth > width) {
+		width = neededWidth;
+		height = width / aspect;
+	}
+	if (neededHeight > height) {
+		height = neededHeight;
+		width = height * aspect;
+	}
+
+	// Potongan tengah dipertahankan bila penandanya sudah masuk, supaya tampilan
+	// desktop tidak bergeser; baru bila ada yang keluar, potongan dipusatkan ke
+	// penanda.
+	const place = (low: number, high: number, pad: number, size: number, limit: number) => {
+		const centered = (limit - size) / 2;
+		if (low - pad >= centered && high + pad <= centered + size) return centered;
+		const start =
+			size >= limit ? centered : Math.min(Math.max((low + high) / 2 - size / 2, 0), limit - size);
+		// Penanda yang nyaris di tepi citra (Garung) baru masuk bila potongannya
+		// sedikit melewati tepi itu; sisanya tampil sebagai latar gelap.
+		return Math.max(Math.min(start, low - pad), high + pad - size);
+	};
+	const unitsPerPx = width / containerWidth;
+
+	return {
+		x: place(minX, maxX, paddingPx * unitsPerPx, width, frame.width),
+		y: place(minY, maxY, paddingPx * unitsPerPx, height, frame.height),
+		width,
+		height
+	};
+}
+
 /**
  * Bentuk arsiran bawaan, dipakai bila anchor tidak menyebutkannya sendiri.
  *

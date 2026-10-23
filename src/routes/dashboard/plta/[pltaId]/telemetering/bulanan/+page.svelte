@@ -262,7 +262,9 @@
 			</div>
 
 			<p class="mt-2 text-xs text-text-muted">
-				Gambar sama untuk seluruh PLTA.{#if canUploadImage}
+				<!-- Spasi sebelum tautan harus di luar `{#if}`: spasi di awal blok dibuang. -->
+				Gambar sama untuk seluruh PLTA.
+				{#if canUploadImage}
 					<a
 						href={getUploadPath('prakiraan')}
 						class="font-medium text-brand-primary-strong hover:text-brand-primary-pressed"

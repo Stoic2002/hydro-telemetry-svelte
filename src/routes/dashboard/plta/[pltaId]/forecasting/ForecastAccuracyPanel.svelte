@@ -137,8 +137,12 @@
 						<tr>
 							<th class="table-head-cell px-5 py-2">Versi model</th>
 							<th class="table-head-cell px-3.5 py-2 text-right">Titik</th>
-							<th class="table-head-cell px-3.5 py-2 text-right">MAE ({unit})</th>
-							<th class="table-head-cell px-3.5 py-2 text-right">RMSE ({unit})</th>
+							<th class="table-head-cell px-3.5 py-2 text-right"
+								>MAE (<span class="normal-case">{unit}</span>)</th
+							>
+							<th class="table-head-cell px-3.5 py-2 text-right"
+								>RMSE (<span class="normal-case">{unit}</span>)</th
+							>
 							<th class="table-head-cell px-5 py-2 text-right">Akurasi</th>
 						</tr>
 					</thead>
