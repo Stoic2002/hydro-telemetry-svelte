@@ -49,7 +49,6 @@ export interface HydrologyRepository {
 	setDailyLabels(pltaId: string, labels: LabelChanges): Promise<DailyVisibility>;
 	getMonthlyFieldLabels(options?: HydrologyRequestOptions): Promise<MonthlyFieldLabels>;
 	/** Nama bidang bulanan — berlaku untuk SEMUA PLTA, khusus admin. */
-	setMonthlyFieldLabels(labels: LabelChanges): Promise<MonthlyFieldLabels>;
 	/** Panel satu bulan. Bulan yang belum diisi tetap balik dengan `id` null. */
 	getMonthlyPanel(
 		pltaId: string,

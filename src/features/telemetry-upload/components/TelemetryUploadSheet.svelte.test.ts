@@ -163,3 +163,41 @@ describe('template upload satu parameter', () => {
 		);
 	});
 });
+
+describe('parameter konstanta', () => {
+	const TMA_LIMPAS: DailyTelemetryUploadTarget = {
+		label: 'TMA Limpas',
+		parameter: 'const_tma_limpas',
+		unit: 'mdpl',
+		stations: [{ station: '', label: 'Default' }]
+	};
+
+	it('hanya meminta nilai: tanpa tanggal, tanpa tab Excel dan Hapus', async () => {
+		const user = userEvent.setup();
+		repository.uploadPoints.mockResolvedValue({
+			pltaId: PLTA_ID,
+			parameter: 'const_tma_limpas',
+			pointsUpserted: 1,
+			filename: null
+		});
+		const { onClose } = renderSheet(TMA_LIMPAS);
+
+		expect(screen.queryByLabelText('Tanggal')).not.toBeInTheDocument();
+		expect(screen.queryByRole('button', { name: 'Upload Excel' })).not.toBeInTheDocument();
+		expect(screen.queryByRole('button', { name: 'Hapus Data' })).not.toBeInTheDocument();
+
+		// Diisi lewat event input: jsdom membaca "231." di tengah ketikan sebagai
+		// tidak sah dan mengosongkannya, sesuatu yang tidak terjadi di browser.
+		await fireEvent.input(screen.getByRole('spinbutton', { name: /Nilai/ }), {
+			target: { value: '231.5' }
+		});
+		await user.click(screen.getByRole('button', { name: 'Simpan Data' }));
+
+		await waitFor(() => expect(repository.uploadPoints).toHaveBeenCalledTimes(1));
+		const [input] = repository.uploadPoints.mock.calls[0];
+		expect(input).toMatchObject({ parameter: 'const_tma_limpas', station: '' });
+		expect(input.points).toHaveLength(1);
+		expect(input.points[0].value).toBe(231.5);
+		await waitFor(() => expect(onClose).toHaveBeenCalled());
+	});
+});

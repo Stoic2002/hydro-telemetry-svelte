@@ -41,6 +41,32 @@ export function buildTelemetryPoints(rows: TelemetryPointRow[]): TelemetryUpload
 	return points;
 }
 
+/**
+ * Parameter konstanta (`const_tma_limpas`, `const_swc`, …) tidak berdimensi
+ * waktu: server menolaknya di template dan unggah Excel (400) dan hanya
+ * menerimanya lewat input manual. Nilai terbaru yang dipakai — tanggalnya
+ * hanya kunci simpan (keputusan rapat tim 27 Okt 2026: tanpa pemilih tanggal).
+ */
+export function isConstantParameter(parameter: string): boolean {
+	return parameter.startsWith('const_');
+}
+
+const WIB_OFFSET_MS = 7 * 60 * 60 * 1000;
+
+/**
+ * Satu titik konstanta pada saat ini (WIB, tanpa zona — dibaca server sebagai
+ * WIB), supaya nilai baru selalu menjadi yang terbaru. `null` bila nilainya
+ * kosong.
+ */
+export function buildConstantPoint(
+	value: number | null,
+	now: Date = new Date()
+): TelemetryUploadPoint[] | null {
+	if (value === null || !Number.isFinite(value)) return null;
+	const time = new Date(now.getTime() + WIB_OFFSET_MS).toISOString().slice(0, 19);
+	return [{ time, value }];
+}
+
 /** Batas server untuk satu penghapusan — pagar salah ketik, bukan batas teknis. */
 export const MAX_DELETE_RANGE_DAYS = 366;
 

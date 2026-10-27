@@ -227,12 +227,10 @@ Hal-hal yang sudah pernah menggigit dan tidak akan terlihat dari membaca kode:
   grafik). Rentang default 24 jam. Daftar parameter diambil dari API tags. Garis
   grafik menampilkan nilai saat di-hover. Parameter terakumulasi (`*rainfall*`,
   `total_outflow`) diagregasi `sum`, sisanya `avg`; curah hujan digambar sebagai
-  batang. **Pembanding periode** (`?compare=previous|last-year`): garis
-  abu-abu putus-putus di sumbu waktu yang sama — tetap satu grafik. Periode
-  pembanding memakai parameter, resolusi, dan agregasi yang persis sama, hanya
-  rentangnya digeser; "tahun lalu" digeser satu tahun kalender, bukan 365 hari.
-  Untuk curah hujan pembandingnya juga garis, bukan batang berdampingan — 168
-  batang per jam (7 hari) tidak terbaca bila digandakan.
+  batang. **Pembanding periode** (`?compare=previous|last-year`, garis
+  putus-putus di sumbu waktu yang sama) **dihapus 27 Okt 2026 atas keputusan
+  rapat tim**, di tampilan cadangan maupun daftar tren; `?compare=` di tautan
+  lama diabaikan dan dibersihkan saat filter lain diubah.
 - **Laporan**: alur = pilih laporan → masuk daftar tabel → status `completed` →
   download. Tombol **Excel per jam** di toolbar daftar (sheet; dulu kartu permanen
   "Unduh langsung" di atas daftar, diubah 23 Okt 2026): sejak 13 Okt
@@ -265,7 +263,11 @@ Hal-hal yang sudah pernah menggigit dan tidak akan terlihat dari membaca kode:
   menyebut perannya, keputusan frontend). Sheet-nya `PlantFormSheet` dan
   `RiverBasinFormSheet`; validasi murni di `features/plta/plant-form.ts`. Kode
   tidak bisa diubah (`PATCH` tidak menerimanya), dan server tidak punya hapus —
-  menonaktifkan lewat status. `PATCH` hanya mengirim bidang yang berubah.
+  menonaktifkan lewat status. `PATCH` hanya mengirim bidang yang berubah, dan
+  **saat mengubah, hanya bidang yang berubah yang divalidasi**
+  (`parsePlantEdit`/`parseRiverBasinEdit`): sebagian PLTA tersimpan dengan
+  data yang tak lolos aturan form (mis. lintang tanpa bujur), dan dulu tombol
+  Simpan mati tanpa pesan saat hanya mengubah status (laporan tim 27 Okt 2026).
   **`constants` tidak pernah dikirim**: server menimpanya utuh, dan editor
   konstanta (batas TMA, SWC, formula inflow) menunggu daftar kuncinya
   dipastikan ke backend. Tag (`POST/PATCH/DELETE /tags`, OPC browse) belum.
@@ -380,8 +382,12 @@ Hal-hal yang sudah pernah menggigit dan tidak akan terlihat dari membaca kode:
   **Ganti nama (13 Okt 2026, khusus admin = `canConfigureDisplay`)**: metrik
   harian per PLTA lewat isian di `DailyVisibilitySheet` (`PUT …/daily/labels`,
   dikirim sesudah tata letak — dua endpoint, dua hak akses); bidang bulanan
-  untuk seluruh PLTA lewat **Nama bidang** di menu ⋯ (`OverflowMenu`, sejak 23 Okt 2026; dulu tombol sebaris filter) di Hidrologi Bulanan
-  (`MonthlyFieldLabelSheet`, `PUT /hydrology/monthly/labels`). Draf hanya
+  untuk seluruh PLTA dulu lewat **Nama bidang** di Hidrologi Bulanan — **dihapus
+  27 Okt 2026 atas keputusan rapat tim** (`MonthlyFieldLabelSheet` dan
+  pemanggil `PUT /hydrology/monthly/labels` ikut dihapus; `GET`-nya tetap
+  dipakai daftar kolom template di Upload › Excel Bulanan). `OverflowMenu`
+  kini tidak dipakai halaman mana pun tetapi dipertahankan sebagai komponen
+  bersama. Draf hanya
   memuat isian yang disentuh (`labelChanges`); kosong **atau sama dengan nama
   bawaan** = `null` = nama bawaan. Sejak 23 Okt 2026 kotak nama berisi nama yang
   berlaku (bawaan pun) dan menggantikan teks nama di atasnya — satu baris per
@@ -445,6 +451,13 @@ Hal-hal yang sudah pernah menggigit dan tidak akan terlihat dari membaca kode:
   **Target TMA sengaja `input: null`** ("ubah lewat RTOW"), jadi tanpa tombol;
   padahal upload RTOW sudah diputuskan tidak dipakai — cara mengisinya **belum
   dikonfirmasi backend**.
+- **Konstanta tanpa tanggal (27 Okt 2026, rapat tim)**: parameter `const_*`
+  (TMA limpas, MOL, SWC, …) tidak berdimensi waktu, dan Swagger menolaknya di
+  template serta unggah Excel. Form isian untuk target konstanta hanya berisi
+  **Nilai** — tanpa tanggal/jam dan tanpa tab Upload Excel maupun Hapus Data —
+  dan dikirim sebagai satu titik pada waktu sekarang WIB (`buildConstantPoint`)
+  supaya menjadi nilai terbaru. Nilai konstanta yang tampil di panel harian
+  berasal dari sini, jadi editor `constants` di Manajemen PLTA tidak perlu.
 - **Form isian harian punya tab Hapus Data dan template (17 Okt 2026)**:
   `DELETE /telemetry/points` (rentang tanggal+jam, **inklusif di kedua ujung**,
   bawaan satu hari penuh 00.00–23.59, maks. 366 hari, selalu lewat
@@ -487,7 +500,8 @@ Hal-hal yang sudah pernah menggigit dan tidak akan terlihat dari membaca kode:
   turun ke bawah peta). Isinya pencapaian seluruh PLTA, rata-rata antar-PLTA,
   status per PLTA, dan cakupan. **Pemilih bulan/tahun tetap di kepala halaman**
   (`FleetSummaryControls`), **bersama rentang ("Sampai") dan Unduh laporan
-  Excel sejak 23 Okt 2026** — dulu keduanya di kaki kartu. Rata-rata per PLTA
+  Excel sejak 23 Okt 2026** — dulu keduanya di kaki kartu. Sejak 27 Okt 2026
+  (rapat tim) tautan Excel berupa teks biru di bawah pemilih periode. Rata-rata per PLTA
   tetap di kaki kartu, selalu terlihat (13 Okt 2026). Dulu kartu **Detail ringkasan** terlipat di
   kolom kanan peta (`FleetSummaryDetail`, slot `rightPanel` — keduanya dihapus);
   tim menilai buka-tutupnya membuat isinya tidak ketahuan. Keduanya membaca

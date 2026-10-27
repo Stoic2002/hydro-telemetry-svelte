@@ -4,20 +4,13 @@
 	import IconInfo from '~icons/ph/info';
 	import IconPencil from '~icons/ph/pencil-line';
 	import IconRefresh from '~icons/ph/arrow-clockwise';
-	import IconTextAa from '~icons/ph/text-aa';
 	import IconUpload from '~icons/ph/upload-simple';
 
 	import Button from '$components/controls/Button.svelte';
 	import Select from '$components/controls/Select.svelte';
 	import Banner from '$components/ui/Banner.svelte';
-	import OverflowMenu from '$components/ui/OverflowMenu.svelte';
 	import PageHeader from '$components/ui/PageHeader.svelte';
-	import {
-		authStore,
-		canConfigureDisplay,
-		canEditHydrologyData,
-		canUploadMonthlyHydrology
-	} from '$features/auth';
+	import { authStore, canEditHydrologyData, canUploadMonthlyHydrology } from '$features/auth';
 	import {
 		createMonthlyChartQuery,
 		createMonthlyHydrologyImageQuery,
@@ -25,7 +18,6 @@
 		getHydrologyErrorMessage,
 		type MonthlyHydrologyImageKind
 	} from '$features/hydrology';
-	import MonthlyFieldLabelSheet from '$features/hydrology/components/MonthlyFieldLabelSheet.svelte';
 	import MonthlyHydrologySheet from '$features/hydrology/components/MonthlyHydrologySheet.svelte';
 	import { UPLOAD_PATH, getActivePLTA, getUploadPath } from '$features/plta';
 	import PlantSwitcher from '$features/plta/components/PlantSwitcher.svelte';
@@ -66,9 +58,6 @@
 		String(parseReportMonth(page.url.searchParams.get('bulan'), CURRENT_MONTH) ?? CURRENT_MONTH)
 	);
 	let isMonthlySheetOpen = $state(false);
-	/** Ganti nama bidang bulanan — khusus admin, berlaku untuk seluruh PLTA. */
-	let isLabelSheetOpen = $state(false);
-	const canRenameFields = $derived(canConfigureDisplay(authStore.user));
 
 	const monthLabel = $derived(MONTHS[Number(month) - 1]);
 	const canUploadImage = $derived(canUploadMonthlyHydrology(authStore.user));
@@ -174,15 +163,6 @@
 				/>
 			</div>
 			<PlantSwitcher page="telemetering/bulanan" />
-			<!-- Pengaturan admin yang jarang dipakai; dulu tombol sebaris dengan filter. -->
-			{#if canRenameFields}
-				<OverflowMenu
-					ariaLabel="Pengaturan lain"
-					items={[
-						{ label: 'Nama bidang', icon: IconTextAa, onSelect: () => (isLabelSheetOpen = true) }
-					]}
-				/>
-			{/if}
 		{/snippet}
 	</PageHeader>
 
@@ -315,8 +295,4 @@
 		{record}
 		onClose={() => (isMonthlySheetOpen = false)}
 	/>
-{/if}
-
-{#if canRenameFields && isLabelSheetOpen}
-	<MonthlyFieldLabelSheet isOpen onClose={() => (isLabelSheetOpen = false)} />
 {/if}

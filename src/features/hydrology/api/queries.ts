@@ -372,19 +372,3 @@ export function createMonthlyFieldLabelsQuery(enabled: () => boolean) {
 		staleTime: 0
 	}));
 }
-
-/**
- * Nama bidang bulanan berlaku untuk SEMUA PLTA dan ikut di panel, overview,
- * grafik, dan template — seluruh cache hidrologi disegarkan.
- */
-export function createSetMonthlyFieldLabelsMutation() {
-	const queryClient = useQueryClient();
-
-	return createMutation(() => ({
-		mutationFn: (labels: LabelChanges) => hydrologyRepository.setMonthlyFieldLabels(labels),
-		onSuccess: async (labels) => {
-			queryClient.setQueryData(hydrologyQueryKeys.monthlyFieldLabels(), labels);
-			await queryClient.invalidateQueries({ queryKey: hydrologyQueryKeys.all });
-		}
-	}));
-}

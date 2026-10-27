@@ -165,7 +165,7 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
 					'Pilih bulan — atau **Sepanjang tahun** — dan tahun di kanan atas halaman. Bila bulan itu belum ada datanya, tekan **Lihat** bulan sebelumnya di kartu.',
 					'Di kaki kartu yang sama tampil **Rata-rata per PLTA** dalam MWh — prognosa, target, dan realisasi untuk bulan itu dan akumulasinya.',
 					'Isi **Sampai** di kanan atas halaman, di sebelah pemilih bulan dan tahun, untuk merangkum beberapa bulan sekaligus, misalnya Januari sampai September. Kosongkan (—) untuk satu periode saja; tekan tanda silang di sebelahnya untuk menghapus rentang.',
-					'Untuk laporan Excel periode yang sama, tekan **Unduh laporan Excel** di kanan atas halaman.'
+					'Untuk laporan Excel periode yang sama, tekan tautan **Unduh laporan Excel** di bawah pemilih periode.'
 				],
 				notes: [
 					'**Pencapaian seluruh PLTA** adalah total prediksi dibagi total target seluruh PLTA — angka yang dipakai untuk melaporkan kinerja gabungan. **Rata-rata antar-PLTA** memberi bobot sama pada setiap PLTA, besar maupun kecil.',
@@ -240,12 +240,10 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
 				title: 'Mengganti nama parameter',
 				access: 'userManagement',
 				steps: [
-					'Harian: di sheet yang sama, ubah langsung nama parameter di kotaknya (sakelar Tampil/Sembunyi ada di kanan kotak itu), lalu tekan **Simpan**. Nama berlaku untuk PLTA yang sedang dibuka.',
-					'Bulanan: di Hidrologi Bulanan, tekan tombol titik tiga di kanan atas lalu pilih **Nama bidang**. Nama berlaku untuk **seluruh PLTA**.',
+					'Di sheet yang sama, ubah langsung nama parameter di kotaknya (sakelar Tampil/Sembunyi ada di kanan kotak itu), lalu tekan **Simpan**. Nama berlaku untuk PLTA yang sedang dibuka.',
 					'Untuk kembali ke nama bawaan, tekan ikon putar balik di ujung kotak nama, atau kosongkan kotaknya.'
 				],
 				notes: [
-					'Nama bidang bulanan dipakai di template unggah, laporan Excel, dan pesan galat impor. Template lama tetap bisa diunggah.',
 					'Bila satu nama ditolak — kosong, terlalu panjang, atau sama dengan nama lain — tidak ada nama yang tersimpan.'
 				]
 			},
@@ -285,6 +283,7 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
 				],
 				notes: [
 					'Jam yang diisi dianggap WIB. Mengisi ulang tanggal dan jam yang sama akan memperbarui nilai lama.',
+					'Untuk konstanta (penanda **Konstanta (input)**, mis. TMA Limpas atau SWC), cukup isi **Nilai** lalu tekan **Simpan Data** — tanpa tanggal, dan tanpa tab Upload Excel maupun Hapus Data. Nilai baru menggantikan yang lama.',
 					'Berkas Excel hanya untuk satu parameter, dengan kolom **datetime + value** atau **tanggal + jam + value**.',
 					'Di tab **Upload Excel**, pilih **Isi template** dan **Tanggal**, lalu tekan **Unduh Template** untuk mendapat berkas parameter itu. Nilai yang sudah tersimpan ikut terisi, jadi tinggal dikoreksi.'
 				]
@@ -393,24 +392,9 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
 				]
 			},
 			{
-				title: 'Membandingkan dengan periode lain',
-				steps: [
-					'Pada kotak **Bandingkan dengan**, pilih **Periode sebelumnya** atau **Tahun lalu**.',
-					'Periode pembanding muncul sebagai garis abu-abu putus-putus yang mengikuti bentuk datanya, di sumbu waktu yang sama. Bila periode itu belum punya data, keterangan di bawah grafik menyebutkannya.',
-					'Arahkan kursor ke grafik: tooltip menampilkan nilai kedua periode beserta selisihnya.'
-				],
-				notes: [
-					'**Periode sebelumnya** adalah rentang dengan panjang yang sama tepat sebelum periode ini — misalnya 24 jam sebelumnya.',
-					'**Tahun lalu** adalah tanggal yang sama setahun sebelumnya.',
-					'Di bawah **Rata-rata** tertulis rata-rata periode pembanding dan selisihnya.',
-					'Bila pembanding tertulis **tidak ada data**, data untuk periode itu memang belum tersimpan.',
-					'Pilih **Tanpa pembanding** untuk kembali ke satu garis.'
-				]
-			},
-			{
 				title: 'Membagikan grafik',
 				notes: [
-					'Parameter, periode, dan pembanding tersimpan di alamat halaman. Salin alamat dari browser untuk membagikan grafik yang sama persis.'
+					'Grafik, parameter, dan periode tersimpan di alamat halaman. Salin alamat dari browser untuk membagikan grafik yang sama persis.'
 				]
 			}
 		]

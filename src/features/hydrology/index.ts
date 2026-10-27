@@ -15,7 +15,6 @@ export {
 	createMonthlyHydrologyQuery,
 	createSetDailyLabelsMutation,
 	createSetDailyVisibilityMutation,
-	createSetMonthlyFieldLabelsMutation,
 	createUploadDailyHydrologyExcelMutation,
 	createUploadMonthlyHydrologyExcelMutation
 } from './api/queries';

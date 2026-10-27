@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { buildDeleteRange, buildTelemetryPoints } from './points';
+import {
+	buildConstantPoint,
+	buildDeleteRange,
+	buildTelemetryPoints,
+	isConstantParameter
+} from './points';
 
 /**
  * Regresi yang sama seperti form hidrologi bulanan: `value` diikat ke
@@ -84,5 +89,24 @@ describe('buildDeleteRange', () => {
 			ok: false,
 			error: 'Rentang maksimal 366 hari'
 		});
+	});
+});
+
+describe('konstanta', () => {
+	it('mengenali parameter konstanta dari awalan const_', () => {
+		expect(isConstantParameter('const_tma_limpas')).toBe(true);
+		expect(isConstantParameter('const_swc')).toBe(true);
+		expect(isConstantParameter('plan_outflow_spillway')).toBe(false);
+	});
+
+	it('satu titik pada saat ini dalam WIB tanpa zona', () => {
+		const now = new Date('2026-10-27T03:04:05Z');
+
+		expect(buildConstantPoint(231.5, now)).toEqual([{ time: '2026-10-27T10:04:05', value: 231.5 }]);
+	});
+
+	it('menolak nilai kosong', () => {
+		expect(buildConstantPoint(null)).toBeNull();
+		expect(buildConstantPoint(Number.NaN)).toBeNull();
 	});
 });

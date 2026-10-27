@@ -309,13 +309,6 @@ export const httpHydrologyRepository: HydrologyRepository = {
 		return mapMonthlyFieldLabels(parseResponse(payload, apiMonthlyFieldLabelsSchema, endpoint));
 	},
 
-	async setMonthlyFieldLabels(labels) {
-		const endpoint = '/api/v1/hydrology/monthly/labels';
-		const payload = await apiRequest<unknown>(endpoint, { method: 'PUT', json: { label: labels } });
-
-		return mapMonthlyFieldLabels(parseResponse(payload, apiMonthlyFieldLabelsSchema, endpoint));
-	},
-
 	async getMonthlyPanel(pltaId, year, month, options) {
 		const endpoint = `/api/v1/dashboard/plta/${encodeURIComponent(pltaId)}/monthly`;
 		const payload = await apiRequest<unknown>(endpoint, {

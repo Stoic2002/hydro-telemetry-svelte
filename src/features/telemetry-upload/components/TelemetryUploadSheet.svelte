@@ -27,8 +27,10 @@
 	import type { DailyTelemetryUploadTarget, TelemetryTemplateScope } from '../model';
 	import {
 		MAX_TELEMETRY_POINTS,
+		buildConstantPoint,
 		buildDeleteRange,
 		buildTelemetryPoints,
+		isConstantParameter,
 		type TelemetryPointRow,
 		type TelemetryRangeBoundary
 	} from '../points';
@@ -117,6 +119,8 @@
 	const deleteRange = $derived(buildDeleteRange(deleteFrom, deleteTo));
 	const templateScope = $derived(templateScopeValue as TelemetryTemplateScope);
 	const unit = $derived(target.unit);
+	/** Konstanta: cukup satu nilai, tanpa tanggal, tanpa tab Excel dan Hapus. */
+	const isConstant = $derived(isConstantParameter(target.parameter));
 	const selectedStation = $derived(
 		target.stations.find((option) => option.station === station) ?? target.stations[0]
 	);
@@ -126,11 +130,15 @@
 	);
 
 	async function submitManual() {
-		const points = buildTelemetryPoints(rows);
+		const points = isConstant
+			? buildConstantPoint(rows[0]?.value ?? null)
+			: buildTelemetryPoints(rows);
 		if (!points) {
 			notificationStore.addToast({
 				type: 'error',
-				message: 'Lengkapi tanggal, jam, dan nilai tanpa timestamp duplikat'
+				message: isConstant
+					? 'Isi nilai terlebih dahulu'
+					: 'Lengkapi tanggal, jam, dan nilai tanpa timestamp duplikat'
 			});
 			return;
 		}
@@ -144,7 +152,9 @@
 			});
 			notificationStore.addToast({
 				type: 'success',
-				message: `${result.pointsUpserted} titik ${target.label} berhasil disimpan`
+				message: isConstant
+					? `${target.label} berhasil disimpan`
+					: `${result.pointsUpserted} titik ${target.label} berhasil disimpan`
 			});
 			onClose();
 		} catch (error) {
@@ -287,193 +297,221 @@
 			</p>
 		{/if}
 
-		<div class="grid grid-cols-3 border-b border-border-subtle">
-			{#each MODE_TABS as tab (tab.value)}
-				<button
-					type="button"
-					disabled={isPending}
-					onclick={() => (mode = tab.value)}
-					class={`cursor-pointer border-b-2 px-3 py-3 text-xs font-medium transition-colors ${
-						mode === tab.value
-							? 'border-brand-primary-strong text-brand-primary-pressed'
-							: 'border-transparent text-text-muted hover:text-text-secondary'
-					}`}
-				>
-					{tab.label}
-				</button>
-			{/each}
-		</div>
-
-		{#if mode === 'manual'}
-			<section class="flex flex-col gap-4">
-				<p class="text-xs text-text-muted">Waktu dalam WIB. Waktu yang sama menimpa nilai lama.</p>
-
-				<div class="divide-y divide-surface-overlay border-y border-surface-overlay">
-					{#each rows as row, index (row.id)}
-						<div class="py-4">
-							<div class="mb-3 flex items-center justify-between">
-								<span class="text-xs font-medium text-text-muted">Data {index + 1}</span>
-								{#if rows.length > 1}
-									<button
-										type="button"
-										disabled={isPending}
-										onclick={() => (rows = rows.filter((item) => item.id !== row.id))}
-										aria-label={`Hapus data ${index + 1}`}
-										class="inline-flex size-8 cursor-pointer items-center justify-center rounded-sm text-text-muted transition-colors hover:bg-status-danger-soft hover:text-status-danger-strong disabled:cursor-not-allowed disabled:opacity-50"
-									>
-										<IconTrash class="size-4" />
-									</button>
-								{/if}
-							</div>
-
-							<!-- Tanggal, jam, dan nilai sebaris: satu titik data = satu baris. -->
-							<div class="grid gap-3 sm:grid-cols-[1.3fr_1fr_1fr]">
-								<label class="field-label flex flex-col gap-1.5">
-									Tanggal
-									<input
-										type="date"
-										bind:value={row.date}
-										disabled={isPending}
-										class="field h-10"
-									/>
-								</label>
-								<label class="field-label flex flex-col gap-1.5">
-									Jam
-									<input
-										type="time"
-										bind:value={row.time}
-										disabled={isPending}
-										class="field h-10"
-									/>
-								</label>
-								<label class="field-label flex flex-col gap-1.5">
-									Nilai {unit ? `(${unit})` : ''}
-									<input
-										type="number"
-										step="any"
-										placeholder="0"
-										bind:value={row.value}
-										disabled={isPending}
-										class="field h-10"
-									/>
-								</label>
-							</div>
-						</div>
-					{/each}
-				</div>
-
-				<button
-					type="button"
-					disabled={isPending || rows.length >= MAX_POINTS}
-					onclick={() => (rows = [...rows, createPointRow(rows.at(-1)?.date || defaultDate)])}
-					class="inline-flex cursor-pointer items-center gap-1.5 self-start text-xs font-medium text-brand-primary-strong hover:text-brand-primary-pressed disabled:cursor-not-allowed disabled:opacity-50"
-				>
-					<IconPlus class="size-4" />
-					Tambah titik data
-				</button>
-			</section>
-		{:else if mode === 'excel'}
-			<section class="flex flex-col gap-4">
-				<p class="text-xs text-text-muted">
-					Satu berkas untuk parameter ini saja. Paling mudah mulai dari template.
-				</p>
-
-				<div class="flex flex-col gap-3 rounded-xl border border-border-subtle p-4">
-					<div>
-						<h4 class="text-xs font-semibold text-text-strong">Template</h4>
-						<p class="mt-1 text-xs text-text-muted">
-							Sudah berisi nilai tersimpan; cukup dikoreksi.
-						</p>
-					</div>
-
-					<div class="grid gap-3 sm:grid-cols-2">
-						<Select
-							label="Isi template"
-							bind:value={templateScopeValue}
-							disabled={isPending || templateMutation.isPending}
-							options={TELEMETRY_TEMPLATE_SCOPE_OPTIONS}
+		{#if isConstant}
+			<!--
+				Konstanta tidak punya tanggal (27 Okt 2026): cukup satu nilai. Tab
+				Upload Excel dan Hapus Data tidak ditawarkan — server menolak
+				konstanta di template dan unggah Excel.
+			-->
+			<section class="flex flex-col gap-2">
+				{#if rows[0]}
+					<label class="field-label flex flex-col gap-1.5">
+						Nilai {unit ? `(${unit})` : ''}
+						<input
+							type="number"
+							step="any"
+							placeholder="0"
+							bind:value={rows[0].value}
+							disabled={isPending}
+							class="field h-10"
 						/>
-						<label class="field-label flex flex-col gap-1.5">
-							Tanggal
-							<input
-								type="date"
-								bind:value={templateDate}
-								disabled={isPending || templateMutation.isPending}
-								class="field h-10"
-							/>
-						</label>
-					</div>
+					</label>
+				{/if}
+				<p class="text-xs text-text-muted">
+					Konstanta berlaku tanpa tanggal; nilai baru menggantikan yang lama.
+				</p>
+			</section>
+		{:else}
+			<div class="grid grid-cols-3 border-b border-border-subtle">
+				{#each MODE_TABS as tab (tab.value)}
+					<button
+						type="button"
+						disabled={isPending}
+						onclick={() => (mode = tab.value)}
+						class={`cursor-pointer border-b-2 px-3 py-3 text-xs font-medium transition-colors ${
+							mode === tab.value
+								? 'border-brand-primary-strong text-brand-primary-pressed'
+								: 'border-transparent text-text-muted hover:text-text-secondary'
+						}`}
+					>
+						{tab.label}
+					</button>
+				{/each}
+			</div>
 
-					{#if templateScope !== 'day-hourly' && templateDate}
-						<p class="text-xs text-text-muted">
-							Mencakup seluruh {formatTemplateMonth(templateDate)}.
-						</p>
-					{/if}
+			{#if mode === 'manual'}
+				<section class="flex flex-col gap-4">
+					<p class="text-xs text-text-muted">
+						Waktu dalam WIB. Waktu yang sama menimpa nilai lama.
+					</p>
+
+					<div class="divide-y divide-surface-overlay border-y border-surface-overlay">
+						{#each rows as row, index (row.id)}
+							<div class="py-4">
+								<div class="mb-3 flex items-center justify-between">
+									<span class="text-xs font-medium text-text-muted">Data {index + 1}</span>
+									{#if rows.length > 1}
+										<button
+											type="button"
+											disabled={isPending}
+											onclick={() => (rows = rows.filter((item) => item.id !== row.id))}
+											aria-label={`Hapus data ${index + 1}`}
+											class="inline-flex size-8 cursor-pointer items-center justify-center rounded-sm text-text-muted transition-colors hover:bg-status-danger-soft hover:text-status-danger-strong disabled:cursor-not-allowed disabled:opacity-50"
+										>
+											<IconTrash class="size-4" />
+										</button>
+									{/if}
+								</div>
+
+								<!-- Tanggal, jam, dan nilai sebaris: satu titik data = satu baris. -->
+								<div class="grid gap-3 sm:grid-cols-[1.3fr_1fr_1fr]">
+									<label class="field-label flex flex-col gap-1.5">
+										Tanggal
+										<input
+											type="date"
+											bind:value={row.date}
+											disabled={isPending}
+											class="field h-10"
+										/>
+									</label>
+									<label class="field-label flex flex-col gap-1.5">
+										Jam
+										<input
+											type="time"
+											bind:value={row.time}
+											disabled={isPending}
+											class="field h-10"
+										/>
+									</label>
+									<label class="field-label flex flex-col gap-1.5">
+										Nilai {unit ? `(${unit})` : ''}
+										<input
+											type="number"
+											step="any"
+											placeholder="0"
+											bind:value={row.value}
+											disabled={isPending}
+											class="field h-10"
+										/>
+									</label>
+								</div>
+							</div>
+						{/each}
+					</div>
 
 					<button
 						type="button"
-						onclick={() => void downloadTemplate()}
-						disabled={isPending || templateMutation.isPending || !templateDate}
-						class="btn btn-ghost btn-sm h-9 self-start"
+						disabled={isPending || rows.length >= MAX_POINTS}
+						onclick={() => (rows = [...rows, createPointRow(rows.at(-1)?.date || defaultDate)])}
+						class="inline-flex cursor-pointer items-center gap-1.5 self-start text-xs font-medium text-brand-primary-strong hover:text-brand-primary-pressed disabled:cursor-not-allowed disabled:opacity-50"
 					>
-						<IconDownload class="size-3.5" />
-						{templateMutation.isPending ? 'Menyiapkan…' : 'Unduh Template'}
+						<IconPlus class="size-4" />
+						Tambah titik data
 					</button>
-				</div>
+				</section>
+			{:else if mode === 'excel'}
+				<section class="flex flex-col gap-4">
+					<p class="text-xs text-text-muted">
+						Satu berkas untuk parameter ini saja. Paling mudah mulai dari template.
+					</p>
 
-				<label
-					class="flex cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-border-strong px-5 py-8 text-center transition-colors hover:border-brand-primary-strong hover:bg-brand-tint/40"
-				>
-					<IconFileSpreadsheet class="size-8 text-brand-primary-strong" />
-					<span class="mt-3 text-sm font-medium text-text-secondary">
-						{file?.name ?? 'Pilih file Excel'}
-					</span>
-					<span class="mt-1 text-xs text-text-muted">Format .xlsx, maksimal 5 MB</span>
-					<input
-						type="file"
-						accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-						disabled={isPending}
-						onchange={(event) => (file = event.currentTarget.files?.[0] ?? null)}
-						class="sr-only"
-					/>
-				</label>
-			</section>
-		{:else}
-			<section class="flex flex-col gap-4">
-				<!-- Nilai salah cukup diunggah ulang di waktu yang sama; tab ini untuk jam/station keliru. -->
-				<p class="text-xs text-text-muted">
-					Untuk jam atau station yang keliru. Hanya isian manual dan unggahan yang terhapus — data
-					sensor aman. Waktu awal dan akhir ikut terhapus.
-				</p>
+					<div class="flex flex-col gap-3 rounded-xl border border-border-subtle p-4">
+						<div>
+							<h4 class="text-xs font-semibold text-text-strong">Template</h4>
+							<p class="mt-1 text-xs text-text-muted">
+								Sudah berisi nilai tersimpan; cukup dikoreksi.
+							</p>
+						</div>
 
-				{#each [{ label: 'Dari', boundary: deleteFrom }, { label: 'Sampai', boundary: deleteTo }] as item (item.label)}
-					<fieldset class="grid gap-3 sm:grid-cols-2">
-						<legend class="mb-2 text-xs font-medium text-text-muted">{item.label}</legend>
-						<label class="field-label flex flex-col gap-1.5">
-							Tanggal
-							<input
-								type="date"
-								bind:value={item.boundary.date}
-								disabled={isPending}
-								class="field h-10"
+						<div class="grid gap-3 sm:grid-cols-2">
+							<Select
+								label="Isi template"
+								bind:value={templateScopeValue}
+								disabled={isPending || templateMutation.isPending}
+								options={TELEMETRY_TEMPLATE_SCOPE_OPTIONS}
 							/>
-						</label>
-						<label class="field-label flex flex-col gap-1.5">
-							Jam
-							<input
-								type="time"
-								bind:value={item.boundary.time}
-								disabled={isPending}
-								class="field h-10"
-							/>
-						</label>
-					</fieldset>
-				{/each}
+							<label class="field-label flex flex-col gap-1.5">
+								Tanggal
+								<input
+									type="date"
+									bind:value={templateDate}
+									disabled={isPending || templateMutation.isPending}
+									class="field h-10"
+								/>
+							</label>
+						</div>
 
-				{#if !deleteRange.ok}
-					<p class="text-xs font-medium text-status-danger-strong">{deleteRange.error}</p>
-				{/if}
-			</section>
+						{#if templateScope !== 'day-hourly' && templateDate}
+							<p class="text-xs text-text-muted">
+								Mencakup seluruh {formatTemplateMonth(templateDate)}.
+							</p>
+						{/if}
+
+						<button
+							type="button"
+							onclick={() => void downloadTemplate()}
+							disabled={isPending || templateMutation.isPending || !templateDate}
+							class="btn btn-ghost btn-sm h-9 self-start"
+						>
+							<IconDownload class="size-3.5" />
+							{templateMutation.isPending ? 'Menyiapkan…' : 'Unduh Template'}
+						</button>
+					</div>
+
+					<label
+						class="flex cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-border-strong px-5 py-8 text-center transition-colors hover:border-brand-primary-strong hover:bg-brand-tint/40"
+					>
+						<IconFileSpreadsheet class="size-8 text-brand-primary-strong" />
+						<span class="mt-3 text-sm font-medium text-text-secondary">
+							{file?.name ?? 'Pilih file Excel'}
+						</span>
+						<span class="mt-1 text-xs text-text-muted">Format .xlsx, maksimal 5 MB</span>
+						<input
+							type="file"
+							accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+							disabled={isPending}
+							onchange={(event) => (file = event.currentTarget.files?.[0] ?? null)}
+							class="sr-only"
+						/>
+					</label>
+				</section>
+			{:else}
+				<section class="flex flex-col gap-4">
+					<!-- Nilai salah cukup diunggah ulang di waktu yang sama; tab ini untuk jam/station keliru. -->
+					<p class="text-xs text-text-muted">
+						Untuk jam atau station yang keliru. Hanya isian manual dan unggahan yang terhapus — data
+						sensor aman. Waktu awal dan akhir ikut terhapus.
+					</p>
+
+					{#each [{ label: 'Dari', boundary: deleteFrom }, { label: 'Sampai', boundary: deleteTo }] as item (item.label)}
+						<fieldset class="grid gap-3 sm:grid-cols-2">
+							<legend class="mb-2 text-xs font-medium text-text-muted">{item.label}</legend>
+							<label class="field-label flex flex-col gap-1.5">
+								Tanggal
+								<input
+									type="date"
+									bind:value={item.boundary.date}
+									disabled={isPending}
+									class="field h-10"
+								/>
+							</label>
+							<label class="field-label flex flex-col gap-1.5">
+								Jam
+								<input
+									type="time"
+									bind:value={item.boundary.time}
+									disabled={isPending}
+									class="field h-10"
+								/>
+							</label>
+						</fieldset>
+					{/each}
+
+					{#if !deleteRange.ok}
+						<p class="text-xs font-medium text-status-danger-strong">{deleteRange.error}</p>
+					{/if}
+				</section>
+			{/if}
 		{/if}
 	</form>
 
