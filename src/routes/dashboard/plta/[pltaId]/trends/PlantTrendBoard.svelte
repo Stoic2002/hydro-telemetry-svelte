@@ -24,18 +24,16 @@
 		withTrendReferences,
 		type TrendChartOption
 	} from './plant-trend';
-	import type { TimeRange } from './comparison';
+	import type { TimeRange } from './trend-data';
 
 	interface Props {
 		pltaId: string;
 		plantCode: string;
 		range: TimeRange & { resolution: TrendResolution };
-		/** Rentang periode pembanding (sudah digeser); `null` = tanpa pembanding. */
-		comparison: { range: TimeRange; offsetMs: number; label: string } | null;
 		/** Seluruh grafik daftar tren, urut admin. */
 		options: TrendChartOption[];
 		selected: TrendChartOption;
-		/** Periode dan pembanding dari halaman, dirender sebaris dengan pemilih grafik. */
+		/** Pemilih periode dari halaman, dirender sebaris dengan pemilih grafik. */
 		filters?: Snippet;
 		/** Selang penyegaran otomatis; `false` = tidak menyegarkan sendiri. */
 		refreshMs?: number | false;
@@ -45,15 +43,13 @@
 	/**
 	 * SATU grafik daftar tren yang dipilih (17 Okt 2026; dulu seluruh grafik
 	 * bertumpuk). Pilihannya per grafik admin, jadi item segrup tetap tampil
-	 * bersama, dan hanya item grafik itu yang diminta (`?item=`). Periode
-	 * pembanding = panggilan kedua dengan rentang digeser; item dan resolusinya
-	 * sama persis.
+	 * bersama, dan hanya item grafik itu yang diminta (`?item=`). Pembanding
+	 * periode dihapus 27 Okt 2026 atas keputusan rapat tim.
 	 */
 	let {
 		pltaId,
 		plantCode,
 		range,
-		comparison,
 		options,
 		selected,
 		filters,
@@ -79,16 +75,6 @@
 			? formatTimeWIB(new Date(dataQuery.dataUpdatedAt).toISOString())
 			: null
 	);
-	const comparisonQuery = createPlantTrendDataQuery(
-		() => ({
-			pltaId,
-			from: comparison?.range.from ?? '',
-			to: comparison?.range.to ?? '',
-			resolution: range.resolution,
-			itemIds
-		}),
-		() => comparison !== null
-	);
 
 	/**
 	 * Batas TMA (Limpas, MOL, maks. hilir) dari panel Hidrologi Harian hari ini.
@@ -113,13 +99,7 @@
 		dataQuery.data
 			? buildTrendChart(
 					selected.chart,
-					new Map(dataQuery.data.items.map((item) => [item.id, item])),
-					comparison && comparisonQuery.data
-						? {
-								itemsById: new Map(comparisonQuery.data.items.map((item) => [item.id, item])),
-								offsetMs: comparison.offsetMs
-							}
-						: undefined
+					new Map(dataQuery.data.items.map((item) => [item.id, item]))
 				)
 			: null
 	);
@@ -149,7 +129,7 @@
 
 <div class="flex flex-col gap-4">
 	<!--
-		Satu toolbar: apa yang dilihat (grafik), rentangnya (periode, pembanding),
+		Satu toolbar: apa yang dilihat (grafik), rentangnya (periode),
 		lalu alat sekunder di kanan. Excel dan CSV satu menu — dulu dua tombol
 		setara dengan pemilih grafik.
 	-->
@@ -216,27 +196,8 @@
 			onRetry={() => void dataQuery.refetch()}
 		/>
 	{:else}
-		{#if comparison && comparisonQuery.isError}
-			<p class="text-xs text-status-warning-strong">
-				Periode pembanding gagal dimuat.
-				<button
-					type="button"
-					onclick={() => void comparisonQuery.refetch()}
-					class="cursor-pointer font-medium underline underline-offset-2">Coba lagi</button
-				>
-			</p>
-		{/if}
 		{#if referenced}
-			<PlantTrendChartCard
-				chart={referenced.chart}
-				references={referenced.references}
-				isComparisonEmpty={Boolean(
-					comparison &&
-					comparisonQuery.isSuccess &&
-					comparisonQuery.data.items.every((item) => !item.hasData)
-				)}
-				comparisonLabel={comparison?.label ?? null}
-			/>
+			<PlantTrendChartCard chart={referenced.chart} references={referenced.references} />
 		{/if}
 	{/if}
 </div>

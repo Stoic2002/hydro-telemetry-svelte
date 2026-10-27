@@ -5,7 +5,6 @@
 
 	import Button from '$components/controls/Button.svelte';
 	import SegmentedControl from '$components/controls/SegmentedControl.svelte';
-	import Select from '$components/controls/Select.svelte';
 	import Banner from '$components/ui/Banner.svelte';
 	import PageHeader from '$components/ui/PageHeader.svelte';
 	import { authStore, canConfigureDisplay } from '$features/auth';
@@ -20,13 +19,6 @@
 	import ParameterTrendView from './ParameterTrendView.svelte';
 	import PlantTrendBoard from './PlantTrendBoard.svelte';
 	import { selectTrendChart, trendChartOptions } from './plant-trend';
-	import {
-		TREND_COMPARISONS,
-		comparisonOffsetMs,
-		formatRangeLabel,
-		isTrendComparison,
-		shiftRange
-	} from './comparison';
 
 	const TREND_PERIODS = ['24 Jam Terakhir', '7 Hari Terakhir', '30 Hari Terakhir'] as const;
 	type TrendPeriod = (typeof TREND_PERIODS)[number];
@@ -78,10 +70,6 @@
 	});
 	const parameterParam = $derived(page.url.searchParams.get('parameter'));
 	const chartParam = $derived(page.url.searchParams.get('grafik'));
-	const comparisonMode = $derived.by(() => {
-		const value = page.url.searchParams.get('compare');
-		return isTrendComparison(value) ? value : 'none';
-	});
 
 	/**
 	 * Daftar tren per PLTA (13 Okt 2026): admin menetapkan item dan
@@ -118,26 +106,15 @@
 		};
 	});
 
-	const comparison = $derived.by(() => {
-		if (comparisonMode === 'none') return null;
-		const offsetMs = comparisonOffsetMs(comparisonMode, timeRange);
-		const range = shiftRange(timeRange, offsetMs);
-		const option = TREND_COMPARISONS.find((item) => item.value === comparisonMode);
-		const isLastYear = comparisonMode === 'last-year';
-		return {
-			range,
-			offsetMs,
-			label: `${option?.label} (${formatRangeLabel(range, isLastYear)})`,
-			currentLabel: `Periode ini (${formatRangeLabel(timeRange, isLastYear)})`
-		};
-	});
-
-	async function setFilter(key: 'parameter' | 'grafik' | 'period' | 'compare', value: string) {
+	async function setFilter(key: 'parameter' | 'grafik' | 'period', value: string) {
 		// Salinan sekali pakai untuk menyusun URL berikutnya; dibuang setelah
 		// `goto`, jadi tidak perlu `SvelteURLSearchParams`.
 		// eslint-disable-next-line svelte/prefer-svelte-reactivity
 		const params = new URLSearchParams(page.url.searchParams);
 		params.set(key, value);
+		// Pembanding dihapus 27 Okt 2026 (rapat tim); tautan lama yang masih
+		// membawa `?compare=` dibersihkan begitu filter lain diubah.
+		params.delete('compare');
 		await goto(`?${params.toString()}`, { replaceState: true, keepFocus: true, noScroll: true });
 	}
 </script>
@@ -161,9 +138,9 @@
 	</PageHeader>
 
 	<!--
-		Periode dan pembanding dirender di toolbar tiap tampilan, sebaris dengan
-		pemilih grafik — dulu dua baris kontrol terpisah, dan pemilih grafik (apa
-		yang dilihat) justru di bawah pemilih periode.
+		Periode dirender di toolbar tiap tampilan, sebaris dengan pemilih grafik —
+		dulu dua baris kontrol terpisah. Pemilih pembanding dihapus 27 Okt 2026
+		atas keputusan rapat tim.
 	-->
 	{#snippet filters()}
 		<SegmentedControl
@@ -172,15 +149,6 @@
 			onChange={(value) => void setFilter('period', value)}
 			options={TREND_PERIODS.map((item) => ({ value: item, label: PERIOD_LABEL[item] }))}
 		/>
-		<div class="w-full sm:w-48">
-			<Select
-				ariaLabel="Bandingkan dengan"
-				value={comparisonMode}
-				onValueChange={(value) => void setFilter('compare', value)}
-				controlSize="sm"
-				options={TREND_COMPARISONS.map((item) => ({ value: item.value, label: item.label }))}
-			/>
-		</div>
 	{/snippet}
 
 	{#if listQuery.isLoading}
@@ -192,9 +160,6 @@
 			{pltaId}
 			plantCode={activePLTA.plant.code}
 			range={timeRange}
-			comparison={comparison
-				? { range: comparison.range, offsetMs: comparison.offsetMs, label: comparison.label }
-				: null}
 			options={chartOptions}
 			selected={selectedChart}
 			{filters}
@@ -213,7 +178,6 @@
 		<ParameterTrendView
 			{pltaId}
 			range={timeRange}
-			{comparison}
 			parameter={parameterParam}
 			{filters}
 			onParameterChange={(value) => void setFilter('parameter', value)}

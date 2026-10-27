@@ -20,12 +20,8 @@
 
 	interface Props {
 		chart: TrendChartView;
-		/** Label pembanding untuk legenda, mis. "Tahun lalu (…)"; `null` = tanpa pembanding. */
-		comparisonLabel?: string | null;
 		/** Batas TMA dari panel harian; yang dekat digambar, semuanya tertulis di keterangan. */
 		references?: TrendReference[];
-		/** Pembanding sudah termuat tetapi rentangnya belum berdata. */
-		isComparisonEmpty?: boolean;
 	}
 
 	/**
@@ -34,12 +30,7 @@
 	 * garis, kartu statistik tunggal seperti di grafik satu parameter tidak lagi
 	 * berarti.
 	 */
-	let {
-		chart,
-		comparisonLabel = null,
-		references = [],
-		isComparisonEmpty = false
-	}: Props = $props();
+	let { chart, references = [] }: Props = $props();
 
 	const chartReferences = $derived(references.filter((reference) => reference.isOnChart));
 
@@ -82,9 +73,6 @@
 				? chart.data[chart.data.length - 1].time.getTime() - chart.data[0].time.getTime()
 				: 0
 		)
-	);
-	const hasComparison = $derived(
-		comparisonLabel !== null && chart.data.some((datum) => Object.keys(datum.compare).length > 0)
 	);
 
 	function plotted(view: TrendSeriesView, value: number | undefined): number | undefined {
@@ -196,15 +184,6 @@
 							/>
 
 							{#each chart.series as view (view.id)}
-								{#if hasComparison}
-									<!-- Pembanding: warna deretnya, putus-putus dan redup. -->
-									<Spline
-										y={(datum: TrendChartDatum) => plotted(view, datum.compare[view.id])}
-										defined={(datum: TrendChartDatum) => datum.compare[view.id] !== undefined}
-										stroke={view.color}
-										class="stroke-[1.5] opacity-50 [stroke-dasharray:6_4]"
-									/>
-								{/if}
 								{#if chart.isBarChart}
 									<Bars
 										data={chart.data.filter((datum) => datum.values[view.id] !== undefined)}
@@ -363,17 +342,6 @@
 			</ul>
 		{/if}
 
-		{#if comparisonLabel && isComparisonEmpty}
-			<!-- Dulu pembanding kosong tidak menggambar apa-apa dan tidak berkata apa-apa. -->
-			<p class="mt-2 text-xs text-text-muted">
-				{comparisonLabel} belum punya data, jadi tidak ada garis pembanding.
-			</p>
-		{:else if hasComparison}
-			<p class="mt-2 flex items-center gap-1.5 text-xs text-text-muted">
-				<span class="w-4 border-t-2 border-dashed border-chart-axis"></span>
-				{comparisonLabel}
-			</p>
-		{/if}
 		{#if chart.series.some((view) => view.isTruncated)}
 			<p class="mt-2 text-xs text-status-warning-strong">
 				Sebagian deret dipotong pada batas 5.000 titik — perkecil rentang untuk melihat semuanya.

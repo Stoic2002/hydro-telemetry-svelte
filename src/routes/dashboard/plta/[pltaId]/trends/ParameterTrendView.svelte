@@ -4,18 +4,16 @@
 	import EmptyState from '$components/ui/EmptyState.svelte';
 	import { createPLTATagsQuery } from '$features/plta';
 	import { createTrendQuery, type TrendResolution } from '$features/trends';
-	import TrendCard, { type TrendComparisonView } from './TrendCard.svelte';
-	import type { TimeRange } from './comparison';
+	import TrendCard from './TrendCard.svelte';
+	import type { TimeRange } from './trend-data';
 
 	interface Props {
 		pltaId: string;
 		range: TimeRange & { resolution: TrendResolution };
-		/** `null` = tanpa pembanding. */
-		comparison: { range: TimeRange; offsetMs: number; label: string; currentLabel: string } | null;
 		/** Parameter terpilih dari URL (`?parameter=`). */
 		parameter: string | null;
 		onParameterChange: (value: string) => void;
-		/** Periode dan pembanding dari halaman, sebaris dengan pemilih parameter. */
+		/** Pemilih periode dari halaman, sebaris dengan pemilih parameter. */
 		filters?: Snippet;
 	}
 
@@ -25,7 +23,7 @@
 	 * daftarnya belum diatur admin (`diatur: false`), supaya halamannya tidak
 	 * kosong.
 	 */
-	let { pltaId, range, comparison, parameter, onParameterChange, filters }: Props = $props();
+	let { pltaId, range, parameter, onParameterChange, filters }: Props = $props();
 
 	const TREND_COLORS = [
 		'var(--color-chart-series-1)',
@@ -112,34 +110,6 @@
 		aggregation: parameterConfig.aggregation
 	}));
 
-	// Parameter, resolusi, dan agregasi sama persis dengan periode ini; hanya
-	// rentangnya yang digeser. Tanpa itu kedua garis tidak sebanding.
-	const comparisonQuery = createTrendQuery(
-		() => ({
-			pltaId,
-			parameter: parameterConfig.value,
-			from: comparison?.range.from ?? '',
-			to: comparison?.range.to ?? '',
-			resolution: range.resolution,
-			aggregation: parameterConfig.aggregation
-		}),
-		() => comparison !== null
-	);
-
-	const comparisonView = $derived<TrendComparisonView | null>(
-		comparison
-			? {
-					label: comparison.label,
-					currentLabel: comparison.currentLabel,
-					offsetMs: comparison.offsetMs,
-					series: comparisonQuery.data,
-					isLoading: comparisonQuery.isLoading,
-					isError: comparisonQuery.isError,
-					onRetry: () => void comparisonQuery.refetch()
-				}
-			: null
-	);
-
 	const isWaitingForTags = $derived(tagsQuery.isLoading || tagsQuery.isPlaceholderData);
 	const hasNoParameters = $derived(
 		!isWaitingForTags && !tagsQuery.isError && parameterOptions.length === 0
@@ -176,7 +146,6 @@
 			series={trendQuery.data}
 			isLoading={isWaitingForTags || trendQuery.isLoading}
 			isError={tagsQuery.isError || trendQuery.isError}
-			comparison={comparisonView}
 			onRetry={() => {
 				if (tagsQuery.isError) void tagsQuery.refetch();
 				if (trendQuery.isError) void trendQuery.refetch();

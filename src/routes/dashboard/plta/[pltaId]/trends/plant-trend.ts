@@ -109,8 +109,6 @@ export interface TrendChartDatum {
 	iso: string;
 	/** Nilai asli per id deret; tidak ada kunci = tidak ada titik pada waktu ini. */
 	values: Record<string, number>;
-	/** Nilai periode pembanding (sudah digeser ke waktu periode ini). */
-	compare: Record<string, number>;
 }
 
 export interface TrendChartView {
@@ -168,8 +166,7 @@ function axisDomain(
 
 export function buildTrendChart(
 	chart: PlantTrendChart,
-	itemsById: ReadonlyMap<string, PlantTrendDataItem>,
-	comparison?: { itemsById: ReadonlyMap<string, PlantTrendDataItem>; offsetMs: number }
+	itemsById: ReadonlyMap<string, PlantTrendDataItem>
 ): TrendChartView {
 	const items = chart.itemIds
 		.map((id) => itemsById.get(id))
@@ -213,8 +210,7 @@ export function buildTrendChart(
 		const created = {
 			time: new Date(time),
 			iso: new Date(time).toISOString(),
-			values: {},
-			compare: {}
+			values: {}
 		};
 		byTime.set(time, created);
 		return created;
@@ -223,19 +219,6 @@ export function buildTrendChart(
 	for (const view of series) {
 		const drawn = view.isStep ? stepPoints(view.points) : view.points;
 		for (const point of drawn) datumAt(Date.parse(point.time)).values[view.id] = point.value;
-	}
-
-	if (comparison) {
-		for (const item of items) {
-			const compared = comparison.itemsById.get(item.id);
-			compared?.series.forEach((deret, index) => {
-				const id = `${item.id}:${index}`;
-				const isStep = item.source === 'plan';
-				for (const point of isStep ? stepPoints(deret.points) : deret.points) {
-					datumAt(Date.parse(point.time) + comparison.offsetMs).compare[id] = point.value;
-				}
-			});
-		}
 	}
 
 	return {
