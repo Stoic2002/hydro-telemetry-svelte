@@ -13,7 +13,8 @@ import type {
 	PlantTagListParams,
 	RiverBasinChanges,
 	RiverBasinInput,
-	TagBounds
+	TagBounds,
+	TagInput
 } from '../model';
 import { pltaRepository } from './repository';
 
@@ -222,6 +223,21 @@ export function createUpdatePlantMutation() {
 	return createPLTAWriteMutation(({ pltaId, changes }: { pltaId: string; changes: PlantChanges }) =>
 		pltaRepository.updatePlant(pltaId, changes)
 	);
+}
+
+/**
+ * Tag baru langsung tampil di katalog PLTA itu. Halaman lain (tren, input data
+ * harian) membaca daftarnya dari server saat dibuka berikutnya.
+ */
+export function createCreateTagMutation() {
+	const queryClient = useQueryClient();
+
+	return createMutation(() => ({
+		mutationFn: (input: TagInput) => pltaRepository.createTag(input),
+		onSuccess: async (tag) => {
+			await queryClient.invalidateQueries({ queryKey: pltaQueryKeys.detail(tag.pltaId) });
+		}
+	}));
 }
 
 /** Daftar tag PLTA itu diambil ulang agar kolom batas valid langsung menyesuaikan. */

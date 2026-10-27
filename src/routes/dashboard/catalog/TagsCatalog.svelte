@@ -2,11 +2,12 @@
 	import IconBuilding from '~icons/ph/buildings';
 	import IconDatabase from '~icons/ph/database';
 	import IconPencil from '~icons/ph/pencil-line';
+	import IconPlus from '~icons/ph/plus';
 	import IconTag from '~icons/ph/tag';
 	import Badge from '$components/controls/Badge.svelte';
 	import Button from '$components/controls/Button.svelte';
 	import Select from '$components/controls/Select.svelte';
-	import { authStore, canEditTagBounds } from '$features/auth';
+	import { authStore, canEditTagBounds, canManagePlants } from '$features/auth';
 	import {
 		createPLTATagsQuery,
 		createPlantCatalogQuery,
@@ -16,6 +17,7 @@
 		type PlantTagProtocol
 	} from '$features/plta';
 	import TagBoundsSheet from '$features/plta/components/TagBoundsSheet.svelte';
+	import TagFormSheet from '$features/plta/components/TagFormSheet.svelte';
 	import CatalogTable from './CatalogTable.svelte';
 	import { PAGE_LIMIT, TAG_PROTOCOLS } from './model';
 
@@ -32,6 +34,9 @@
 	let editingTag = $state<PlantTag | null>(null);
 
 	const canEdit = $derived(canEditTagBounds(authStore.user));
+	/** Menambah parameter khusus admin (`POST /tags` menolak non-admin dengan 403). */
+	const canAddTag = $derived(canManagePlants(authStore.user));
+	let isTagFormOpen = $state(false);
 
 	const plantsCatalogQuery = createPlantCatalogQuery();
 	const plants = $derived(plantsCatalogQuery.data ?? []);
@@ -70,6 +75,10 @@
 		plants.length === 0
 			? [{ value: '', label: 'Belum ada PLTA' }]
 			: plants.map((plant) => ({ value: plant.id, label: `${plant.name} · ${plant.code}` }))
+	);
+
+	const selectedPlantName = $derived(
+		plants.find((plant) => plant.id === selectedPlantId)?.name ?? ''
 	);
 
 	function applySearch(event: SubmitEvent) {
@@ -175,6 +184,20 @@
 		</Select>
 	{/snippet}
 
+	{#snippet actions()}
+		{#if canAddTag && selectedPlantId}
+			<Button
+				type="button"
+				size="sm"
+				onclick={() => (isTagFormOpen = true)}
+				class="whitespace-nowrap"
+			>
+				{#snippet leftIcon()}<IconPlus class="size-4" />{/snippet}
+				Tambah parameter
+			</Button>
+		{/if}
+	{/snippet}
+
 	{#snippet rows()}
 		{#each tags as tag (tag.id)}
 			<tr
@@ -239,4 +262,13 @@
 
 {#if canEdit && editingTag}
 	<TagBoundsSheet isOpen tag={editingTag} onClose={() => (editingTag = null)} />
+{/if}
+
+{#if canAddTag && selectedPlantId}
+	<TagFormSheet
+		isOpen={isTagFormOpen}
+		pltaId={selectedPlantId}
+		plantName={selectedPlantName}
+		onClose={() => (isTagFormOpen = false)}
+	/>
 {/if}

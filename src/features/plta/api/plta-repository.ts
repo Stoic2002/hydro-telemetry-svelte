@@ -9,7 +9,8 @@ import type {
 	RiverBasin,
 	RiverBasinChanges,
 	RiverBasinInput,
-	TagBounds
+	TagBounds,
+	TagInput
 } from '../model';
 
 export interface PLTARepository {
@@ -29,4 +30,9 @@ export interface PLTARepository {
 	createPlant(input: PlantInput): Promise<Plant>;
 	/** Hanya bidang yang dikirim yang berubah; `constants` tidak pernah disentuh. */
 	updatePlant(pltaId: string, changes: PlantChanges): Promise<Plant>;
+	/**
+	 * Khusus admin. `409` bila (PLTA, parameter, station) sudah terdaftar,
+	 * `400` bila konfigurasinya tak sah (`detail.masalah[]`).
+	 */
+	createTag(input: TagInput): Promise<PlantTag>;
 }

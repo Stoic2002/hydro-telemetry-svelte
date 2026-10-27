@@ -270,7 +270,16 @@ Hal-hal yang sudah pernah menggigit dan tidak akan terlihat dari membaca kode:
   Simpan mati tanpa pesan saat hanya mengubah status (laporan tim 27 Okt 2026).
   **`constants` tidak pernah dikirim**: server menimpanya utuh, dan editor
   konstanta (batas TMA, SWC, formula inflow) menunggu daftar kuncinya
-  dipastikan ke backend. Tag (`POST/PATCH/DELETE /tags`, OPC browse) belum.
+  dipastikan ke backend. **Tambah parameter** (27 Okt 2026, rapat tim: hanya
+  yang bukan formulasi) ada di tab Tag & Parameter, khusus admin:
+  `TagFormSheet`, `POST /tags`, validasi murni di `features/plta/tag-form.ts`.
+  Protokol `derived` tidak ditawarkan (server menolaknya); bidang REST
+  (`http_headers`, `value_path`, `timestamp_path`) hanya dikirim untuk `rest`
+  karena server menolaknya di protokol lain. Nama parameter
+  (`PARAMETER_LABEL`) rumusan FE — server hanya mengirim kuncinya, jadi
+  kuncinya ikut ditulis di pemilih. `409` = kombinasi PLTA/parameter/station
+  sudah ada; `400` membawa `detail.masalah[]`. Ubah/hapus tag dan OPC browse
+  belum.
 - **Overview**: peta Jawa Tengah dengan batas kabupaten/kota, garis aliran
   sungai, dan overlay **awan hujan Himawari-9** (NASA GIBS, kanal 13
   inframerah, tertinggal ~30–40 menit). Dulu RainViewer, tetapi RainViewer

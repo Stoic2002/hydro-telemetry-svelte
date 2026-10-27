@@ -3,6 +3,7 @@ export type { ActivePLTA } from './active-plta-context';
 export {
 	createCreatePlantMutation,
 	createCreateRiverBasinMutation,
+	createCreateTagMutation,
 	createPLTAListQuery,
 	createPLTATagsQuery,
 	createPlantCatalogQuery,
@@ -15,7 +16,7 @@ export {
 	pickDefaultPlant
 } from './api/queries';
 export { HYDROLOGY_ZONES, HYDROLOGY_ZONE_PRESENTATION, getDamImagery } from './dam-imagery';
-export { getPLTAErrorMessage, getPLTASaveErrorMessage } from './error';
+export { getPLTAErrorMessage, getPLTASaveErrorMessage, getTagSaveErrorDetail } from './error';
 export { getPlantDisplayName, plantMatchesIdentity } from './presentation';
 export {
 	UPLOAD_PATH,
@@ -37,7 +38,10 @@ export type {
 	RiverBasin,
 	RiverBasinChanges,
 	RiverBasinInput,
-	TagBounds
+	TagBounds,
+	TagInput,
+	TagInputProtocol,
+	TagPanel
 } from './model';
 export type { PLTADashboardPage, UploadTab } from './routing';
 export {
@@ -58,3 +62,13 @@ export type {
 	RiverBasinFormField,
 	RiverBasinFormValues
 } from './plant-form';
+export {
+	PARAMETER_LABEL,
+	TAG_PANEL_OPTIONS,
+	TAG_PARAMETER_OPTIONS,
+	TAG_PROTOCOL_OPTIONS,
+	emptyTagForm,
+	parseHttpHeaders,
+	parseTagForm
+} from './tag-form';
+export type { TagFormField, TagFormValues } from './tag-form';

@@ -192,3 +192,67 @@ describe('PLTA dan Wilayah Sungai: tambah dan ubah', () => {
 		});
 	});
 });
+
+describe('tag baru', () => {
+	const input = {
+		pltaId: PLTA_ID,
+		parameter: 'plan_outflow_hjv',
+		station: '',
+		label: null,
+		protocol: 'upload' as const,
+		address: 'upload',
+		httpHeaders: null,
+		valuePath: null,
+		timestampPath: null,
+		scale: 1,
+		offset: 0,
+		unit: 'm3/s',
+		minValid: null,
+		maxValid: null,
+		enabled: true,
+		panel: 'dam' as const
+	};
+
+	it('tidak mengirim bidang REST untuk protokol lain', async () => {
+		apiRequestMock.mockResolvedValue(tag({ protocol: 'upload', address: 'upload' }));
+
+		await httpPltaRepository.createTag(input);
+
+		const [endpoint, options] = apiRequestMock.mock.calls[0];
+		expect(endpoint).toBe('/api/v1/tags');
+		expect(options?.method).toBe('POST');
+		expect(options?.json).toStrictEqual({
+			plta_id: PLTA_ID,
+			parameter: 'plan_outflow_hjv',
+			station: '',
+			label: null,
+			protocol: 'upload',
+			address: 'upload',
+			scale: 1,
+			offset: 0,
+			unit: 'm3/s',
+			min_valid: null,
+			max_valid: null,
+			enabled: true,
+			panel: 'dam'
+		});
+	});
+
+	it('mengirim bidang REST untuk protokol REST', async () => {
+		apiRequestMock.mockResolvedValue(tag({ protocol: 'rest', address: 'https://x' }));
+
+		await httpPltaRepository.createTag({
+			...input,
+			protocol: 'rest',
+			address: 'https://x',
+			httpHeaders: { Authorization: 'Bearer ${TOKEN}' },
+			valuePath: 'data.tma'
+		});
+
+		expect(apiRequestMock.mock.calls[0][1]?.json).toMatchObject({
+			http_headers: { Authorization: 'Bearer ${TOKEN}' },
+			value_path: 'data.tma',
+			timestamp_path: null
+		});
+	});
+});

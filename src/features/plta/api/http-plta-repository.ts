@@ -6,7 +6,8 @@ import type {
 	PlantChanges,
 	PlantTag,
 	RiverBasin,
-	RiverBasinChanges
+	RiverBasinChanges,
+	TagInput
 } from '../model';
 import type { PLTARepository } from './plta-repository';
 import {
@@ -110,6 +111,35 @@ function plantBody(changes: PlantChanges): Record<string, unknown> {
 		if (key in changes && changes[key] !== undefined) body[field] = changes[key];
 	}
 	return body;
+}
+
+/**
+ * Badan `POST /tags`. Bidang REST hanya disertakan untuk protokol `rest`:
+ * server menolak bidang itu di protokol lain, bahkan bila nilainya `null`.
+ */
+function tagBody(input: TagInput): Record<string, unknown> {
+	return {
+		plta_id: input.pltaId,
+		parameter: input.parameter,
+		station: input.station,
+		label: input.label,
+		protocol: input.protocol,
+		address: input.address,
+		scale: input.scale,
+		offset: input.offset,
+		unit: input.unit,
+		min_valid: input.minValid,
+		max_valid: input.maxValid,
+		enabled: input.enabled,
+		panel: input.panel,
+		...(input.protocol === 'rest'
+			? {
+					http_headers: input.httpHeaders,
+					value_path: input.valuePath,
+					timestamp_path: input.timestampPath
+				}
+			: {})
+	};
 }
 
 function listQuery(params: ListParams) {
@@ -219,6 +249,13 @@ export const httpPltaRepository: PLTARepository = {
 		});
 
 		return mapPlant(parseResponse(payload, apiPlantSchema, endpoint));
+	},
+
+	async createTag(input) {
+		const endpoint = '/api/v1/tags';
+		const payload = await apiRequest<unknown>(endpoint, { method: 'POST', json: tagBody(input) });
+
+		return mapPlantTag(parseResponse(payload, apiPlantTagSchema, endpoint));
 	},
 
 	async updatePlant(pltaId, changes) {

@@ -32,3 +32,35 @@ export function getPLTASaveErrorMessage(error: unknown): string {
 	}
 	return error instanceof Error && error.message ? error.message : 'Perubahan belum tersimpan.';
 }
+
+/**
+ * Galat saat mendaftarkan tag. `400` membawa `detail.masalah[]` (satu kalimat
+ * per konfigurasi yang ditolak) dan `409` berarti kombinasi PLTA, parameter,
+ * dan station itu sudah terdaftar.
+ */
+export function getTagSaveErrorDetail(error: unknown): { message: string; problems: string[] } {
+	if (ApiError.isApiError(error)) {
+		if (error.status === 409) {
+			return {
+				message: 'Parameter dengan station yang sama sudah terdaftar di PLTA ini.',
+				problems: []
+			};
+		}
+		const details = error.details;
+		const problems =
+			typeof details === 'object' &&
+			details !== null &&
+			Array.isArray(Reflect.get(details, 'masalah'))
+				? (Reflect.get(details, 'masalah') as unknown[]).filter(
+						(item): item is string => typeof item === 'string'
+					)
+				: [];
+		if (error.status === 400) {
+			return {
+				message: problems.length > 0 ? 'Konfigurasi tag ditolak server.' : error.message,
+				problems
+			};
+		}
+	}
+	return { message: getPLTASaveErrorMessage(error), problems: [] };
+}

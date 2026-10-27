@@ -97,6 +97,36 @@ export interface TagBounds {
 	maxValid: number | null;
 }
 
+/** Protokol yang boleh didaftarkan pengguna; `derived` (formulasi) dikelola sistem. */
+export type TagInputProtocol = Exclude<PlantTagProtocol, 'derived'>;
+
+/** Panel Hidrologi Harian tempat parameter ini tampil; `null` = tidak di panel. */
+export type TagPanel = 'hulu' | 'dam' | 'hilir';
+
+/**
+ * Isian tag baru (`POST /tags`, khusus admin): sumber data untuk satu
+ * kombinasi (PLTA, parameter, station). Bidang REST hanya berlaku untuk
+ * protokol `rest` — server menolaknya di protokol lain.
+ */
+export interface TagInput {
+	pltaId: string;
+	parameter: string;
+	station: string;
+	label: string | null;
+	protocol: TagInputProtocol;
+	address: string;
+	httpHeaders: Record<string, string> | null;
+	valuePath: string | null;
+	timestampPath: string | null;
+	scale: number;
+	offset: number;
+	unit: string | null;
+	minValid: number | null;
+	maxValid: number | null;
+	enabled: boolean;
+	panel: TagPanel | null;
+}
+
 export interface PlantTagListParams extends ListParams {
 	protocol?: PlantTagProtocol;
 	enabled?: boolean;

@@ -581,6 +581,21 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
 				]
 			},
 			{
+				title: 'Menambah parameter',
+				access: 'userManagement',
+				steps: [
+					'Di tab **Tag & Parameter**, pilih PLTA-nya, lalu tekan **Tambah parameter** di kanan atas tabel.',
+					'Pilih **Parameter**. Isi **Station** bila parameter itu punya beberapa sumber (mis. pintu G1–G4); kosongkan bila hanya satu.',
+					'Pilih **Protokol** lalu isi alamatnya: Node ID untuk OPC UA, register untuk Modbus, query SELECT untuk SQL, URL untuk REST, atau biarkan "upload" untuk **Input manual**.',
+					'Bila perlu, isi **Satuan**, **Nama tampilan**, **Panel Hidrologi Harian**, skala/offset, dan batas valid. Tekan **Tambah**.'
+				],
+				notes: [
+					'Parameter formulasi dihitung sistem dan tidak bisa ditambahkan di sini.',
+					'Satu PLTA hanya boleh punya satu parameter dengan station yang sama; yang sudah terdaftar ditolak.',
+					'OPC UA mulai terbaca paling lambat 5 menit setelah disimpan; SQL, REST, dan Modbus pada putaran baca berikutnya; Input manual langsung bisa diisi.'
+				]
+			},
+			{
 				title: 'Mengatur batas valid tag',
 				steps: [
 					'Di tab **Tag & Parameter**, tekan **Atur batas** pada tag yang dimaksud.',
