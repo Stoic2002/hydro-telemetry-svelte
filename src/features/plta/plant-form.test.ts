@@ -4,9 +4,9 @@ import {
 	emptyPlantForm,
 	parsePlantForm,
 	parseRiverBasinForm,
-	plantChanges,
+	parsePlantEdit,
 	plantFormFromPlant,
-	riverBasinChanges
+	parseRiverBasinEdit
 } from './plant-form';
 
 const WS_ID = '22222222-2222-4222-8222-222222222222';
@@ -87,20 +87,36 @@ describe('form PLTA', () => {
 		]);
 	});
 
-	it('perubahan hanya memuat bidang yang berbeda, tanpa kode', () => {
+	it('ubah: hanya bidang yang berbeda yang dikirim, tanpa kode', () => {
 		const form = { ...plantFormFromPlant(SAVED), name: 'PLTA Soedirman', isActive: false };
-		const parsed = parsePlantForm(form);
 
-		expect(parsed.ok && plantChanges(SAVED, parsed.input)).toStrictEqual({
-			name: 'PLTA Soedirman',
-			isActive: false
+		expect(parsePlantEdit(SAVED, form)).toStrictEqual({
+			ok: true,
+			input: { name: 'PLTA Soedirman', isActive: false }
 		});
 	});
 
-	it('tidak ada perubahan bila isian sama dengan yang tersimpan', () => {
-		const parsed = parsePlantForm(plantFormFromPlant(SAVED));
+	it('ubah: tidak ada perubahan bila isian sama dengan yang tersimpan', () => {
+		expect(parsePlantEdit(SAVED, plantFormFromPlant(SAVED))).toStrictEqual({ ok: true, input: {} });
+	});
 
-		expect(parsed.ok && plantChanges(SAVED, parsed.input)).toStrictEqual({});
+	it('ubah: data lama yang tak lolos aturan form tidak menghalangi mengubah status', () => {
+		// Regresi laporan tim 27 Okt 2026: lintang tanpa bujur dan kode panjang
+		// dulu membuat tombol Simpan mati untuk PLTA ini.
+		const legacy: Plant = { ...SAVED, code: 'X'.repeat(40), latitude: -7.39, longitude: null };
+		const form = { ...plantFormFromPlant(legacy), isActive: false };
+
+		expect(parsePlantEdit(legacy, form)).toStrictEqual({ ok: true, input: { isActive: false } });
+	});
+
+	it('ubah: menyentuh koordinat memeriksa pasangannya', () => {
+		const legacy: Plant = { ...SAVED, latitude: -7.39, longitude: null };
+		const form = { ...plantFormFromPlant(legacy), latitude: -7.4 };
+
+		const parsed = parsePlantEdit(legacy, form);
+		expect(parsed.ok ? null : parsed.errors).toStrictEqual({
+			longitude: 'Isi lintang dan bujur sekaligus.'
+		});
 	});
 });
 
@@ -115,8 +131,12 @@ describe('form Wilayah Sungai', () => {
 		const saved = { id: WS_ID, code: 'WS-SERAYU', name: 'Serayu', description: null };
 		const parsed = parseRiverBasinForm({ code: 'WS-SERAYU', name: 'Serayu', description: 'Hulu' });
 
-		expect(parsed.ok && riverBasinChanges(saved, parsed.input)).toStrictEqual({
-			description: 'Hulu'
+		expect(parsed.ok).toBe(true);
+		expect(
+			parseRiverBasinEdit(saved, { code: 'WS-SERAYU', name: 'Serayu', description: 'Hulu' })
+		).toStrictEqual({
+			ok: true,
+			input: { description: 'Hulu' }
 		});
 	});
 });

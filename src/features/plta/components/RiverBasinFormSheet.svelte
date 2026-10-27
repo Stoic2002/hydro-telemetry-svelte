@@ -11,7 +11,7 @@
 		CODE_MAX_LENGTH,
 		NAME_MAX_LENGTH,
 		parseRiverBasinForm,
-		riverBasinChanges,
+		parseRiverBasinEdit,
 		riverBasinFormFrom,
 		type RiverBasinFormValues
 	} from '../plant-form';
@@ -47,29 +47,31 @@
 	});
 
 	const isEdit = $derived(riverBasin !== null);
+	// Ubah hanya memvalidasi bidang yang berubah (`parseRiverBasinEdit`).
 	const parsed = $derived(parseRiverBasinForm(values));
-	const errors = $derived(showErrors && !parsed.ok ? parsed.errors : {});
-	const changes = $derived(
-		riverBasin && parsed.ok ? riverBasinChanges(riverBasin, parsed.input) : null
-	);
+	const edit = $derived(riverBasin ? parseRiverBasinEdit(riverBasin, values) : null);
+	const activeResult = $derived(edit ?? parsed);
+	const errors = $derived(showErrors && !activeResult.ok ? activeResult.errors : {});
 	const isDirty = $derived(JSON.stringify(values) !== baseline);
-	const canSave = $derived(isEdit ? changes !== null && Object.keys(changes).length > 0 : isDirty);
+	const canSave = $derived(edit ? !edit.ok || Object.keys(edit.input).length > 0 : isDirty);
 	const isPending = $derived(createMutation.isPending || updateMutation.isPending);
 
 	async function save(event: SubmitEvent) {
 		event.preventDefault();
 		showErrors = true;
-		if (!parsed.ok || !canSave) return;
+		if (!canSave) return;
 
 		try {
-			if (riverBasin && changes) {
-				await updateMutation.mutateAsync({ riverBasinId: riverBasin.id, changes });
+			if (riverBasin && edit) {
+				if (!edit.ok) return;
+				await updateMutation.mutateAsync({ riverBasinId: riverBasin.id, changes: edit.input });
 			} else {
+				if (!parsed.ok) return;
 				await createMutation.mutateAsync(parsed.input);
 			}
 			notificationStore.addToast({
 				type: 'success',
-				message: `Wilayah Sungai ${parsed.input.name} ${isEdit ? 'diperbarui' : 'ditambahkan'}`
+				message: `Wilayah Sungai ${values.name.trim() || riverBasin?.name} ${isEdit ? 'diperbarui' : 'ditambahkan'}`
 			});
 			onClose();
 		} catch (error) {

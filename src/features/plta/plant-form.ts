@@ -143,27 +143,61 @@ export function parsePlantForm(values: PlantFormValues): ParsedForm<PlantInput, 
 	};
 }
 
-/**
- * Bidang yang benar-benar berubah dari data tersimpan — hanya itu yang dikirim
- * `PATCH`. Kode tidak termasuk: server tidak menerimanya pada pembaruan.
- */
-export function plantChanges(saved: Plant, input: PlantInput): PlantChanges {
-	const current: Omit<PlantInput, 'code'> = {
-		name: saved.name,
-		riverBasinId: saved.riverBasinId,
-		latitude: saved.latitude,
-		longitude: saved.longitude,
-		capacityMw: saved.capacityMw,
-		description: saved.description,
-		isActive: saved.isActive,
-		bebanToOutflowNum: saved.bebanToOutflowNum,
-		bebanToOutflowDen: saved.bebanToOutflowDen
+type EditableField = keyof PlantChanges;
+
+/** Isian → nilai yang akan dikirim, tanpa validasi; dipakai untuk membandingkan. */
+function normalizePlantForm(values: PlantFormValues): Record<EditableField, unknown> {
+	return {
+		name: tidy(values.name),
+		riverBasinId: values.riverBasinId,
+		latitude: numberOrNull(values.latitude),
+		longitude: numberOrNull(values.longitude),
+		capacityMw: numberOrNull(values.capacityMw),
+		description: optionalText(values.description),
+		isActive: values.isActive,
+		bebanToOutflowNum: numberOrNull(values.bebanToOutflowNum),
+		bebanToOutflowDen: numberOrNull(values.bebanToOutflowDen)
 	};
-	const changes: Record<string, unknown> = {};
-	for (const key of Object.keys(current) as (keyof typeof current)[]) {
-		if (input[key] !== current[key]) changes[key] = input[key];
+}
+
+/**
+ * Ubah PLTA: hanya bidang yang benar-benar berubah yang dikirim `PATCH`, dan
+ * **hanya bidang itu yang divalidasi**. Sebagian PLTA tersimpan dengan data
+ * yang tidak lolos aturan form (mis. lintang tanpa bujur, kode lebih dari 32
+ * karakter); dulu seluruh isian divalidasi, sehingga mengubah status saja
+ * tidak pernah bisa disimpan di PLTA itu — tombol Simpan mati tanpa pesan
+ * (laporan tim 27 Okt 2026). Lintang dan bujur dinilai berpasangan: mengubah
+ * salah satunya ikut memeriksa keduanya. Kode tidak termasuk — server tidak
+ * menerimanya pada pembaruan.
+ */
+export function parsePlantEdit(
+	saved: Plant,
+	values: PlantFormValues
+): ParsedForm<PlantChanges, PlantFormField> {
+	const next = normalizePlantForm(values);
+	const current = normalizePlantForm(plantFormFromPlant(saved));
+	const changed = (Object.keys(next) as EditableField[]).filter(
+		(key) => next[key] !== current[key]
+	);
+
+	const checked = new Set<PlantFormField>(changed);
+	if (checked.has('latitude') || checked.has('longitude')) {
+		checked.add('latitude');
+		checked.add('longitude');
 	}
-	return changes as PlantChanges;
+
+	const parsed = parsePlantForm({ ...values, code: saved.code });
+	if (!parsed.ok) {
+		const errors: FormErrors<PlantFormField> = {};
+		for (const field of checked) {
+			if (parsed.errors[field]) errors[field] = parsed.errors[field];
+		}
+		if (Object.keys(errors).length > 0) return { ok: false, errors };
+	}
+
+	const changes: Record<string, unknown> = {};
+	for (const key of changed) changes[key] = next[key];
+	return { ok: true, input: changes as PlantChanges };
 }
 
 export interface RiverBasinFormValues {
@@ -200,9 +234,24 @@ export function parseRiverBasinForm(
 	return { ok: true, input: { code, name, description: optionalText(values.description) } };
 }
 
-export function riverBasinChanges(saved: RiverBasin, input: RiverBasinInput): RiverBasinChanges {
+/**
+ * Ubah Wilayah Sungai: hanya nama dan deskripsi, dan hanya yang berubah yang
+ * divalidasi — sama alasannya dengan `parsePlantEdit`. Kode tidak bisa diubah.
+ */
+export function parseRiverBasinEdit(
+	saved: RiverBasin,
+	values: RiverBasinFormValues
+): ParsedForm<RiverBasinChanges, RiverBasinFormField> {
 	const changes: RiverBasinChanges = {};
-	if (input.name !== saved.name) changes.name = input.name;
-	if (input.description !== saved.description) changes.description = input.description;
-	return changes;
+	const name = tidy(values.name);
+	const description = optionalText(values.description);
+	if (name !== saved.name) changes.name = name;
+	if (description !== saved.description) changes.description = description;
+
+	if (changes.name !== undefined) {
+		const parsed = parseRiverBasinForm({ ...values, code: saved.code });
+		if (!parsed.ok && parsed.errors.name)
+			return { ok: false, errors: { name: parsed.errors.name } };
+	}
+	return { ok: true, input: changes };
 }

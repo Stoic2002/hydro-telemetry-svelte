@@ -14,7 +14,7 @@
 		NAME_MAX_LENGTH,
 		emptyPlantForm,
 		parsePlantForm,
-		plantChanges,
+		parsePlantEdit,
 		plantFormFromPlant,
 		type PlantFormValues
 	} from '../plant-form';
@@ -57,11 +57,16 @@
 	});
 
 	const isEdit = $derived(plant !== null);
+	// Tambah memvalidasi seluruh isian; ubah hanya bidang yang berubah
+	// (`parsePlantEdit`), supaya PLTA dengan data lama yang tak lolos aturan form
+	// tetap bisa diubah statusnya.
 	const parsed = $derived(parsePlantForm(values));
-	const errors = $derived(showErrors && !parsed.ok ? parsed.errors : {});
-	const changes = $derived(plant && parsed.ok ? plantChanges(plant, parsed.input) : null);
+	const edit = $derived(plant ? parsePlantEdit(plant, values) : null);
+	const activeResult = $derived(edit ?? parsed);
+	const errors = $derived(showErrors && !activeResult.ok ? activeResult.errors : {});
 	const isDirty = $derived(JSON.stringify(values) !== baseline);
-	const canSave = $derived(isEdit ? changes !== null && Object.keys(changes).length > 0 : isDirty);
+	// Isian yang belum sah tetap boleh ditekan: Simpan lalu menampilkan galatnya.
+	const canSave = $derived(edit ? !edit.ok || Object.keys(edit.input).length > 0 : isDirty);
 	const isPending = $derived(createMutation.isPending || updateMutation.isPending);
 	const riverBasinOptions = $derived(
 		riverBasins.map((riverBasin) => ({
@@ -73,17 +78,19 @@
 	async function save(event: SubmitEvent) {
 		event.preventDefault();
 		showErrors = true;
-		if (!parsed.ok || !canSave) return;
+		if (!canSave) return;
 
 		try {
-			if (plant && changes) {
-				await updateMutation.mutateAsync({ pltaId: plant.id, changes });
+			if (plant && edit) {
+				if (!edit.ok) return;
+				await updateMutation.mutateAsync({ pltaId: plant.id, changes: edit.input });
 			} else {
+				if (!parsed.ok) return;
 				await createMutation.mutateAsync(parsed.input);
 			}
 			notificationStore.addToast({
 				type: 'success',
-				message: `PLTA ${parsed.input.name} ${isEdit ? 'diperbarui' : 'ditambahkan'}`
+				message: `PLTA ${values.name.trim() || plant?.name} ${isEdit ? 'diperbarui' : 'ditambahkan'}`
 			});
 			onClose();
 		} catch (error) {

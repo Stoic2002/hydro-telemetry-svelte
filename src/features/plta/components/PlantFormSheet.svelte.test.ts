@@ -73,6 +73,26 @@ describe('sheet PLTA', () => {
 		await waitFor(() => expect(onClose).toHaveBeenCalled());
 	});
 
+	it('ubah status di PLTA berdata lama yang tak lolos aturan form tetap bisa disimpan', async () => {
+		// Regresi laporan tim 27 Okt 2026: lintang tanpa bujur membuat Simpan
+		// mati selamanya untuk PLTA ini, sementara PLTA lain bisa.
+		const user = userEvent.setup();
+		const legacy: Plant = { ...SAVED, latitude: -7.39, longitude: null };
+		repository.updatePlant.mockResolvedValue({ ...legacy, isActive: false });
+
+		const { onClose } = renderSheet(legacy);
+
+		await user.click(screen.getByRole('switch', { name: /Status PLTA/ }));
+		const save = screen.getByRole('button', { name: 'Simpan' });
+		expect(save).toBeEnabled();
+		await user.click(save);
+
+		await waitFor(() =>
+			expect(repository.updatePlant).toHaveBeenCalledWith(legacy.id, { isActive: false })
+		);
+		await waitFor(() => expect(onClose).toHaveBeenCalled());
+	});
+
 	it('tambah: isian belum lengkap ditahan dengan pesan per bidang', async () => {
 		const user = userEvent.setup();
 

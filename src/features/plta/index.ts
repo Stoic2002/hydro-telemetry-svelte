@@ -46,9 +46,9 @@ export {
 	emptyPlantForm,
 	parsePlantForm,
 	parseRiverBasinForm,
-	plantChanges,
+	parsePlantEdit,
 	plantFormFromPlant,
-	riverBasinChanges,
+	parseRiverBasinEdit,
 	riverBasinFormFrom
 } from './plant-form';
 export type {
