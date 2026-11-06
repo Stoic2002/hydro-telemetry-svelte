@@ -60,6 +60,11 @@ export function canConfigureDisplay(user: User | null): boolean {
 	return canManageUsers(user);
 }
 
+/** Membuat laporan (`POST /reports`: `admin`, `operator`). Viewer tetap bisa mengunduh. */
+export function canCreateReports(user: User | null): boolean {
+	return canAccessDataTools(user);
+}
+
 /**
  * Menambah dan mengubah PLTA serta Wilayah Sungai di Katalog Data. Swagger
  * tidak menyebut perannya; frontend membatasinya ke admin seperti pengaturan

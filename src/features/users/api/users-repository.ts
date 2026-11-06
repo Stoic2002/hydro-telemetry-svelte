@@ -21,4 +21,10 @@ export interface UsersRepository {
 	 * ulang.
 	 */
 	revokeSessions(userId: string): Promise<void>;
+	/**
+	 * Admin menetapkan password baru untuk user lain yang lupa password — tanpa
+	 * password lama. Semua sesi user itu ikut dicabut. `400` bila `userId`
+	 * adalah diri sendiri (pakai `changeCurrentPassword`).
+	 */
+	resetPassword(userId: string, newPassword: string): Promise<void>;
 }

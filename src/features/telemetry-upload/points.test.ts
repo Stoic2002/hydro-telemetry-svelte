@@ -3,7 +3,8 @@ import {
 	buildConstantPoint,
 	buildDeleteRange,
 	buildTelemetryPoints,
-	isConstantParameter
+	isConstantParameter,
+	isDailyValueParameter
 } from './points';
 
 /**
@@ -108,5 +109,12 @@ describe('konstanta', () => {
 	it('menolak nilai kosong', () => {
 		expect(buildConstantPoint(null)).toBeNull();
 		expect(buildConstantPoint(Number.NaN)).toBeNull();
+	});
+});
+
+describe('Target TMA', () => {
+	it('hanya plan_water_level yang bernilai per tanggal', () => {
+		expect(isDailyValueParameter('plan_water_level')).toBe(true);
+		expect(isDailyValueParameter('plan_outflow_hjv')).toBe(false);
 	});
 });

@@ -1,5 +1,5 @@
-import { MONITORING_PARAMETERS, type MonitoringParameter } from '../monitoring';
-import type { TagInput, TagInputProtocol, TagPanel } from './model';
+import { MONITORING_PARAMETERS } from '../monitoring';
+import type { ParameterInfo, TagInput, TagInputProtocol, TagPanel } from './model';
 import type { FormErrors, ParsedForm } from './plant-form';
 
 /** Batas panjang dari Swagger (`TagMappingCreate`). */
@@ -9,67 +9,24 @@ export const TAG_ADDRESS_MAX_LENGTH = 512;
 export const TAG_PATH_MAX_LENGTH = 256;
 
 /**
- * Nama tampilan parameter untuk pemilih di form tag baru. Server hanya
- * mengirim kuncinya (`ParameterType`), jadi kuncinya tetap ditulis di
- * sampingnya: nama di sini rumusan FE, bukan nama resmi backend.
+ * Pilihan parameter dari katalog resmi `GET /parameter`, dengan kuncinya di
+ * samping nama. Rumus kustom tidak ditawarkan (hanya yang bukan formulasi,
+ * rapat tim 27 Okt 2026). Bila katalog gagal dimuat, kuncinya saja yang tampil
+ * supaya form tetap bisa dipakai.
  */
-export const PARAMETER_LABEL: Record<MonitoringParameter, string> = {
-	water_level: 'TMA',
-	reservoir: 'Waduk',
-	volume_efektif: 'Volume Efektif',
-	total_outflow: 'Total Outflow',
-	inflow: 'Inflow',
-	wqms: 'Kualitas Air (WQMS)',
-	rainfall: 'Curah Hujan',
-	rainfall_forecast_bmkg: 'Prakiraan Hujan BMKG',
-	rainfall_forecast_om: 'Prakiraan Hujan OM',
-	beban: 'Beban',
-	inflow_sensor: 'Inflow Sensor',
-	turbidity: 'Turbidity',
-	ph: 'pH',
-	outflow_irigasi: 'Debit Irigasi',
-	outflow_ddc: 'Debit DDC',
-	outflow_spillway: 'Debit Spillway',
-	outflow_trash: 'Debit Buangan Sampah',
-	outflow_pdam: 'Debit Intake PDAM',
-	outflow_sluice: 'Debit Pintu Air',
-	outflow_flushing: 'Debit Pintu Pembilas',
-	outflow_ddc_hours: 'Jam Operasi DDC',
-	outflow_spillway_hours: 'Jam Operasi Spillway',
-	sediment_level: 'Elevasi Sedimen',
-	water_depth: 'Kedalaman Air',
-	air_temperature: 'Suhu Udara',
-	air_humidity: 'Kelembapan Udara',
-	outflow_hjv: 'Debit HJV',
-	guide_vane_position: 'Bukaan Guide Vane',
-	head: 'Head',
-	delta_head: 'Delta Head',
-	swc_actual: 'SWC Aktual',
-	const_tma_limpas: 'Konstanta TMA Limpas',
-	const_tma_mol: 'Konstanta TMA MOL',
-	const_tma_tailrace: 'Konstanta TMA Tailrace',
-	const_tma_hilir_maks: 'Konstanta TMA Hilir Maks.',
-	const_swc: 'Konstanta SWC',
-	const_unit_capacity_mw: 'Konstanta Kapasitas Unit',
-	const_n_units: 'Konstanta Jumlah Unit',
-	plan_water_level: 'Rencana TMA',
-	plan_outflow_turbine: 'Rencana Debit Turbin',
-	plan_outflow_spillway: 'Rencana Debit Spillway',
-	plan_outflow_hjv: 'Rencana Debit HJV',
-	plan_outflow_irigasi: 'Rencana Debit Irigasi',
-	plan_outflow_ddc: 'Rencana Debit DDC',
-	plan_outflow_trash: 'Rencana Debit Buangan Sampah',
-	plan_outflow_pdam: 'Rencana Debit Intake PDAM',
-	plan_outflow_sluice: 'Rencana Debit Pintu Air',
-	plan_outflow_flushing: 'Rencana Debit Pintu Pembilas',
-	plan_outflow_ddc_hours: 'Rencana Jam Operasi DDC',
-	plan_outflow_spillway_hours: 'Rencana Jam Operasi Spillway'
-};
+export function tagParameterOptions(catalog: readonly ParameterInfo[] | undefined) {
+	const items =
+		catalog && catalog.length > 0
+			? catalog.filter((item) => item.key !== 'rumus' && item.group !== 'rumus')
+			: MONITORING_PARAMETERS.filter((key) => key !== 'rumus').map((key) => ({ key, label: '' }));
 
-export const TAG_PARAMETER_OPTIONS = MONITORING_PARAMETERS.map((parameter) => ({
-	value: parameter,
-	label: `${PARAMETER_LABEL[parameter]} · ${parameter}`
-})).sort((left, right) => left.label.localeCompare(right.label, 'id-ID'));
+	return items
+		.map((item) => ({
+			value: item.key,
+			label: item.label ? `${item.label} · ${item.key}` : item.key
+		}))
+		.sort((left, right) => left.label.localeCompare(right.label, 'id-ID'));
+}
 
 /**
  * Protokol yang boleh dipilih. `derived` (formulasi) tidak ditawarkan: server
@@ -219,9 +176,6 @@ export function parseTagForm(
 
 	const parameter = values.parameter;
 	if (!parameter) errors.parameter = 'Pilih parameter.';
-	else if (!(MONITORING_PARAMETERS as readonly string[]).includes(parameter)) {
-		errors.parameter = 'Parameter tidak dikenal server.';
-	}
 
 	const station = values.station.trim();
 	if (station.length > TAG_STATION_MAX_LENGTH) {

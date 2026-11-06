@@ -24,5 +24,19 @@ export const editUserSchema = z.object({
 	isActive: z.boolean()
 });
 
+/** Admin menetapkan password user lain; aturan panjang sama dengan Swagger `PasswordReset`. */
+export const resetPasswordSchema = z
+	.object({
+		newPassword: z
+			.string()
+			.min(8, 'Password minimal 8 karakter')
+			.max(128, 'Password maksimal 128 karakter'),
+		confirmPassword: z.string().min(1, 'Ulangi password baru')
+	})
+	.refine((values) => values.newPassword === values.confirmPassword, {
+		path: ['confirmPassword'],
+		message: 'Konfirmasi tidak sama dengan password baru'
+	});
+
 export type CreateUserFormValues = z.infer<typeof createUserSchema>;
 export type EditUserFormValues = z.infer<typeof editUserSchema>;

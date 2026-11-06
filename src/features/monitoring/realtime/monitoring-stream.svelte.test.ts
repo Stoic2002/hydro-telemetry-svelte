@@ -271,6 +271,25 @@ describe('pesan masuk', () => {
 		]);
 	});
 
+	it('mengabaikan parameter yang belum dikenal tanpa melaporkan galat', async () => {
+		const { stream } = renderStream();
+		await advance(10);
+		FakeWebSocket.latest.simulateOpen();
+		await settle();
+
+		FakeWebSocket.latest.simulateMessage({
+			plta_id: PLTA_ID,
+			parameter: 'parameter_masa_depan',
+			station: '',
+			time: '2026-11-02T00:00:00Z',
+			value: 1
+		});
+		await settle();
+
+		expect(stream.error).toBeNull();
+		expect(reportErrorMock).not.toHaveBeenCalled();
+	});
+
 	it('melaporkan pesan yang tidak sesuai kontrak', async () => {
 		const { stream } = renderStream();
 		await advance(10);

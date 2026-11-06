@@ -7,3 +7,6 @@ bun.lockb
 
 # Miscellaneous
 /static/
+
+# Salinan Swagger lokal untuk pembanding (tidak di-commit; lihat .git/info/exclude)
+/.swagger-snapshots/

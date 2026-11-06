@@ -2,6 +2,7 @@ import { QueryClient } from '@tanstack/svelte-query';
 import { render, screen } from '@testing-library/svelte';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
+import { hydrologyQueryKeys } from '../api/queries';
 import type { MonthlyHydrology } from '../model';
 import Harness from './MonthlyHydrologySheet.test-harness.svelte';
 
@@ -37,6 +38,14 @@ const RECORD: MonthlyHydrology = {
 
 function renderSheet(record?: MonthlyHydrology) {
 	const queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false } } });
+	// Daftar kelas diisi langsung ke cache supaya test tidak memanggil server.
+	queryClient.setQueryData(hydrologyQueryKeys.monthlyConditions(), [
+		'Kering',
+		'Normal Kering',
+		'Normal',
+		'Normal Basah',
+		'Basah'
+	]);
 	const onError = vi.fn();
 	render(Harness, { props: { queryClient, record, onError } });
 	return { onError };
@@ -50,8 +59,25 @@ describe('panel input hidrologi bulanan', () => {
 		expect(screen.getByLabelText('Realisasi Akumulasi Produksi Energi Listrik')).toHaveValue(
 			432432
 		);
-		expect(screen.getByLabelText('Prediksi Hidrologi')).toHaveValue('basah');
+		// Tersimpan `basah` huruf kecil; dropdown menampilkan kelas bakunya.
+		expect(screen.getByLabelText('Prediksi Hidrologi')).toHaveTextContent('Basah');
+		expect(screen.getByLabelText('Realisasi Hidrologi')).toHaveTextContent('Normal');
 		expect(onError).not.toHaveBeenCalled();
+	});
+
+	it('menunjukkan kondisi lama di luar kelas tanpa menyarankan menyimpannya ulang', async () => {
+		renderSheet({ ...RECORD, hydrologyActual: 'serak' });
+
+		expect(await screen.findByLabelText('Realisasi Hidrologi')).toHaveTextContent(
+			'serak (bukan kelas baku)'
+		);
+		expect(screen.getByText(/Tersimpan "serak", bukan salah satu kelas/)).toBeInTheDocument();
+	});
+
+	it('kondisi yang belum diisi tampil sebagai "Belum diisi"', async () => {
+		renderSheet();
+
+		expect(await screen.findByLabelText('Prediksi Hidrologi')).toHaveTextContent('Belum diisi');
 	});
 
 	it('terbuka untuk periode yang belum punya data', async () => {

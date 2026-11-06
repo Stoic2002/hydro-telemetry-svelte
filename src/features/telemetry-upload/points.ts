@@ -51,6 +51,14 @@ export function isConstantParameter(parameter: string): boolean {
 	return parameter.startsWith('const_');
 }
 
+/**
+ * Target TMA: satu nilai per tanggal pada 00.00 WIB. Bila satu tanggal punya
+ * beberapa titik, panel harian memakai rata-ratanya, jadi jam tidak ditawarkan.
+ */
+export function isDailyValueParameter(parameter: string): boolean {
+	return parameter === 'plan_water_level';
+}
+
 const WIB_OFFSET_MS = 7 * 60 * 60 * 1000;
 
 /**

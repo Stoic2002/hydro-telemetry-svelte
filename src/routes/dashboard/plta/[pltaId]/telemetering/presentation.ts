@@ -6,12 +6,19 @@ import type {
 	MonthlyHydrology,
 	NullableMetric
 } from '$features/hydrology';
-import type { MonitoringParameter, MonitoringParameterLatest } from '$features/monitoring';
+import type {
+	MonitoringParameter,
+	MonitoringParameterLatest,
+	SensorProblem
+} from '$features/monitoring';
+// Langsung dari berkasnya, bukan barrel: barrel ikut memuat query dan aliran
+// realtime, sedangkan berkas ini fungsi murni yang diuji di lingkungan node.
+import { sensorProblemKey } from '$features/monitoring/sensor-health';
 import type {
 	DailyTelemetryUploadStation,
 	DailyTelemetryUploadTarget
 } from '$features/telemetry-upload';
-import { formatLongCalendarDate, toISODateWIB } from '$shared/lib/date';
+import { formatDayMonthTimeWIB, formatLongCalendarDate, toISODateWIB } from '$shared/lib/date';
 import { displayUnit } from '$shared/utils/unit';
 
 export const MONTHS = [
@@ -671,3 +678,32 @@ export const DAILY_ROW_FILTER_EMPTY_MESSAGE: Record<Exclude<DailyRowFilter, 'sem
 	manual: 'Tidak ada parameter isian manual di zona ini.',
 	ringkas: 'Tidak ada metrik kunci di zona ini.'
 };
+
+export interface SensorProblemView {
+	key: string;
+	/** Nama parameter dari katalog, ditambah stasiunnya bila ada. */
+	name: string;
+	detail: string;
+}
+
+/**
+ * Satu baris peringatan sensor. `labelOf` memberi nama resmi parameter dari
+ * `GET /parameter`; selama katalog belum termuat, kuncinya yang dipakai.
+ */
+export function describeSensorProblem(
+	problem: SensorProblem,
+	labelOf: (parameter: string) => string | undefined
+): SensorProblemView {
+	const label = labelOf(problem.parameter) ?? problem.parameter;
+	const since = problem.since ? ` sejak ${formatDayMonthTimeWIB(problem.since)}` : '';
+	const detail =
+		problem.kind === 'communication'
+			? `komunikasi terputus${since}`
+			: `nilai tidak wajar (${formatHydrologyMetric(problem.value)})${since}`;
+
+	return {
+		key: sensorProblemKey(problem),
+		name: problem.station ? `${label} · ${problem.station}` : label,
+		detail
+	};
+}

@@ -256,3 +256,39 @@ describe('tag baru', () => {
 		});
 	});
 });
+
+describe('katalog parameter', () => {
+	it('memetakan nama, satuan, dan kelompok', async () => {
+		apiRequestMock.mockResolvedValue([
+			{ key: 'water_level', label: 'TMA', satuan: 'mdpl', kelompok: 'telemetri' },
+			{ key: 'ph', label: 'pH', satuan: null, kelompok: 'telemetri' }
+		]);
+
+		const items = await httpPltaRepository.listParameters();
+
+		expect(apiRequestMock.mock.calls[0][0]).toBe('/api/v1/parameter');
+		expect(items[0]).toEqual({
+			key: 'water_level',
+			label: 'TMA',
+			unit: 'mdpl',
+			group: 'telemetri'
+		});
+		expect(items[1].unit).toBeNull();
+	});
+});
+
+describe('hapus Wilayah Sungai', () => {
+	beforeEach(() => {
+		apiRequestMock.mockReset();
+	});
+
+	it('mengirim DELETE ke Wilayah Sungai yang dimaksud', async () => {
+		apiRequestMock.mockResolvedValue(undefined);
+
+		await httpPltaRepository.deleteRiverBasin('ws/1');
+
+		expect(apiRequestMock).toHaveBeenCalledWith('/api/v1/wilayah-sungai/ws%2F1', {
+			method: 'DELETE'
+		});
+	});
+});

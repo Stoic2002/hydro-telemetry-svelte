@@ -198,13 +198,27 @@ Hal-hal yang sudah pernah menggigit dan tidak akan terlihat dari membaca kode:
   manual) sengaja dikecualikan. Banner ringkasan hanya memuat yang merah —
   yang kuning biasanya sekadar pengiriman tertunda. Jam halaman berdetak per
   menit, karena justru saat sensor diam tidak ada data baru yang memicu render.
+  **Sensor bermasalah (6 Nov 2026)**: sejak Swagger 6 Nov, tag yang dinyatakan
+  tidak sehat oleh OPC dikirim `quality: bad/uncertain` + `value: null`, dan
+  pembacaan mustahil `quality: impossible`; panel harian hanya menerima `value:
+null` untuk keduanya. Banner **"N sensor bermasalah"** (merah bila ada yang
+  putus komunikasi, kuning bila hanya nilai tidak wajar) dibaca dari
+  `createPLTASensorHealthQuery` — snapshot `/monitoring/.../latest` dengan
+  kunci sendiri, disegarkan tiap menit, **bukan** `pltaLatest`: memuat snapshot
+  ke `pltaLatest` akan menimpa nilai panel harian, dan status `bad` bertahan
+  tanpa pesan realtime baru. Respons harian tidak menyebut sensor di balik tiap
+  metrik, jadi peringatannya per sensor (nama dari `GET /parameter` + station),
+  bukan per baris. Angka beku TMA Soedirman 30 Okt–6 Nov sudah dihapus backend.
 - **Tren & Grafik — daftar tren per PLTA (13 Okt 2026)**: admin mengatur item,
   urutan, grup, dan nama khusus lewat **Atur daftar tren**
   (`TrendListSheet`, `PUT /trends/plta/{id}/series`, `canConfigureDisplay` =
   admin). Seluruh grafik datang dari satu `GET …/data`; item segrup = satu
   grafik, satuan kedua di sumbu kanan (dipetakan ke ruang sumbu kiri,
   `axisMapping`), `sumber: plan` digambar bertangga (`stepPoints` — `d3-shape`
-  bukan dependensi langsung), curah hujan tunggal sebagai batang. Unduhan
+  bukan dependensi langsung), curah hujan tunggal sebagai batang — **batang di
+  sumbu waktu wajib `xInterval` di `Chart`** (`barTimeInterval` di
+  `shared/utils/chart.ts`); tanpa itu LayerChart menggambar setiap `<rect>`
+  0×0 dan grafik hujan tampil kosong (temuan QA 4 Nov 2026). Unduhan
   `data.xlsx`/`data.csv` di atas grafik (CSV diambil sebagai blob supaya BOM
   UTF-8 tetap ada). **Sejak 17 Okt 2026 hanya SATU grafik yang tampil**,
   dipilih lewat `?grafik=` (dulu seluruh grafik bertumpuk, dinilai boros).
@@ -232,7 +246,8 @@ Hal-hal yang sudah pernah menggigit dan tidak akan terlihat dari membaca kode:
   rapat tim**, di tampilan cadangan maupun daftar tren; `?compare=` di tautan
   lama diabaikan dan dibersihkan saat filter lain diubah.
 - **Laporan**: alur = pilih laporan → masuk daftar tabel → status `completed` →
-  download. Tombol **Excel per jam** di toolbar daftar (sheet; dulu kartu permanen
+  download. **Buat Laporan** tidak dirender untuk Viewer (`canCreateReports`;
+  `POST /reports` hanya admin dan operator); Viewer tetap bisa mengunduh. Tombol **Excel per jam** di toolbar daftar (sheet; dulu kartu permanen
   "Unduh langsung" di atas daftar, diubah 23 Okt 2026): sejak 13 Okt
   2026 `GET /trends/plta/{id}/data.xlsx` (resolusi 1h, kolom = daftar tren PLTA,
   maks. 366 hari) bila daftar trennya sudah diatur; selain itu cadangan
@@ -256,28 +271,39 @@ Hal-hal yang sudah pernah menggigit dan tidak akan terlihat dari membaca kode:
   yang jatuh tempo). Rentangnya dihitung **sekali** per halaman dan dibulatkan
   ke jam (`forecastAccuracyWindow`) — rentang yang dihitung ulang tiap render
   mengubah kunci query dan memicu permintaan tanpa henti.
-- **User Management**: limit paginasi 10 item.
+- **User Management**: limit paginasi 10 item. **Reset password** (ikon kunci,
+  6 Nov 2026): admin menetapkan password baru untuk user lain tanpa password
+  lama (`POST /users/{id}/password`, `ResetUserPasswordSheet`); server ikut
+  mencabut semua sesi user itu. Untuk akun sendiri tetap lewat Profil Saya.
 - **Manajemen PLTA dan Wilayah Sungai (23 Okt 2026)** ada di **Katalog Data**,
   bukan menu baru: tombol **Tambah** di toolbar dan **Ubah** per baris pada tab
-  Wilayah Sungai dan PLTA, khusus admin (`canManagePlants`; Swagger tidak
-  menyebut perannya, keputusan frontend). Sheet-nya `PlantFormSheet` dan
+  Wilayah Sungai dan PLTA, khusus admin (`canManagePlants`, sesuai Swagger). Sheet-nya `PlantFormSheet` dan
   `RiverBasinFormSheet`; validasi murni di `features/plta/plant-form.ts`. Kode
-  tidak bisa diubah (`PATCH` tidak menerimanya), dan server tidak punya hapus —
-  menonaktifkan lewat status. `PATCH` hanya mengirim bidang yang berubah, dan
+  tidak bisa diubah (`PATCH` tidak menerimanya) dan harus sesuai pola Swagger
+  6 Nov 2026 — PLTA `^[A-Z][A-Z0-9]*(-[A-Z0-9]+)*$`, WS `^WS-[A-Z0-9]+(-[A-Z0-9]+)*$`,
+  huruf dibesarkan otomatis (`PLANT_CODE_PATTERN`/`RIVER_BASIN_CODE_PATTERN`).
+  PLTA tidak bisa dihapus — menonaktifkan lewat status. **Wilayah Sungai tanpa
+  PLTA bisa dihapus** (`DELETE /wilayah-sungai/{id}`, 6 Nov 2026) untuk
+  membereskan salah ketik kode; tombolnya hanya dirender bila jumlah PLTA-nya
+  nol, dan server menolak `409` bila masih membawahi PLTA. `PATCH` hanya mengirim bidang yang berubah, dan
   **saat mengubah, hanya bidang yang berubah yang divalidasi**
   (`parsePlantEdit`/`parseRiverBasinEdit`): sebagian PLTA tersimpan dengan
   data yang tak lolos aturan form (mis. lintang tanpa bujur), dan dulu tombol
   Simpan mati tanpa pesan saat hanya mengubah status (laporan tim 27 Okt 2026).
-  **`constants` tidak pernah dikirim**: server menimpanya utuh, dan editor
-  konstanta (batas TMA, SWC, formula inflow) menunggu daftar kuncinya
-  dipastikan ke backend. **Tambah parameter** (27 Okt 2026, rapat tim: hanya
+  **`constants` tidak pernah dikirim**: server menimpanya utuh. Konstanta angka
+  diisi lewat `const_*`; kunci teks dan struktur (`inflow_formula`,
+  `inflow_projection_source`, `dmn_units`, `swc_units`) hanya lewat `PATCH /plta`
+  dan belum ada layarnya. **Tambah parameter** (27 Okt 2026, rapat tim: hanya
   yang bukan formulasi) ada di tab Tag & Parameter, khusus admin:
   `TagFormSheet`, `POST /tags`, validasi murni di `features/plta/tag-form.ts`.
   Protokol `derived` tidak ditawarkan (server menolaknya); bidang REST
   (`http_headers`, `value_path`, `timestamp_path`) hanya dikirim untuk `rest`
-  karena server menolaknya di protokol lain. Nama parameter
-  (`PARAMETER_LABEL`) rumusan FE — server hanya mengirim kuncinya, jadi
-  kuncinya ikut ditulis di pemilih. `409` = kombinasi PLTA/parameter/station
+  karena server menolaknya di protokol lain. Nama dan satuan parameter dari
+  `GET /parameter` (`tagParameterOptions`), dengan kuncinya di samping; satuan
+  terisi otomatis selama belum diisi tangan. Rumus kustom (staging 2 Nov 2026:
+  `parameter: rumus`, `GET /tags/rumus/kamus`, `POST /tags/rumus/uji`) belum
+  ditawarkan. Parameter yang belum dikenal FE dilewati di data monitoring dan
+  realtime, bukan menolak seluruh snapshot. `409` = kombinasi PLTA/parameter/station
   sudah ada; `400` membawa `detail.masalah[]`. Ubah/hapus tag dan OPC browse
   belum.
 - **Overview**: peta Jawa Tengah dengan batas kabupaten/kota, garis aliran
@@ -302,8 +328,9 @@ Hal-hal yang sudah pernah menggigit dan tidak akan terlihat dari membaca kode:
   sehingga "tidak ada pembacaan > 3 jam" tampil **Tidak diperbarui**, bukan
   "tidak hujan". "Masih mengirim" dinilai juga dari `/trends`, karena waktu di
   snapshot `/monitoring/.../latest` untuk ARR Soedirman tertinggal berhari-hari.
-  **Kategori intensitas BMKG belum ditampilkan** sampai backend mengonfirmasi
-  periode nilai ARR Soedirman.
+  **Kategori intensitas BMKG belum ditampilkan.** Swagger 2 Nov 2026: ARR PBS =
+  akumulasi mm sejak awal jam (reset tiap jam), jadi kategori harus memakai
+  `/trends?parameter=rainfall&resolution=1h|1d`.
 - **Upload** (`/dashboard/upload`) adalah menu sendiri, bukan lagi sub-menu
   Telemetering, dengan empat tab lewat `?tab=`: **Excel Bulanan**, **Excel Harian**
   (`/hydrology/daily/template.xlsx` + `/hydrology/daily/excel`), **Gambar
@@ -349,15 +376,21 @@ Hal-hal yang sudah pernah menggigit dan tidak akan terlihat dari membaca kode:
   `bulanan` dan `akumulasi`; ringkasan seluruh PLTA di Overview memakai blok
   **akumulasi**. Field wajib di schema Zod bulanan **sengaja tanpa `default`**
   agar perubahan kontrak berikutnya muncul sebagai galat, bukan N/A diam-diam.
+  **Kondisi hidrologi (6 Nov 2026)** wajib salah satu dari lima kelas
+  `GET /hydrology/monthly/kondisi` (Kering · Normal Kering · Normal · Normal
+  Basah · Basah; huruf bebas), nilai lain ditolak `422` — form memakai dropdown,
+  dengan "Belum diisi" = `""` = kosongkan. Isian bebas lama di luar kelas tampil
+  sebagai opsi nonaktif dan **tidak dikirim ulang** bila tidak disentuh, supaya
+  simpan bidang lain tidak ikut ditolak. Gambar hujan disajikan WebP (±7x lebih
+  kecil, `?asli=true` = berkas unggahan) dengan `ETag`; jangan pakai
+  `cache: 'no-store'` di `getMonthlyImage`.
   Metrik harian `hidden: true` (disembunyikan operator lewat
   `PUT /dashboard/plta/{id}/daily/visibility`) tetap dikirim server tetapi
   **tidak dirender** — disaring di `dashboardMetricRows`, jadi ikut hilang dari
   ringkasan sensor basi. Layar pengubahnya: ikon pengatur di sebelah judul
   tiap kartu panel Hidrologi Harian (`DailyVisibilitySheet` dengan prop
   `panel`; satu sheet per panel sejak 7 Okt 2026), satu sakelar per metrik dan
-  hanya perubahan yang dikirim. Dirender untuk `canEditHydrologyData` (bukan Viewer);
-  Swagger tidak menyebut batas peran, jadi itu keputusan frontend dan belum
-  dikonfirmasi ke backend. Berlaku per PLTA untuk semua penggunanya.
+  hanya perubahan yang dikirim. Dirender untuk `canEditHydrologyData` (bukan Viewer), sesuai Swagger. Berlaku per PLTA untuk semua penggunanya.
   **Urutan metrik harian (6 Okt 2026)**: tiap metrik membawa `urutan` (posisi
   di panelnya, 0 = teratas) dan panel **dirender menurutnya** — urutan kunci
   JSON hanya mengikuti skema server. Daftar kunci di halaman Harian
@@ -423,8 +456,7 @@ Hal-hal yang sudah pernah menggigit dan tidak akan terlihat dari membaca kode:
   bila dipilih. **Tag** punya `label`, `min_valid`, `max_valid`; batas valid
   diubah lewat `PATCH /tags/{id}/bounds` (**kedua sisi selalu dikirim**, karena
   sisi yang hilang ditimpa `null`; server menolak `min` ≥ `max`) dan berlaku
-  ke depan saja. Dirender untuk `canEditTagBounds` (non-Viewer, keputusan
-  frontend). **Tren** menyebut sumber seri yang sungguh dibaca server
+  ke depan saja. Dirender untuk `canEditTagBounds` (non-Viewer, sesuai Swagger). **Tren** menyebut sumber seri yang sungguh dibaca server
   (`station` + `aggregated_stations`), bukan lagi selalu "agregasi lintas
   stasiun". **Laporan** menampilkan `requested_by_username`.
 - **Rentang periode hidrologi bulanan** (`tahun`, `bulan`, `tahun_akhir`,
@@ -457,16 +489,17 @@ Hal-hal yang sudah pernah menggigit dan tidak akan terlihat dari membaca kode:
   tabel cadangan `METRIC_UPLOAD_BINDINGS` (dihapus): backend menegaskan tujuan
   **tidak boleh diturunkan dari `source`** — Pintu Air ber-`source` `plan`
   padahal tagnya tak ada, dan `input` yang tidak `null` dijamin diterima.
-  **Target TMA sengaja `input: null`** ("ubah lewat RTOW"), jadi tanpa tombol;
-  padahal upload RTOW sudah diputuskan tidak dipakai — cara mengisinya **belum
-  dikonfirmasi backend**.
+  **Target TMA** (Swagger per 2 Nov 2026) kini ber-`input` `plan_water_level`: satu
+  titik per tanggal pukul 00.00 WIB, karena beberapa titik sehari dirata-rata.
+  Form isiannya tanpa Jam dan templatenya selalu satu bulan per hari
+  (`isDailyValueParameter`).
 - **Konstanta tanpa tanggal (27 Okt 2026, rapat tim)**: parameter `const_*`
   (TMA limpas, MOL, SWC, …) tidak berdimensi waktu, dan Swagger menolaknya di
   template serta unggah Excel. Form isian untuk target konstanta hanya berisi
   **Nilai** — tanpa tanggal/jam dan tanpa tab Upload Excel maupun Hapus Data —
   dan dikirim sebagai satu titik pada waktu sekarang WIB (`buildConstantPoint`)
-  supaya menjadi nilai terbaru. Nilai konstanta yang tampil di panel harian
-  berasal dari sini, jadi editor `constants` di Manajemen PLTA tidak perlu.
+  supaya menjadi nilai terbaru. Sudah dikonfirmasi Swagger 2 Nov 2026: titik ber-`time`
+  terbaru menimpa `plta.constants` di panel dan seluruh perhitungan.
 - **Form isian harian punya tab Hapus Data dan template (17 Okt 2026)**:
   `DELETE /telemetry/points` (rentang tanggal+jam, **inklusif di kedua ujung**,
   bawaan satu hari penuh 00.00–23.59, maks. 366 hari, selalu lewat
@@ -478,9 +511,6 @@ Hal-hal yang sudah pernah menggigit dan tidak akan terlihat dari membaca kode:
   tersimpan**. Rentang yang pasti ditolak tidak dikirim
   (`buildDeleteRange`, `telemetryTemplateQuery`). Unggah maupun hapus kini
   ikut menyegarkan cache monitoring `latest` dan tren PLTA itu.
-  Swagger template menyebut `resolusi=hari` untuk "Target TMA", padahal
-  daily tetap menulis Target TMA `input: null` ("ubah lewat RTOW") — **perlu
-  ditanyakan ke backend**.
 - **Mode tampilan Hidrologi Harian** (13 Okt 2026; sejak 23 Okt 2026 di balik
   tombol **Mode** ⋯ `DailyViewModeMenu` di kepala halaman, bukan dua
   segmented control; ikon polos di baris penanda tidak terlihat tim — nama mode

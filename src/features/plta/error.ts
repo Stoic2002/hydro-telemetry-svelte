@@ -33,6 +33,17 @@ export function getPLTASaveErrorMessage(error: unknown): string {
 	return error instanceof Error && error.message ? error.message : 'Perubahan belum tersimpan.';
 }
 
+/** Galat saat menghapus Wilayah Sungai; `409` = masih membawahi PLTA. */
+export function getRiverBasinDeleteErrorMessage(error: unknown): string {
+	if (ApiError.isApiError(error) && error.status === 409) {
+		return 'Wilayah Sungai ini masih membawahi PLTA. Pindahkan PLTA-nya ke Wilayah Sungai lain lebih dulu.';
+	}
+	if (ApiError.isApiError(error) && error.status === 404) {
+		return 'Wilayah Sungai ini sudah terhapus. Muat ulang halaman.';
+	}
+	return getPLTASaveErrorMessage(error);
+}
+
 /**
  * Galat saat mendaftarkan tag. `400` membawa `detail.masalah[]` (satu kalimat
  * per konfigurasi yang ditolak) dan `409` berarti kombinasi PLTA, parameter,

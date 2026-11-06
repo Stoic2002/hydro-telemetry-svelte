@@ -75,6 +75,14 @@ export function createRevokeUserSessionsMutation() {
 	}));
 }
 
+/** Daftar user tidak berubah: yang diganti hanya password dan sesinya dicabut. */
+export function createResetUserPasswordMutation() {
+	return createMutation(() => ({
+		mutationFn: ({ userId, newPassword }: { userId: string; newPassword: string }) =>
+			usersRepository.resetPassword(userId, newPassword)
+	}));
+}
+
 export function createUpdateCurrentUserMutation() {
 	const queryClient = useQueryClient();
 

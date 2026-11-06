@@ -11,6 +11,31 @@ import type {
 export const CODE_MAX_LENGTH = 32;
 export const NAME_MAX_LENGTH = 128;
 
+/**
+ * Pola kode dari Swagger 6 Nov 2026. Server membuang spasi tepi dan
+ * membesarkan huruf sendiri, jadi form melakukan hal yang sama sebelum
+ * memeriksa — `plta-ktg1` diterima sebagai `PLTA-KTG1`. Kode tidak bisa diubah
+ * sesudah dibuat, jadi salah ketik harus tertangkap di sini.
+ */
+export const PLANT_CODE_PATTERN = /^[A-Z][A-Z0-9]*(-[A-Z0-9]+)*$/;
+export const RIVER_BASIN_CODE_PATTERN = /^WS-[A-Z0-9]+(-[A-Z0-9]+)*$/;
+
+const PLANT_CODE_HINT =
+	'Huruf besar dan angka, dipisah tanda hubung, diawali huruf (mis. PLTA-KTG1).';
+const RIVER_BASIN_CODE_HINT =
+	'Diawali WS-, lalu huruf besar dan angka dipisah tanda hubung (mis. WS-SERAYU).';
+
+function normalizeCode(value: string): string {
+	return value.trim().toUpperCase();
+}
+
+function codeError(code: string, pattern: RegExp, hint: string): string | undefined {
+	if (!code) return 'Kode wajib diisi.';
+	if (code.length > CODE_MAX_LENGTH) return `Maksimal ${CODE_MAX_LENGTH} karakter.`;
+	if (!pattern.test(code)) return hint;
+	return undefined;
+}
+
 /** Rasio beban → outflow bawaan server untuk PLTA baru. */
 export const DEFAULT_BEBAN_TO_OUTFLOW = { num: 204, den: 180 } as const;
 
@@ -90,9 +115,9 @@ export function plantFormFromPlant(plant: Plant): PlantFormValues {
 export function parsePlantForm(values: PlantFormValues): ParsedForm<PlantInput, PlantFormField> {
 	const errors: FormErrors<PlantFormField> = {};
 
-	const code = tidy(values.code);
-	if (!code) errors.code = 'Kode wajib diisi.';
-	else if (code.length > CODE_MAX_LENGTH) errors.code = `Maksimal ${CODE_MAX_LENGTH} karakter.`;
+	const code = normalizeCode(values.code);
+	const codeProblem = codeError(code, PLANT_CODE_PATTERN, PLANT_CODE_HINT);
+	if (codeProblem) errors.code = codeProblem;
 
 	const name = tidy(values.name);
 	if (!name) errors.name = 'Nama wajib diisi.';
@@ -221,9 +246,9 @@ export function parseRiverBasinForm(
 ): ParsedForm<RiverBasinInput, RiverBasinFormField> {
 	const errors: FormErrors<RiverBasinFormField> = {};
 
-	const code = tidy(values.code);
-	if (!code) errors.code = 'Kode wajib diisi.';
-	else if (code.length > CODE_MAX_LENGTH) errors.code = `Maksimal ${CODE_MAX_LENGTH} karakter.`;
+	const code = normalizeCode(values.code);
+	const codeProblem = codeError(code, RIVER_BASIN_CODE_PATTERN, RIVER_BASIN_CODE_HINT);
+	if (codeProblem) errors.code = codeProblem;
 
 	const name = tidy(values.name);
 	if (!name) errors.name = 'Nama wajib diisi.';

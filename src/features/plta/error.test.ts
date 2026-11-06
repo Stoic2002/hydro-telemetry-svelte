@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ApiError } from '../../api/http';
-import { getTagSaveErrorDetail } from './error';
+import { getRiverBasinDeleteErrorMessage, getTagSaveErrorDetail } from './error';
 
 function apiError(status: number, details: unknown, message = 'Bad Request') {
 	return new ApiError(message, { status, statusText: message, details, url: '/api/v1/tags' });
@@ -29,5 +29,19 @@ describe('galat tag baru', () => {
 			message: 'PLTA tak dikenal',
 			problems: []
 		});
+	});
+});
+
+describe('galat hapus Wilayah Sungai', () => {
+	it('409: masih membawahi PLTA', () => {
+		expect(getRiverBasinDeleteErrorMessage(apiError(409, null, 'Conflict'))).toContain(
+			'masih membawahi PLTA'
+		);
+	});
+
+	it('404: sudah terhapus', () => {
+		expect(getRiverBasinDeleteErrorMessage(apiError(404, null, 'Not Found'))).toContain(
+			'sudah terhapus'
+		);
 	});
 });

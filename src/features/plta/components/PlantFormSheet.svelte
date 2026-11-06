@@ -117,11 +117,12 @@
 			<div class="grid gap-4 sm:grid-cols-[1fr_2fr]">
 				<Input
 					label="Kode"
-					placeholder="mis. PBS"
+					placeholder="mis. PLTA-KTG1"
 					maxlength={CODE_MAX_LENGTH}
 					bind:value={values.code}
 					disabled={isPending || isEdit}
 					error={errors.code}
+					helperText={isEdit ? undefined : 'Huruf besar, angka, dan tanda hubung.'}
 				/>
 				<Input
 					label="Nama"

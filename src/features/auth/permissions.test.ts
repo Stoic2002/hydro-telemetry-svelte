@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { User, UserRole } from './model';
 import {
 	canAccessDataTools,
+	canCreateReports,
 	canEditHydrologyData,
 	canEditTagBounds,
 	canManagePlants,
@@ -35,6 +36,13 @@ describe('permissions', () => {
 		expect(canManagePlants(userWithRole('Operator PLTA'))).toBe(false);
 		expect(canManagePlants(userWithRole('Viewer'))).toBe(false);
 		expect(canManagePlants(null)).toBe(false);
+	});
+
+	it('membuat laporan untuk admin dan operator, bukan Viewer', () => {
+		expect(canCreateReports(userWithRole('Admin UBP'))).toBe(true);
+		expect(canCreateReports(userWithRole('Operator PLTA'))).toBe(true);
+		expect(canCreateReports(userWithRole('Viewer'))).toBe(false);
+		expect(canCreateReports(null)).toBe(false);
 	});
 
 	it('menutup Input GHW dan Katalog Data untuk Viewer saja', () => {

@@ -120,6 +120,49 @@ describe('form PLTA', () => {
 	});
 });
 
+/**
+ * Swagger 6 Nov 2026: server menolak kode di luar pola dengan `422`, dan kode
+ * tidak bisa diubah sesudah dibuat. Salah ketik harus tertangkap di form.
+ */
+describe('format kode', () => {
+	it.each(['PBS', 'PLTA-KTG1', 'plta-ktg1', ' PLTA-001 '])('PLTA menerima %j', (code) => {
+		const parsed = parsePlantForm({ ...emptyPlantForm(WS_ID), code, name: 'Uji' });
+
+		expect(parsed.ok).toBe(true);
+		if (parsed.ok) expect(parsed.input.code).toBe(code.trim().toUpperCase());
+	});
+
+	it.each(['PLTA KTG1', '1PLTA', 'PLTA--KTG', 'PLTA-', 'PLTA_KTG', 'ws serayu!'])(
+		'PLTA menolak %j',
+		(code) => {
+			const parsed = parsePlantForm({ ...emptyPlantForm(WS_ID), code, name: 'Uji' });
+
+			expect(parsed.ok ? null : parsed.errors.code).toContain('tanda hubung');
+		}
+	);
+
+	it.each(['WS-SERAYU', 'ws-bengawan-solo', 'WS-JRATUN-SELUNA'])('WS menerima %j', (code) => {
+		const parsed = parseRiverBasinForm({ code, name: 'Uji', description: '' });
+
+		expect(parsed.ok).toBe(true);
+		if (parsed.ok) expect(parsed.input.code).toBe(code.toUpperCase());
+	});
+
+	it.each(['SERAYU', 'WS SERAYU', 'ws serayu!', 'WS-', 'WS_SERAYU'])('WS menolak %j', (code) => {
+		const parsed = parseRiverBasinForm({ code, name: 'Uji', description: '' });
+
+		expect(parsed.ok ? null : parsed.errors.code).toContain('WS-');
+	});
+
+	it('kode lama yang tidak sesuai pola tidak menghalangi Ubah PLTA', () => {
+		const legacy: Plant = { ...SAVED, code: 'pbs lama' };
+
+		expect(parsePlantEdit(legacy, { ...plantFormFromPlant(legacy), isActive: false }).ok).toBe(
+			true
+		);
+	});
+});
+
 describe('form Wilayah Sungai', () => {
 	it('mewajibkan kode dan nama', () => {
 		const parsed = parseRiverBasinForm({ code: '', name: ' ', description: '' });

@@ -264,6 +264,12 @@ export const apiDailyVisibilitySchema = z.object({
 
 export type ApiDailyVisibility = z.infer<typeof apiDailyVisibilitySchema>;
 
+/**
+ * `GET /hydrology/monthly/kondisi` — kelas kondisi hidrologi yang diterima
+ * `prediksi_hidrologi`/`realisasi_hidrologi`, urut dari terkering ke terbasah.
+ */
+export const apiMonthlyConditionsSchema = z.array(z.string().min(1)).min(1);
+
 /** `GET`/`PUT /hydrology/monthly/labels` — urut seperti di panel. */
 export const apiMonthlyFieldLabelsSchema = z.object({
 	jumlah_diatur: z.number().int().nonnegative(),

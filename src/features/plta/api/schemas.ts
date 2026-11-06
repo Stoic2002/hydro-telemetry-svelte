@@ -54,6 +54,15 @@ export const apiPlantTagSchema = z.object({
 	id: z.string().uuid()
 });
 
+export const apiParameterCatalogSchema = z.array(
+	z.object({
+		key: z.string().min(1),
+		label: z.string().min(1),
+		satuan: z.string().nullable(),
+		kelompok: z.string()
+	})
+);
+
 function paginatedSchema<TSchema extends z.ZodType>(itemSchema: TSchema) {
 	return z.object({
 		items: z.array(itemSchema),

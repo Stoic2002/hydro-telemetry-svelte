@@ -6,6 +6,8 @@ import {
 	summarizeMeasuredRain,
 	type MeasuredRain
 } from '../rainfall';
+import type { PLTALatestMonitoring } from '../model';
+import { sensorProblems } from '../sensor-health';
 import { monitoringRepository } from './repository';
 
 const MONITORING_STALE_TIME = 15_000;
@@ -18,8 +20,40 @@ export const monitoringQueryKeys = {
 	pltaLatest: (pltaId: string) => [...monitoringQueryKeys.latest(), 'plta', pltaId] as const,
 	riverBasinLatest: (wsId: string) =>
 		[...monitoringQueryKeys.latest(), 'river-basin', wsId] as const,
-	measuredRain: (wsIds: string[]) => [...monitoringQueryKeys.all, 'measured-rain', wsIds] as const
+	measuredRain: (wsIds: string[]) => [...monitoringQueryKeys.all, 'measured-rain', wsIds] as const,
+	// Bukan di bawah `latest`: aliran realtime menulis ke `pltaLatest`, dan
+	// status sehat-tidaknya sensor sengaja dibaca terpisah (lihat query-nya).
+	sensorHealth: (pltaId: string) => [...monitoringQueryKeys.all, 'sensor-health', pltaId] as const
 };
+
+/** Status sensor jarang berubah; satu kali per menit cukup dan murah. */
+const SENSOR_HEALTH_REFRESH_MS = 60_000;
+
+/**
+ * Sensor yang dinyatakan tidak sehat (`bad`/`uncertain`) atau bernilai mustahil.
+ *
+ * Query tersendiri, bukan `createPLTALatestQuery`: Hidrologi Harian sengaja
+ * tidak memuat snapshot ke `pltaLatest` karena snapshot itu akan menimpa nilai
+ * panel harian. Status `bad` juga bertahan tanpa pesan realtime baru, jadi
+ * tidak bisa hanya ditunggu dari aliran realtime — sensor yang sudah rusak
+ * sebelum halaman dibuka tidak akan pernah terlihat.
+ */
+export function createPLTASensorHealthQuery(pltaId: () => string) {
+	return createQuery(() => {
+		const id = pltaId();
+
+		return {
+			queryKey: monitoringQueryKeys.sensorHealth(id),
+			queryFn: ({ signal }: { signal: AbortSignal }) =>
+				monitoringRepository.getLatestByPLTA(id, { signal }),
+			select: (snapshot: PLTALatestMonitoring) => sensorProblems(snapshot.parameters),
+			enabled: Boolean(id),
+			staleTime: SENSOR_HEALTH_REFRESH_MS,
+			refetchInterval: SENSOR_HEALTH_REFRESH_MS,
+			refetchOnWindowFocus: false
+		};
+	});
+}
 
 export function createPLTALatestQuery(pltaId: () => string, enabled: () => boolean = () => true) {
 	return createQuery(() => {

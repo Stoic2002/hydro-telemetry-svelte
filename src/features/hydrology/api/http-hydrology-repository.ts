@@ -17,6 +17,7 @@ import type {
 import type { HydrologyRepository } from './hydrology-repository';
 import {
 	apiDailyVisibilitySchema,
+	apiMonthlyConditionsSchema,
 	apiMonthlyFieldLabelsSchema,
 	apiMonthlyChartSchema,
 	apiMonthlyHydrologyExcelResultSchema,
@@ -309,6 +310,16 @@ export const httpHydrologyRepository: HydrologyRepository = {
 		return mapMonthlyFieldLabels(parseResponse(payload, apiMonthlyFieldLabelsSchema, endpoint));
 	},
 
+	async getMonthlyConditions(options) {
+		const endpoint = '/api/v1/hydrology/monthly/kondisi';
+		const payload = await apiRequest<unknown>(endpoint, {
+			method: 'GET',
+			signal: options?.signal
+		});
+
+		return parseResponse(payload, apiMonthlyConditionsSchema, endpoint);
+	},
+
 	async getMonthlyPanel(pltaId, year, month, options) {
 		const endpoint = `/api/v1/dashboard/plta/${encodeURIComponent(pltaId)}/monthly`;
 		const payload = await apiRequest<unknown>(endpoint, {
@@ -342,9 +353,13 @@ export const httpHydrologyRepository: HydrologyRepository = {
 
 	async getMonthlyImage(year, month, kind, options) {
 		const endpoint = '/api/v1/hydrology/monthly/image';
+		// Tanpa `cache: 'no-store'`: server menyajikan WebP dengan `ETag` +
+		// `Cache-Control: no-cache`, jadi browser menyimpan gambarnya dan hanya
+		// bertanya ulang (`If-None-Match` → `304`). `no-store` memaksa unduh
+		// ulang penuh setiap kali — itu yang dulu membuat empat gambar di
+		// Hidrologi Bulanan lama tampil.
 		const payload = await apiRequest<Blob>(endpoint, {
 			method: 'GET',
-			cache: 'no-store',
 			signal: options?.signal,
 			headers: { Accept: 'image/*' },
 			query: {

@@ -7,23 +7,21 @@
 	import Banner from '$components/ui/Banner.svelte';
 	import Sheet from '$components/ui/Sheet.svelte';
 	import { notificationStore } from '$shared/lib/notification.svelte';
-	import { createCreateTagMutation } from '../api/queries';
+	import { createCreateTagMutation, createParameterCatalogQuery } from '../api/queries';
 	import { getTagSaveErrorDetail } from '../error';
 	import type { TagInputProtocol } from '../model';
 	import {
-		PARAMETER_LABEL,
 		TAG_ADDRESS_MAX_LENGTH,
 		TAG_LABEL_MAX_LENGTH,
 		TAG_PANEL_OPTIONS,
-		TAG_PARAMETER_OPTIONS,
 		TAG_PATH_MAX_LENGTH,
 		TAG_PROTOCOL_OPTIONS,
 		TAG_STATION_MAX_LENGTH,
 		emptyTagForm,
 		parseTagForm,
+		tagParameterOptions,
 		type TagFormValues
 	} from '../tag-form';
-	import type { MonitoringParameter } from '../../monitoring';
 
 	interface Props {
 		isOpen: boolean;
@@ -41,12 +39,16 @@
 	 * berbawaan aman, jadi form inti cukup parameter, protokol, dan alamat.
 	 */
 	const createMutation = createCreateTagMutation();
+	const catalogQuery = createParameterCatalogQuery(() => isOpen);
+	const parameterOptions = $derived(tagParameterOptions(catalogQuery.data));
 	/** Contoh placeholder rahasia; server mengganti `${…}` dengan variabel lingkungannya. */
 	const ENV_PLACEHOLDER = '${NAMA_ENV}';
 
 	let values = $state<TagFormValues>(emptyTagForm());
 	let showErrors = $state(false);
 	let serverProblems = $state<{ message: string; problems: string[] } | null>(null);
+	/** Satuan terakhir yang diisi otomatis; isian tangan pengguna tidak ditimpa. */
+	let autoUnit = $state('');
 
 	$effect(() => {
 		if (!isOpen) return;
@@ -54,6 +56,7 @@
 		values = emptyTagForm();
 		showErrors = false;
 		serverProblems = null;
+		autoUnit = '';
 	});
 
 	const parsed = $derived(parseTagForm(pltaId, values));
@@ -64,6 +67,15 @@
 		TAG_PROTOCOL_OPTIONS.find((option) => option.value === values.protocol) ??
 			TAG_PROTOCOL_OPTIONS[0]
 	);
+
+	function changeParameter(next: string) {
+		values.parameter = next;
+		const unit = catalogQuery.data?.find((item) => item.key === next)?.unit ?? '';
+		if (values.unit === '' || values.unit === autoUnit) {
+			values.unit = unit;
+			autoUnit = unit;
+		}
+	}
 
 	/** Alamat bawaan "upload" hanya masuk akal untuk input manual. */
 	function changeProtocol(next: string) {
@@ -83,7 +95,9 @@
 		try {
 			const tag = await createMutation.mutateAsync(parsed.input);
 			const name =
-				tag.label ?? PARAMETER_LABEL[tag.parameter as MonitoringParameter] ?? tag.parameter;
+				tag.label ??
+				catalogQuery.data?.find((item) => item.key === tag.parameter)?.label ??
+				tag.parameter;
 			notificationStore.addToast({
 				type: 'success',
 				message: `${name}${tag.station ? ` · ${tag.station}` : ''} ditambahkan ke PLTA ${plantName}`
@@ -117,9 +131,10 @@
 			<Select
 				label="Parameter"
 				placeholder="Pilih parameter"
-				bind:value={values.parameter}
-				options={TAG_PARAMETER_OPTIONS}
-				disabled={isPending}
+				value={values.parameter}
+				onValueChange={changeParameter}
+				options={parameterOptions}
+				disabled={isPending || catalogQuery.isLoading}
 				error={errors.parameter}
 			/>
 			<div class="grid gap-4 sm:grid-cols-2">

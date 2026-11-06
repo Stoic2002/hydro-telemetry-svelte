@@ -126,5 +126,13 @@ export const httpUsersRepository: UsersRepository = {
 			method: 'POST',
 			cache: 'no-store'
 		});
+	},
+
+	async resetPassword(userId: string, newPassword: string): Promise<void> {
+		await apiRequest<void>(`/api/v1/users/${encodeURIComponent(userId)}/password`, {
+			method: 'POST',
+			cache: 'no-store',
+			json: { new_password: newPassword }
+		});
 	}
 };

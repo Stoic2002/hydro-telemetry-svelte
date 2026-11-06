@@ -4,7 +4,9 @@ export {
 	createCreatePlantMutation,
 	createCreateRiverBasinMutation,
 	createCreateTagMutation,
+	createDeleteRiverBasinMutation,
 	createPLTAListQuery,
+	createParameterCatalogQuery,
 	createPLTATagsQuery,
 	createPlantCatalogQuery,
 	createRiverBasinsQuery,
@@ -16,7 +18,12 @@ export {
 	pickDefaultPlant
 } from './api/queries';
 export { HYDROLOGY_ZONES, HYDROLOGY_ZONE_PRESENTATION, getDamImagery } from './dam-imagery';
-export { getPLTAErrorMessage, getPLTASaveErrorMessage, getTagSaveErrorDetail } from './error';
+export {
+	getPLTAErrorMessage,
+	getPLTASaveErrorMessage,
+	getRiverBasinDeleteErrorMessage,
+	getTagSaveErrorDetail
+} from './error';
 export { getPlantDisplayName, plantMatchesIdentity } from './presentation';
 export {
 	UPLOAD_PATH,
@@ -29,6 +36,7 @@ export {
 export type { HydrologyZone } from './dam-imagery';
 export { describeTagBounds, parseTagBounds } from './tag-bounds';
 export type {
+	ParameterInfo,
 	Plant,
 	PlantChanges,
 	PlantInput,
@@ -63,12 +71,11 @@ export type {
 	RiverBasinFormValues
 } from './plant-form';
 export {
-	PARAMETER_LABEL,
 	TAG_PANEL_OPTIONS,
-	TAG_PARAMETER_OPTIONS,
 	TAG_PROTOCOL_OPTIONS,
 	emptyTagForm,
 	parseHttpHeaders,
-	parseTagForm
+	parseTagForm,
+	tagParameterOptions
 } from './tag-form';
 export type { TagFormField, TagFormValues } from './tag-form';

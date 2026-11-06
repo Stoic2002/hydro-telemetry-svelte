@@ -19,8 +19,17 @@
 		type DailyReportPanel
 	} from '$features/hydrology';
 	import DailyVisibilitySheet from '$features/hydrology/components/DailyVisibilitySheet.svelte';
-	import { createMonitoringStream, createPLTALatestQuery } from '$features/monitoring';
-	import { HYDROLOGY_ZONE_PRESENTATION, getActivePLTA, type HydrologyZone } from '$features/plta';
+	import {
+		createMonitoringStream,
+		createPLTALatestQuery,
+		createPLTASensorHealthQuery
+	} from '$features/monitoring';
+	import {
+		HYDROLOGY_ZONE_PRESENTATION,
+		createParameterCatalogQuery,
+		getActivePLTA,
+		type HydrologyZone
+	} from '$features/plta';
 	import PlantSwitcher from '$features/plta/components/PlantSwitcher.svelte';
 	import type { DailyTelemetryUploadTarget } from '$features/telemetry-upload';
 	import TelemetryUploadSheet from '$features/telemetry-upload/components/TelemetryUploadSheet.svelte';
@@ -32,6 +41,7 @@
 		DAILY_ROW_FILTER_EMPTY_MESSAGE,
 		currentWibDate,
 		dashboardMetricRows,
+		describeSensorProblem,
 		filterMetricRows,
 		parseDailyRowFilter,
 		parseDailyZoneFilter,
@@ -299,14 +309,14 @@
 			.sort()
 			.join(',')
 	);
-	let dismissedStale = $state<Record<string, string>>(readDismissedStale());
+	let dismissedStale = $state<Record<string, string>>(readDismissed(STALE_DISMISS_KEY));
 	const isStaleBannerVisible = $derived(
 		staleRows.length > 0 && dismissedStale[pltaId] !== staleSignature
 	);
 
-	function readDismissedStale(): Record<string, string> {
+	function readDismissed(storageKey: string): Record<string, string> {
 		try {
-			const raw = sessionStorage.getItem(STALE_DISMISS_KEY);
+			const raw = sessionStorage.getItem(storageKey);
 			const parsed: unknown = raw ? JSON.parse(raw) : {};
 			return parsed && typeof parsed === 'object' ? (parsed as Record<string, string>) : {};
 		} catch {
@@ -314,13 +324,57 @@
 		}
 	}
 
-	function dismissStaleBanner() {
-		dismissedStale = { ...dismissedStale, [pltaId]: staleSignature };
+	function saveDismissed(storageKey: string, value: Record<string, string>) {
 		try {
-			sessionStorage.setItem(STALE_DISMISS_KEY, JSON.stringify(dismissedStale));
+			sessionStorage.setItem(storageKey, JSON.stringify(value));
 		} catch {
 			// Penyimpanan diblokir: banner tetap tertutup sampai halaman dimuat ulang.
 		}
+	}
+
+	function dismissStaleBanner() {
+		dismissedStale = { ...dismissedStale, [pltaId]: staleSignature };
+		saveDismissed(STALE_DISMISS_KEY, dismissedStale);
+	}
+
+	/**
+	 * Sensor yang dinyatakan tidak sehat oleh server OPC atau bernilai mustahil
+	 * (Swagger 6 Nov 2026). Panel harian hanya menerima `value: null` untuk
+	 * keduanya, jadi tanpa banner ini barisnya tampil "N/A" tanpa penjelasan.
+	 * Respons harian tidak menyebut sensor di balik tiap metrik, karena itu
+	 * peringatannya per sensor, bukan per baris panel.
+	 */
+	const sensorHealthQuery = createPLTASensorHealthQuery(() => pltaId);
+	const parameterCatalogQuery = createParameterCatalogQuery();
+	const parameterLabels = $derived<Record<string, string>>(
+		Object.fromEntries((parameterCatalogQuery.data ?? []).map((info) => [info.key, info.label]))
+	);
+	const sensorProblemViews = $derived(
+		(sensorHealthQuery.data ?? []).map((problem) =>
+			describeSensorProblem(problem, (key) => parameterLabels[key])
+		)
+	);
+	const hasCommunicationProblem = $derived(
+		(sensorHealthQuery.data ?? []).some((problem) => problem.kind === 'communication')
+	);
+
+	const SENSOR_PROBLEM_DISMISS_KEY = 'hidrologi-harian:sensor-bermasalah-ditutup';
+	const sensorProblemSignature = $derived(
+		sensorProblemViews
+			.map((view) => view.key)
+			.sort()
+			.join(',')
+	);
+	let dismissedSensorProblems = $state<Record<string, string>>(
+		readDismissed(SENSOR_PROBLEM_DISMISS_KEY)
+	);
+	const isSensorProblemBannerVisible = $derived(
+		sensorProblemViews.length > 0 && dismissedSensorProblems[pltaId] !== sensorProblemSignature
+	);
+
+	function dismissSensorProblemBanner() {
+		dismissedSensorProblems = { ...dismissedSensorProblems, [pltaId]: sensorProblemSignature };
+		saveDismissed(SENSOR_PROBLEM_DISMISS_KEY, dismissedSensorProblems);
 	}
 
 	function scrollToMetric(key: string | undefined) {
@@ -411,6 +465,25 @@
 					Coba lagi
 				</button>
 			</span>
+		</Banner>
+	{/if}
+
+	{#if isSensorProblemBannerVisible}
+		<Banner
+			tone={hasCommunicationProblem ? 'danger' : 'warning'}
+			title={`${sensorProblemViews.length} sensor bermasalah`}
+			onDismiss={dismissSensorProblemBanner}
+			dismissLabel="Tutup peringatan sensor bermasalah"
+		>
+			<span class="flex flex-col gap-1">
+				Angkanya tidak dipakai di panel; baris yang bergantung padanya tampil N/A.
+				<ul class="flex flex-col gap-0.5">
+					{#each sensorProblemViews as view (view.key)}
+						<li><span class="font-medium">{view.name}</span> — {view.detail}</li>
+					{/each}
+				</ul>
+			</span>
+			{#snippet icon()}<IconWarning class="size-3" />{/snippet}
 		</Banner>
 	{/if}
 

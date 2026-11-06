@@ -51,7 +51,9 @@ export const MONITORING_PARAMETERS = [
 	'const_tma_hilir_maks',
 	'const_swc',
 	'const_unit_capacity_mw',
-	'const_n_units'
+	'const_n_units',
+	// Hasil rumus kustom (`POST /tags` protokol `derived`); `station` = kode rumus.
+	'rumus'
 ] as const;
 
 export type MonitoringParameter = (typeof MONITORING_PARAMETERS)[number];

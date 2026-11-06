@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { emptyTagForm, parseHttpHeaders, parseTagForm, TAG_PROTOCOL_OPTIONS } from './tag-form';
+import {
+	emptyTagForm,
+	parseHttpHeaders,
+	parseTagForm,
+	tagParameterOptions,
+	TAG_PROTOCOL_OPTIONS
+} from './tag-form';
 
 const PLTA_ID = '11111111-1111-4111-8111-111111111111';
 
@@ -36,12 +42,10 @@ describe('form tag baru', () => {
 		expect(TAG_PROTOCOL_OPTIONS.map((option) => option.value)).not.toContain('derived');
 	});
 
-	it('mewajibkan parameter yang dikenal server', () => {
+	it('mewajibkan parameter', () => {
 		const empty = parseTagForm(PLTA_ID, form({ parameter: '' }));
-		const unknown = parseTagForm(PLTA_ID, form({ parameter: 'bukan_parameter' }));
 
 		expect(empty.ok ? null : empty.errors.parameter).toBe('Pilih parameter.');
-		expect(unknown.ok ? null : unknown.errors.parameter).toBe('Parameter tidak dikenal server.');
 	});
 
 	it.each([
@@ -101,5 +105,26 @@ describe('parseHttpHeaders', () => {
 
 	it('menolak baris tanpa titik dua', () => {
 		expect(parseHttpHeaders('Authorization Bearer x')).toBeNull();
+	});
+});
+
+describe('pilihan parameter', () => {
+	const catalog = [
+		{ key: 'plan_outflow_hjv', label: 'Rencana Debit HJV', unit: 'm3/s', group: 'rencana' },
+		{ key: 'rumus', label: 'Rumus Kustom', unit: null, group: 'rumus' }
+	];
+
+	it('memakai nama resmi dengan kuncinya, tanpa rumus kustom', () => {
+		expect(tagParameterOptions(catalog)).toEqual([
+			{ value: 'plan_outflow_hjv', label: 'Rencana Debit HJV · plan_outflow_hjv' }
+		]);
+	});
+
+	it('jatuh ke kunci bila katalog belum tersedia, tetap tanpa rumus', () => {
+		const options = tagParameterOptions(undefined);
+
+		expect(options.map((option) => option.value)).toContain('water_level');
+		expect(options.map((option) => option.value)).not.toContain('rumus');
+		expect(options.find((option) => option.value === 'water_level')?.label).toBe('water_level');
 	});
 });

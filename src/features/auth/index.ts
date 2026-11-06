@@ -11,6 +11,7 @@ export {
 export {
 	canAccessDataTools,
 	canConfigureDisplay,
+	canCreateReports,
 	canEditHydrologyData,
 	canEditTagBounds,
 	canManagePlants,

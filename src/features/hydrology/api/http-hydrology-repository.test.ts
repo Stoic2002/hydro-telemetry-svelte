@@ -79,6 +79,57 @@ describe('uploadMonthlyImage', () => {
 	});
 });
 
+describe('getMonthlyImage', () => {
+	beforeEach(() => {
+		apiRequestMock.mockReset();
+	});
+
+	/**
+	 * Sejak 6 Nov 2026 server menyajikan WebP dengan `ETag`; Swagger meminta
+	 * FE tidak memakai `cache: "no-store"`, yang memaksa unduh ulang penuh.
+	 */
+	it('membiarkan browser memakai cache HTTP', async () => {
+		apiRequestMock.mockResolvedValue(new Blob(['webp'], { type: 'image/webp' }));
+
+		await httpHydrologyRepository.getMonthlyImage(2026, 9, 'prediksi_curah_hujan');
+
+		const init = apiRequestMock.mock.calls[0]?.[1];
+		expect(init?.cache).toBeUndefined();
+		expect(init?.query).toEqual({ tahun: 2026, bulan: 9, jenis: 'prediksi_curah_hujan' });
+	});
+});
+
+describe('getMonthlyConditions', () => {
+	beforeEach(() => {
+		apiRequestMock.mockReset();
+	});
+
+	it('mengembalikan kelas kondisi sesuai urutan server', async () => {
+		apiRequestMock.mockResolvedValue([
+			'Kering',
+			'Normal Kering',
+			'Normal',
+			'Normal Basah',
+			'Basah'
+		]);
+
+		await expect(httpHydrologyRepository.getMonthlyConditions()).resolves.toEqual([
+			'Kering',
+			'Normal Kering',
+			'Normal',
+			'Normal Basah',
+			'Basah'
+		]);
+		expect(apiRequestMock.mock.calls[0]?.[0]).toBe('/api/v1/hydrology/monthly/kondisi');
+	});
+
+	it('menolak daftar kosong sebagai galat kontrak', async () => {
+		apiRequestMock.mockResolvedValue([]);
+
+		await expect(httpHydrologyRepository.getMonthlyConditions()).rejects.toThrow();
+	});
+});
+
 describe('deleteMonthlyImage', () => {
 	beforeEach(() => {
 		apiRequestMock.mockReset();

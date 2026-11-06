@@ -101,6 +101,7 @@
 			bind:value={values.code}
 			disabled={isPending || isEdit}
 			error={errors.code}
+			helperText={isEdit ? undefined : 'Diawali WS-, huruf besar dan angka dipisah tanda hubung.'}
 		/>
 		<Input
 			label="Nama"

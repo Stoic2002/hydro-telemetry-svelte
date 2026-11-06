@@ -45,6 +45,7 @@ export const hydrologyQueryKeys = {
 	// sehingga panel harian ikut diambil ulang dan menyesuaikan diri.
 	// Tidak di bawah `dashboardRoot`: nama bidang bulanan berlaku untuk seluruh PLTA.
 	monthlyFieldLabels: () => [...hydrologyQueryKeys.all, 'monthly-labels'] as const,
+	monthlyConditions: () => [...hydrologyQueryKeys.all, 'monthly-conditions'] as const,
 	dailyVisibility: (pltaId: string) =>
 		[...hydrologyQueryKeys.dashboardRoot(pltaId), 'daily-visibility'] as const,
 	monthlyPanel: (pltaId: string, year: number, month: number) =>
@@ -359,6 +360,20 @@ export function createSetDailyLabelsMutation() {
 				queryKey: hydrologyQueryKeys.dashboardRoot(visibility.pltaId)
 			});
 		}
+	}));
+}
+
+/**
+ * Kelas kondisi hidrologi untuk dropdown isian bulanan. Swagger menyebutnya
+ * statis per rilis, jadi cukup diambil sekali per sesi.
+ */
+export function createMonthlyConditionsQuery() {
+	return createQuery(() => ({
+		queryKey: hydrologyQueryKeys.monthlyConditions(),
+		queryFn: ({ signal }: { signal: AbortSignal }) =>
+			hydrologyRepository.getMonthlyConditions({ signal }),
+		staleTime: Infinity,
+		refetchOnWindowFocus: false
 	}));
 }
 

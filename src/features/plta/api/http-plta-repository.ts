@@ -11,6 +11,7 @@ import type {
 } from '../model';
 import type { PLTARepository } from './plta-repository';
 import {
+	apiParameterCatalogSchema,
 	apiPlantSchema,
 	apiPlantTagSchema,
 	apiRiverBasinSchema,
@@ -151,6 +152,18 @@ function listQuery(params: ListParams) {
 }
 
 export const httpPltaRepository: PLTARepository = {
+	async listParameters() {
+		const endpoint = '/api/v1/parameter';
+		const payload = await apiRequest<unknown>(endpoint, { method: 'GET' });
+
+		return parseResponse(payload, apiParameterCatalogSchema, endpoint).map((item) => ({
+			key: item.key,
+			label: item.label,
+			unit: item.satuan,
+			group: item.kelompok
+		}));
+	},
+
 	async listRiverBasins(params) {
 		const endpoint = '/api/v1/wilayah-sungai';
 		const payload = await apiRequest<unknown>(endpoint, {
@@ -238,6 +251,12 @@ export const httpPltaRepository: PLTARepository = {
 		const payload = await apiRequest<unknown>(endpoint, { method: 'PATCH', json });
 
 		return mapRiverBasin(parseResponse(payload, apiRiverBasinSchema, endpoint));
+	},
+
+	async deleteRiverBasin(riverBasinId) {
+		await apiRequest<void>(`/api/v1/wilayah-sungai/${encodeURIComponent(riverBasinId)}`, {
+			method: 'DELETE'
+		});
 	},
 
 	async createPlant(input) {

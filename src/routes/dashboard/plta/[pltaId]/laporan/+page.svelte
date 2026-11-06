@@ -17,7 +17,8 @@
 	import Sheet from '$components/ui/Sheet.svelte';
 	import TablePagination from '$components/ui/TablePagination.svelte';
 	import Tabs from '$components/ui/Tabs.svelte';
-	import { createPLTATagsQuery, getActivePLTA } from '$features/plta';
+	import { authStore, canCreateReports } from '$features/auth';
+	import { createPLTATagsQuery, createParameterCatalogQuery, getActivePLTA } from '$features/plta';
 	import PlantSwitcher from '$features/plta/components/PlantSwitcher.svelte';
 	import {
 		createCreateReportMutation,
@@ -114,10 +115,23 @@
 		return new Date(`${date}T${endOfDay ? '23:59:59.999' : '00:00:00.000'}+07:00`).toISOString();
 	}
 
+	/**
+	 * Nama resmi parameter dari `GET /parameter` (Swagger: "jangan merumuskan
+	 * nama dari kuncinya"). Merangkai dari kunci — `Plan Outflow Ddc Hours` —
+	 * hanya cadangan selama katalog belum termuat atau kuncinya belum dikenal.
+	 */
+	const parameterCatalogQuery = createParameterCatalogQuery();
+	const parameterNames = $derived<Record<string, string>>(
+		Object.fromEntries((parameterCatalogQuery.data ?? []).map((info) => [info.key, info.label]))
+	);
+
 	function formatParameterLabel(parameter: string): string {
-		return parameter
-			.replaceAll('_', ' ')
-			.replace(/\b\w/g, (character) => character.toLocaleUpperCase('id-ID'));
+		return (
+			parameterNames[parameter] ??
+			parameter
+				.replaceAll('_', ' ')
+				.replace(/\b\w/g, (character) => character.toLocaleUpperCase('id-ID'))
+		);
 	}
 
 	function errorMessage(error: unknown): string {
@@ -142,6 +156,8 @@
 	let searchInput = $state('');
 	let search = $state('');
 	let isQuerySheetOpen = $state(false);
+	/** `POST /reports` menolak Viewer; Viewer tetap melihat dan mengunduh daftar. */
+	const canCreate = $derived(canCreateReports(authStore.user));
 
 	const reportsQuery = createReportsQuery(() => ({
 		page,
@@ -283,15 +299,17 @@
 				<Badge tone="slate">Berlaku untuk semua PLTA</Badge>
 			{:else}
 				<PlantSwitcher page="laporan" />
-				<Button
-					type="button"
-					size="lg"
-					onclick={() => (isQuerySheetOpen = true)}
-					class="whitespace-nowrap"
-				>
-					{#snippet leftIcon()}<IconPlus class="size-4" />{/snippet}
-					Buat Laporan
-				</Button>
+				{#if canCreate}
+					<Button
+						type="button"
+						size="lg"
+						onclick={() => (isQuerySheetOpen = true)}
+						class="whitespace-nowrap"
+					>
+						{#snippet leftIcon()}<IconPlus class="size-4" />{/snippet}
+						Buat Laporan
+					</Button>
+				{/if}
 			{/if}
 		{/snippet}
 	</PageHeader>
@@ -366,7 +384,9 @@
 							title={search ? 'Laporan tidak ditemukan' : 'Belum ada laporan'}
 							description={search
 								? 'Coba kata kunci lain atau kosongkan pencarian.'
-								: 'Laporan yang Anda buat akan muncul di daftar ini.'}
+								: canCreate
+									? 'Laporan yang Anda buat akan muncul di daftar ini.'
+									: 'Laporan yang dibuat operator akan muncul di daftar ini.'}
 						/>
 					</div>
 				{:else}
@@ -442,91 +462,93 @@
 	</div>
 </div>
 
-<Sheet
-	isOpen={isQuerySheetOpen}
-	title="Buat Laporan Bulanan"
-	onClose={() => (isQuerySheetOpen = false)}
->
-	{#snippet description()}
-		Laporan hidrologi · PLTA {displayName}
-	{/snippet}
-
-	<form
-		id="report-query-form"
-		onsubmit={(event) => void createReport(event)}
-		class="flex flex-col gap-5"
+{#if canCreate}
+	<Sheet
+		isOpen={isQuerySheetOpen}
+		title="Buat Laporan Bulanan"
+		onClose={() => (isQuerySheetOpen = false)}
 	>
-		<div class="grid gap-2.5 sm:grid-cols-2">
-			<Select label="Bulan" bind:value={month} options={MONTH_OPTIONS} />
-			<Select label="Tahun" bind:value={year} options={yearOptions} />
-		</div>
+		{#snippet description()}
+			Laporan time series · PLTA {displayName}
+		{/snippet}
 
-		<fieldset class="flex flex-col gap-2">
-			<legend class="field-label">
-				Parameter <span class="font-normal text-text-muted">· kosongkan berarti semua</span>
-			</legend>
-			<p class="mb-1 text-xs leading-relaxed text-text-muted">
-				Pilihan berasal dari tag aktif PLTA.
-			</p>
+		<form
+			id="report-query-form"
+			onsubmit={(event) => void createReport(event)}
+			class="flex flex-col gap-5"
+		>
+			<div class="grid gap-2.5 sm:grid-cols-2">
+				<Select label="Bulan" bind:value={month} options={MONTH_OPTIONS} />
+				<Select label="Tahun" bind:value={year} options={yearOptions} />
+			</div>
 
-			{#if tagsQuery.isLoading || tagsQuery.isPlaceholderData}
-				<p class="loading-text" role="status">Memuat parameter…</p>
-			{:else if tagsQuery.isError}
-				<p
-					class="rounded-lg bg-status-danger-soft px-3 py-2 text-sm text-status-danger-strong"
-					role="alert"
-				>
-					Parameter tag belum dapat dimuat.
+			<fieldset class="flex flex-col gap-2">
+				<legend class="field-label">
+					Parameter <span class="font-normal text-text-muted">· kosongkan berarti semua</span>
+				</legend>
+				<p class="mb-1 text-xs leading-relaxed text-text-muted">
+					Pilihan berasal dari tag aktif PLTA.
 				</p>
-			{:else if parameterOptions.length === 0}
-				<p class="rounded-lg bg-surface-overlay px-3 py-2 text-sm text-text-muted">
-					Belum ada tag aktif pada PLTA ini.
-				</p>
-			{:else}
-				<div class="max-h-72 overflow-y-auto border-t border-border-subtle pr-1">
-					{#each parameterOptions as option (option.value)}
-						<label
-							class="flex cursor-pointer items-center gap-2.5 border-b border-surface-overlay py-2 last:border-b-0"
-						>
-							<input
-								type="checkbox"
-								checked={selectedParameters.includes(option.value)}
-								onchange={() => toggleParameter(option.value)}
-								class="size-4 shrink-0 accent-brand-primary-strong"
-							/>
-							<span class="min-w-0 flex-1">
-								<span class="block text-sm text-text-secondary">{option.label}</span>
-								<span class="mt-0.5 block truncate text-xs text-text-muted">
-									{option.stations.length > 0 ? `${option.stations.length} stasiun` : 'Tag aktif'}
-									{option.units.length > 0 ? ` · ${option.units.join(', ')}` : ''}
+
+				{#if tagsQuery.isLoading || tagsQuery.isPlaceholderData}
+					<p class="loading-text" role="status">Memuat parameter…</p>
+				{:else if tagsQuery.isError}
+					<p
+						class="rounded-lg bg-status-danger-soft px-3 py-2 text-sm text-status-danger-strong"
+						role="alert"
+					>
+						Parameter tag belum dapat dimuat.
+					</p>
+				{:else if parameterOptions.length === 0}
+					<p class="rounded-lg bg-surface-overlay px-3 py-2 text-sm text-text-muted">
+						Belum ada tag aktif pada PLTA ini.
+					</p>
+				{:else}
+					<div class="max-h-72 overflow-y-auto border-t border-border-subtle pr-1">
+						{#each parameterOptions as option (option.value)}
+							<label
+								class="flex cursor-pointer items-center gap-2.5 border-b border-surface-overlay py-2 last:border-b-0"
+							>
+								<input
+									type="checkbox"
+									checked={selectedParameters.includes(option.value)}
+									onchange={() => toggleParameter(option.value)}
+									class="size-4 shrink-0 accent-brand-primary-strong"
+								/>
+								<span class="min-w-0 flex-1">
+									<span class="block text-sm text-text-secondary">{option.label}</span>
+									<span class="mt-0.5 block truncate text-xs text-text-muted">
+										{option.stations.length > 0 ? `${option.stations.length} stasiun` : 'Tag aktif'}
+										{option.units.length > 0 ? ` · ${option.units.join(', ')}` : ''}
+									</span>
 								</span>
-							</span>
-						</label>
-					{/each}
-				</div>
-			{/if}
-		</fieldset>
-	</form>
+							</label>
+						{/each}
+					</div>
+				{/if}
+			</fieldset>
+		</form>
 
-	{#snippet footer()}
-		<div class="flex flex-col-reverse gap-2.5 sm:flex-row sm:justify-end">
-			<Button
-				type="button"
-				variant="ghost"
-				onclick={() => (isQuerySheetOpen = false)}
-				class="w-full sm:w-auto"
-			>
-				Batal
-			</Button>
-			<Button
-				type="submit"
-				form="report-query-form"
-				disabled={createMutation.isPending}
-				class="w-full sm:w-auto"
-			>
-				{#snippet leftIcon()}<IconPlus class="size-4" />{/snippet}
-				{createMutation.isPending ? 'Membuat…' : 'Buat Laporan'}
-			</Button>
-		</div>
-	{/snippet}
-</Sheet>
+		{#snippet footer()}
+			<div class="flex flex-col-reverse gap-2.5 sm:flex-row sm:justify-end">
+				<Button
+					type="button"
+					variant="ghost"
+					onclick={() => (isQuerySheetOpen = false)}
+					class="w-full sm:w-auto"
+				>
+					Batal
+				</Button>
+				<Button
+					type="submit"
+					form="report-query-form"
+					disabled={createMutation.isPending}
+					class="w-full sm:w-auto"
+				>
+					{#snippet leftIcon()}<IconPlus class="size-4" />{/snippet}
+					{createMutation.isPending ? 'Membuat…' : 'Buat Laporan'}
+				</Button>
+			</div>
+		{/snippet}
+	</Sheet>
+{/if}

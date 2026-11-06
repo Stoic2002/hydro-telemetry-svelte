@@ -1,5 +1,6 @@
 import type {
 	ListParams,
+	ParameterInfo,
 	PaginatedResult,
 	Plant,
 	PlantChanges,
@@ -14,6 +15,7 @@ import type {
 } from '../model';
 
 export interface PLTARepository {
+	listParameters(): Promise<ParameterInfo[]>;
 	listRiverBasins(params: ListParams): Promise<PaginatedResult<RiverBasin>>;
 	list(params: ListParams): Promise<PaginatedResult<Plant>>;
 	getById(pltaId: string): Promise<Plant | null>;
@@ -26,6 +28,12 @@ export interface PLTARepository {
 	/** Khusus admin. `400` bila kode sudah dipakai atau isian ditolak aturan server. */
 	createRiverBasin(input: RiverBasinInput): Promise<RiverBasin>;
 	updateRiverBasin(riverBasinId: string, changes: RiverBasinChanges): Promise<RiverBasin>;
+	/**
+	 * Khusus admin, untuk membereskan salah buat atau salah ketik kode (kode
+	 * tidak bisa diubah). `409` bila masih membawahi PLTA — server tidak pernah
+	 * ikut menghapus PLTA-nya.
+	 */
+	deleteRiverBasin(riverBasinId: string): Promise<void>;
 	/** Khusus admin. `400` bila `riverBasinId` tidak dikenal. */
 	createPlant(input: PlantInput): Promise<Plant>;
 	/** Hanya bidang yang dikirim yang berubah; `constants` tidak pernah disentuh. */

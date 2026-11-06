@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { chartValueDomain, timeAxisFormatter, valueAxisTicks, minimumAxisSpan } from './chart';
+import {
+	barTimeInterval,
+	chartValueDomain,
+	minimumAxisSpan,
+	timeAxisFormatter,
+	valueAxisTicks
+} from './chart';
 
 describe('chartValueDomain', () => {
 	it('memberi rentang aman saat tidak ada nilai', () => {
@@ -97,5 +103,39 @@ describe('rentang sumbu minimum per satuan', () => {
 		expect(minimumAxisSpan('m3/s')).toBe(0);
 		expect(minimumAxisSpan(null)).toBe(0);
 		expect(minimumAxisSpan(' MDPL ')).toBe(0.2);
+	});
+});
+
+describe('barTimeInterval', () => {
+	const hour = 60 * 60 * 1_000;
+	const at = (iso: string) => new Date(iso);
+
+	it('melebarkan batang selebar jarak antartitik terkecil', () => {
+		const interval = barTimeInterval([
+			at('2026-11-06T10:00:00+07:00'),
+			at('2026-11-06T11:00:00+07:00'),
+			at('2026-11-06T13:00:00+07:00')
+		]);
+		const start = at('2026-11-06T10:00:00+07:00');
+
+		expect(interval.floor(start).getTime()).toBe(start.getTime());
+		expect(interval.offset(start).getTime() - start.getTime()).toBe(hour);
+	});
+
+	it('memakai jarak harian untuk data per hari, walau urutannya acak', () => {
+		const interval = barTimeInterval([
+			at('2026-11-03T00:00:00+07:00'),
+			at('2026-11-01T00:00:00+07:00'),
+			at('2026-11-02T00:00:00+07:00')
+		]);
+		const start = at('2026-11-01T00:00:00+07:00');
+
+		expect(interval.offset(start).getTime() - start.getTime()).toBe(24 * hour);
+	});
+
+	it('jatuh ke satu jam bila hanya ada satu titik', () => {
+		const start = at('2026-11-06T10:00:00+07:00');
+
+		expect(barTimeInterval([start]).offset(start).getTime() - start.getTime()).toBe(hour);
 	});
 });

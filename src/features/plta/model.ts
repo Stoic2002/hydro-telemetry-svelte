@@ -97,6 +97,15 @@ export interface TagBounds {
 	maxValid: number | null;
 }
 
+/** Satu parameter dari `GET /parameter`: nama tampilan resmi dan satuannya. */
+export interface ParameterInfo {
+	key: string;
+	label: string;
+	unit: string | null;
+	/** `telemetri` · `prakiraan` · `konstanta` · `rencana` · `rumus`. */
+	group: string;
+}
+
 /** Protokol yang boleh didaftarkan pengguna; `derived` (formulasi) dikelola sistem. */
 export type TagInputProtocol = Exclude<PlantTagProtocol, 'derived'>;
 

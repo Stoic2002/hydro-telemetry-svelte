@@ -1,16 +1,21 @@
 <script lang="ts">
 	import IconPencil from '~icons/ph/pencil-simple';
 	import IconPlus from '~icons/ph/plus';
+	import IconTrash from '~icons/ph/trash';
 	import Button from '$components/controls/Button.svelte';
 	import Skeleton from '$components/controls/Skeleton.svelte';
+	import ConfirmDialog from '$components/ui/ConfirmDialog.svelte';
 	import { authStore, canManagePlants } from '$features/auth';
 	import {
+		createDeleteRiverBasinMutation,
 		createPlantCatalogQuery,
 		createRiverBasinsQuery,
 		getPLTAErrorMessage,
+		getRiverBasinDeleteErrorMessage,
 		type RiverBasin
 	} from '$features/plta';
 	import RiverBasinFormSheet from '$features/plta/components/RiverBasinFormSheet.svelte';
+	import { notificationStore } from '$shared/lib/notification.svelte';
 	import CatalogTable from './CatalogTable.svelte';
 	import { PAGE_LIMIT } from './model';
 
@@ -21,6 +26,40 @@
 	function openForm(riverBasin: RiverBasin | null) {
 		editingRiverBasin = riverBasin;
 		isFormOpen = true;
+	}
+
+	/**
+	 * Hapus hanya ditawarkan untuk Wilayah Sungai tanpa PLTA (Swagger 6 Nov
+	 * 2026): gunanya membereskan salah ketik kode, yang tidak bisa diubah. WS
+	 * yang masih membawahi PLTA ditolak server `409`, jadi tombolnya tidak
+	 * dirender selama jumlah PLTA belum diketahui atau lebih dari nol.
+	 */
+	const deleteMutation = createDeleteRiverBasinMutation();
+	let riverBasinToDelete = $state<RiverBasin | null>(null);
+
+	function canDelete(riverBasin: RiverBasin): boolean {
+		return plantsCatalogQuery.isSuccess && !plantCountsByRiverBasin[riverBasin.id];
+	}
+
+	async function confirmDelete() {
+		const target = riverBasinToDelete;
+		if (!target) return;
+
+		try {
+			await deleteMutation.mutateAsync(target.id);
+			// Menghapus baris terakhir di halaman terakhir meninggalkan tabel kosong.
+			if (riverBasins.length === 1 && page > 1) page -= 1;
+			notificationStore.addToast({
+				type: 'success',
+				message: `Wilayah Sungai ${target.code} telah dihapus`
+			});
+			riverBasinToDelete = null;
+		} catch (error) {
+			notificationStore.addToast({
+				type: 'error',
+				message: getRiverBasinDeleteErrorMessage(error)
+			});
+		}
 	}
 
 	let page = $state(1);
@@ -69,7 +108,7 @@
 		{ key: 'name', label: 'Wilayah Sungai' },
 		{ key: 'description', label: 'Deskripsi', class: 'w-[38%]' },
 		{ key: 'plants', label: 'Jumlah PLTA', class: 'w-36 text-center' },
-		...(canManage ? [{ key: 'action', label: 'Aksi', class: 'w-28' }] : [])
+		...(canManage ? [{ key: 'action', label: 'Aksi', class: 'w-44' }] : [])
 	]}
 	minWidthClass="min-w-[760px]"
 	{searchInput}
@@ -129,15 +168,28 @@
 				</td>
 				{#if canManage}
 					<td class="px-3.5 py-2.5">
-						<button
-							type="button"
-							onclick={() => openForm(riverBasin)}
-							aria-label={`Ubah Wilayah Sungai ${riverBasin.name}`}
-							class="btn btn-ghost btn-sm"
-						>
-							<IconPencil class="size-3.5" aria-hidden="true" />
-							Ubah
-						</button>
+						<div class="flex items-center gap-1.5">
+							<button
+								type="button"
+								onclick={() => openForm(riverBasin)}
+								aria-label={`Ubah Wilayah Sungai ${riverBasin.name}`}
+								class="btn btn-ghost btn-sm"
+							>
+								<IconPencil class="size-3.5" aria-hidden="true" />
+								Ubah
+							</button>
+							{#if canDelete(riverBasin)}
+								<button
+									type="button"
+									onclick={() => (riverBasinToDelete = riverBasin)}
+									aria-label={`Hapus Wilayah Sungai ${riverBasin.name}`}
+									class="btn btn-ghost btn-sm text-status-danger-strong"
+								>
+									<IconTrash class="size-3.5" aria-hidden="true" />
+									Hapus
+								</button>
+							{/if}
+						</div>
 					</td>
 				{/if}
 			</tr>
@@ -151,4 +203,18 @@
 		riverBasin={editingRiverBasin}
 		onClose={() => (isFormOpen = false)}
 	/>
+
+	<ConfirmDialog
+		isOpen={riverBasinToDelete !== null}
+		title="Hapus Wilayah Sungai?"
+		confirmLabel="Ya, Hapus"
+		isConfirming={deleteMutation.isPending}
+		onConfirm={() => void confirmDelete()}
+		onClose={() => (riverBasinToDelete = null)}
+	>
+		{#snippet description()}
+			<strong>{riverBasinToDelete?.code}</strong> · {riverBasinToDelete?.name} akan dihapus. Wilayah Sungai
+			ini belum membawahi PLTA, jadi tidak ada data lain yang ikut terhapus.
+		{/snippet}
+	</ConfirmDialog>
 {/if}

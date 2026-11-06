@@ -20,6 +20,7 @@
 	import { describeResolution, describeSeriesSource, type TrendSeries } from '$features/trends';
 	import { formatDayMonthTimeWIB } from '$shared/lib/date';
 	import {
+		barTimeInterval,
 		chartValueDomain,
 		minimumAxisSpan,
 		timeAxisFormatter,
@@ -178,6 +179,9 @@
 						x="time"
 						y="value"
 						xScale={scaleTime()}
+						xInterval={chartType === 'bar'
+							? barTimeInterval(chartData.map((datum) => datum.time))
+							: null}
 						{yDomain}
 						padding={{ top: 18, right: 18, bottom: 30, left: 54 }}
 						tooltipContext={{ mode: 'bisect-x' }}

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import IconEdit from '~icons/ph/pencil-simple';
+	import IconKey from '~icons/ph/key';
 	import IconPlus from '~icons/ph/plus';
 	import IconSignOut from '~icons/ph/sign-out';
 	import IconTrash from '~icons/ph/trash';
@@ -30,6 +31,7 @@
 	} from '$features/users';
 	import CreateUserSheet from '$features/users/components/CreateUserSheet.svelte';
 	import EditUserSheet from '$features/users/components/EditUserSheet.svelte';
+	import ResetUserPasswordSheet from '$features/users/components/ResetUserPasswordSheet.svelte';
 	import RoleBadge from '$features/users/components/RoleBadge.svelte';
 	import { authStore } from '$features/auth';
 	import { notificationStore } from '$shared/lib/notification.svelte';
@@ -51,6 +53,7 @@
 	let userToDeactivate = $state<UserAccount | null>(null);
 	let isCreateSheetOpen = $state(false);
 	let userToEdit = $state<UserAccount | null>(null);
+	let userToResetPassword = $state<UserAccount | null>(null);
 
 	const usersQuery = createUsersQuery(() => ({
 		page,
@@ -229,7 +232,7 @@
 						<div class="table-head-cell min-w-[220px] flex-1">User</div>
 						<div class="table-head-cell w-[160px] shrink-0">Role</div>
 						<div class="table-head-cell w-[140px] shrink-0">Status</div>
-						<div class="table-head-cell w-[124px] shrink-0">Aksi</div>
+						<div class="table-head-cell w-[156px] shrink-0">Aksi</div>
 					</div>
 
 					{#if usersQuery.isLoading}
@@ -285,7 +288,7 @@
 									/>
 								</div>
 
-								<div class="flex w-[124px] shrink-0 items-center gap-1.5">
+								<div class="flex w-[156px] shrink-0 items-center gap-1.5">
 									{#if isSelf}
 										<!--
 									Akun sendiri tidak bisa dicabut sesinya, dihapus, atau diubah
@@ -309,6 +312,15 @@
 											class="flex size-8 cursor-pointer items-center justify-center rounded-lg border border-border-subtle bg-surface-raised text-brand-primary-strong transition-colors hover:bg-brand-tint"
 										>
 											<IconEdit class="size-3.5" aria-hidden="true" />
+										</button>
+										<button
+											type="button"
+											onclick={() => (userToResetPassword = user)}
+											aria-label={`Reset password ${user.username}`}
+											title="Reset password (untuk pengguna yang lupa password)"
+											class="flex size-8 cursor-pointer items-center justify-center rounded-lg border border-border-subtle bg-surface-raised text-brand-primary-strong transition-colors hover:bg-brand-tint"
+										>
+											<IconKey class="size-3.5" aria-hidden="true" />
 										</button>
 										<button
 											type="button"
@@ -356,6 +368,14 @@
 
 {#if userToEdit}
 	<EditUserSheet isOpen user={userToEdit} onClose={() => (userToEdit = null)} />
+{/if}
+
+{#if userToResetPassword}
+	<ResetUserPasswordSheet
+		isOpen
+		user={userToResetPassword}
+		onClose={() => (userToResetPassword = null)}
+	/>
 {/if}
 
 <ConfirmDialog

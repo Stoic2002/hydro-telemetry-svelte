@@ -36,7 +36,15 @@
 </script>
 
 {#if notificationStore.toasts.length > 0}
-	<div class="pointer-events-none fixed right-4 bottom-4 z-300 flex flex-col gap-2">
+	<!--
+		Tengah atas, bukan kanan bawah. Sheet masuk dari kanan dan tombol Simpan
+		ada di footer kanan bawahnya: toast di pojok itu menutupi tombolnya, dan
+		karena hitung mundur berhenti selama kursor di atas toast, klik ulang
+		operator mengenai toast, bukan tombol (temuan QA T4, 4 Nov 2026). Di layar
+		laptop posisi ini jatuh di kiri sheet (lebar 480px), jadi tidak menutupi
+		tombol tutup di kepala sheet juga.
+	-->
+	<div class="pointer-events-none fixed top-4 left-1/2 z-300 flex -translate-x-1/2 flex-col gap-2">
 		{#each notificationStore.toasts as toast (toast.id)}
 			{@const styles = TYPE_STYLES[toast.type]}
 			{@const isPaused = notificationStore.pausedIds.includes(toast.id)}

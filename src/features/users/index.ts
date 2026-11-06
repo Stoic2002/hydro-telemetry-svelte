@@ -8,6 +8,7 @@
 export {
 	createChangeCurrentPasswordMutation,
 	createDeleteUserMutation,
+	createResetUserPasswordMutation,
 	createRevokeUserSessionsMutation,
 	createToggleUserStatusMutation,
 	createUpdateCurrentUserMutation,

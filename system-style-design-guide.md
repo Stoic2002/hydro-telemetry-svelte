@@ -269,6 +269,8 @@ kesalahan yang sudah pernah diperbaiki.
 - Form buat/ubah/query memakai **dialog sheet**, bukan halaman terpisah.
   Sheet yang berisi isian mengirim `isDirty`: klik di luar panel dan Escape
   lalu meminta konfirmasi "Buang perubahan?" alih-alih membuang isian.
+- Toast muncul di **tengah atas**, bukan kanan bawah: footer sheet (tempat
+  tombol Simpan) ada di kanan bawah, dan toast di sana pernah menutupi tombolnya.
 - Toast galat bertahan 8 detik (lainnya 4), dan hitung mundurnya berhenti
   selama kursor atau fokus berada di atasnya.
 - Tombol ikon tanpa teks wajib `aria-label`; `title` saja tidak dibacakan dan

@@ -1,4 +1,5 @@
 import { scaleLinear } from 'd3-scale';
+import type { TimeInterval } from 'd3-time';
 import { formatDayMonthTimeWIB, formatDayMonthWIB, formatTimeWIB } from '$shared/lib/date';
 
 /**
@@ -83,4 +84,35 @@ export function timeAxisFormatter(spanMs: number): (date: Date) => string {
 		if (isMidnightWIB(date) || spanMs > 8 * DAY_MS) return formatDayMonthWIB(date);
 		return spanMs <= 26 * HOUR_MS ? formatTimeWIB(date) : formatDayMonthTimeWIB(date);
 	};
+}
+
+/** Jarak antartitik yang dipakai bila datanya hanya satu titik. */
+const FALLBACK_BAR_STEP_MS = 60 * 60 * 1_000;
+
+/**
+ * Interval x untuk grafik batang di sumbu waktu.
+ *
+ * Di skala waktu, LayerChart hanya bisa menghitung lebar batang bila `Chart`
+ * diberi `xInterval`; tanpa itu setiap `<rect>` berukuran 0×0 dan grafik curah
+ * hujan tampil kosong walau datanya ada (temuan QA 4 Nov 2026). Interval ini
+ * tidak membulatkan waktu — titik dari server sudah tepat di awal periodenya
+ * (jam atau hari WIB) — dan lebarnya jarak antartitik terkecil, jadi berlaku
+ * untuk resolusi apa pun tanpa perlu tahu resolusinya. Bentuknya cukup
+ * `floor` dan `offset`, satu-satunya yang dibaca LayerChart, sehingga
+ * `d3-time` tidak perlu jadi dependensi langsung.
+ */
+export function barTimeInterval(times: readonly Date[]): TimeInterval {
+	const sorted = times.map((time) => time.getTime()).sort((a, b) => a - b);
+	let stepMs = Number.POSITIVE_INFINITY;
+	for (let index = 1; index < sorted.length; index += 1) {
+		const gap = sorted[index] - sorted[index - 1];
+		if (gap > 0 && gap < stepMs) stepMs = gap;
+	}
+	if (!Number.isFinite(stepMs)) stepMs = FALLBACK_BAR_STEP_MS;
+
+	const interval = {
+		floor: (date: Date) => new Date(date.getTime()),
+		offset: (date: Date, step = 1) => new Date(date.getTime() + step * stepMs)
+	};
+	return interval as unknown as TimeInterval;
 }

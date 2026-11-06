@@ -31,6 +31,7 @@
 		buildDeleteRange,
 		buildTelemetryPoints,
 		isConstantParameter,
+		isDailyValueParameter,
 		type TelemetryPointRow,
 		type TelemetryRangeBoundary
 	} from '../points';
@@ -102,7 +103,7 @@
 		deleteFrom = { date: defaultDate, time: '00:00' };
 		deleteTo = { date: defaultDate, time: '23:59' };
 		isConfirmOpen = false;
-		templateScopeValue = 'day-hourly';
+		templateScopeValue = isDailyValueParameter(target.parameter) ? 'month-daily' : 'day-hourly';
 		templateDate = defaultDate;
 		mode = 'manual';
 	});
@@ -121,6 +122,8 @@
 	const unit = $derived(target.unit);
 	/** Konstanta: cukup satu nilai, tanpa tanggal, tanpa tab Excel dan Hapus. */
 	const isConstant = $derived(isConstantParameter(target.parameter));
+	/** Target TMA: tanggal dan nilai saja; template satu baris per tanggal. */
+	const isDailyValue = $derived(isDailyValueParameter(target.parameter));
 	const selectedStation = $derived(
 		target.stations.find((option) => option.station === station) ?? target.stations[0]
 	);
@@ -342,7 +345,9 @@
 			{#if mode === 'manual'}
 				<section class="flex flex-col gap-4">
 					<p class="text-xs text-text-muted">
-						Waktu dalam WIB. Waktu yang sama menimpa nilai lama.
+						{isDailyValue
+							? 'Satu nilai per tanggal, dicatat pukul 00.00 WIB. Tanggal yang sama menimpa nilai lama.'
+							: 'Waktu dalam WIB. Waktu yang sama menimpa nilai lama.'}
 					</p>
 
 					<div class="divide-y divide-surface-overlay border-y border-surface-overlay">
@@ -364,7 +369,9 @@
 								</div>
 
 								<!-- Tanggal, jam, dan nilai sebaris: satu titik data = satu baris. -->
-								<div class="grid gap-3 sm:grid-cols-[1.3fr_1fr_1fr]">
+								<div
+									class={`grid gap-3 ${isDailyValue ? 'sm:grid-cols-2' : 'sm:grid-cols-[1.3fr_1fr_1fr]'}`}
+								>
 									<label class="field-label flex flex-col gap-1.5">
 										Tanggal
 										<input
@@ -374,15 +381,17 @@
 											class="field h-10"
 										/>
 									</label>
-									<label class="field-label flex flex-col gap-1.5">
-										Jam
-										<input
-											type="time"
-											bind:value={row.time}
-											disabled={isPending}
-											class="field h-10"
-										/>
-									</label>
+									{#if !isDailyValue}
+										<label class="field-label flex flex-col gap-1.5">
+											Jam
+											<input
+												type="time"
+												bind:value={row.time}
+												disabled={isPending}
+												class="field h-10"
+											/>
+										</label>
+									{/if}
 									<label class="field-label flex flex-col gap-1.5">
 										Nilai {unit ? `(${unit})` : ''}
 										<input
@@ -406,7 +415,7 @@
 						class="inline-flex cursor-pointer items-center gap-1.5 self-start text-xs font-medium text-brand-primary-strong hover:text-brand-primary-pressed disabled:cursor-not-allowed disabled:opacity-50"
 					>
 						<IconPlus class="size-4" />
-						Tambah titik data
+						{isDailyValue ? 'Tambah tanggal' : 'Tambah titik data'}
 					</button>
 				</section>
 			{:else if mode === 'excel'}
@@ -424,12 +433,14 @@
 						</div>
 
 						<div class="grid gap-3 sm:grid-cols-2">
-							<Select
-								label="Isi template"
-								bind:value={templateScopeValue}
-								disabled={isPending || templateMutation.isPending}
-								options={TELEMETRY_TEMPLATE_SCOPE_OPTIONS}
-							/>
+							{#if !isDailyValue}
+								<Select
+									label="Isi template"
+									bind:value={templateScopeValue}
+									disabled={isPending || templateMutation.isPending}
+									options={TELEMETRY_TEMPLATE_SCOPE_OPTIONS}
+								/>
+							{/if}
 							<label class="field-label flex flex-col gap-1.5">
 								Tanggal
 								<input

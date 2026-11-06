@@ -201,3 +201,52 @@ describe('parameter konstanta', () => {
 		await waitFor(() => expect(onClose).toHaveBeenCalled());
 	});
 });
+
+describe('Target TMA', () => {
+	const TARGET_TMA: DailyTelemetryUploadTarget = {
+		label: 'Target TMA',
+		parameter: 'plan_water_level',
+		unit: 'mdpl',
+		stations: [{ station: '', label: 'Default' }]
+	};
+
+	it('tanpa jam: satu titik per tanggal pada 00.00 WIB', async () => {
+		const user = userEvent.setup();
+		repository.uploadPoints.mockResolvedValue({
+			pltaId: PLTA_ID,
+			parameter: 'plan_water_level',
+			pointsUpserted: 1,
+			filename: null
+		});
+		renderSheet(TARGET_TMA);
+
+		expect(screen.getByLabelText('Tanggal')).toBeInTheDocument();
+		expect(screen.queryByLabelText('Jam')).not.toBeInTheDocument();
+
+		await fireEvent.input(screen.getByRole('spinbutton', { name: /Nilai/ }), {
+			target: { value: '230.5' }
+		});
+		await user.click(screen.getByRole('button', { name: 'Simpan Data' }));
+
+		await waitFor(() => expect(repository.uploadPoints).toHaveBeenCalledTimes(1));
+		expect(repository.uploadPoints.mock.calls[0][0].points).toEqual([
+			{ time: '2026-10-15T00:00:00', value: 230.5 }
+		]);
+	});
+
+	it('template selalu satu bulan per hari', async () => {
+		const user = userEvent.setup();
+		repository.downloadTemplate.mockResolvedValue(new Blob(['x']));
+		renderSheet(TARGET_TMA);
+
+		await user.click(screen.getByRole('button', { name: 'Upload Excel' }));
+		expect(screen.queryByText('Isi template')).not.toBeInTheDocument();
+		await user.click(screen.getByRole('button', { name: 'Unduh Template' }));
+
+		await waitFor(() =>
+			expect(repository.downloadTemplate).toHaveBeenCalledWith(
+				expect.objectContaining({ parameter: 'plan_water_level', scope: 'month-daily' })
+			)
+		);
+	});
+});

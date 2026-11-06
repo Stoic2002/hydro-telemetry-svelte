@@ -78,6 +78,7 @@ export const pltaQueryKeys = {
 	all: ['plta'] as const,
 	riverBasins: () => [...pltaQueryKeys.all, 'river-basins'] as const,
 	riverBasinList: (params: ListParams) => [...pltaQueryKeys.riverBasins(), 'list', params] as const,
+	parameters: () => [...pltaQueryKeys.all, 'parameters'] as const,
 	lists: () => [...pltaQueryKeys.all, 'list'] as const,
 	list: (params: ListParams) => [...pltaQueryKeys.lists(), params] as const,
 	catalog: () => [...pltaQueryKeys.lists(), 'catalog'] as const,
@@ -98,6 +99,16 @@ export function createRiverBasinsQuery(params: () => ListParams) {
 			staleTime: CATALOG_STALE_TIME
 		};
 	});
+}
+
+/** Katalog nama dan satuan parameter; berubah hanya saat rilis backend. */
+export function createParameterCatalogQuery(enabled: () => boolean = () => true) {
+	return createQuery(() => ({
+		queryKey: pltaQueryKeys.parameters(),
+		queryFn: () => pltaRepository.listParameters(),
+		enabled: enabled(),
+		staleTime: Infinity
+	}));
 }
 
 export function createPLTAListQuery(params: () => ListParams) {
@@ -212,6 +223,12 @@ export function createUpdateRiverBasinMutation() {
 	return createPLTAWriteMutation(
 		({ riverBasinId, changes }: { riverBasinId: string; changes: RiverBasinChanges }) =>
 			pltaRepository.updateRiverBasin(riverBasinId, changes)
+	);
+}
+
+export function createDeleteRiverBasinMutation() {
+	return createPLTAWriteMutation((riverBasinId: string) =>
+		pltaRepository.deleteRiverBasin(riverBasinId)
 	);
 }
 

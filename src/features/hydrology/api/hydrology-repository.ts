@@ -48,6 +48,11 @@ export interface HydrologyRepository {
 	/** Nama metrik panel harian satu PLTA — khusus admin. */
 	setDailyLabels(pltaId: string, labels: LabelChanges): Promise<DailyVisibility>;
 	getMonthlyFieldLabels(options?: HydrologyRequestOptions): Promise<MonthlyFieldLabels>;
+	/**
+	 * Kelas kondisi hidrologi yang diterima isian bulanan (Kering … Basah).
+	 * Server menolak nilai lain dengan `422`, jadi form wajib memakai daftar ini.
+	 */
+	getMonthlyConditions(options?: HydrologyRequestOptions): Promise<string[]>;
 	/** Nama bidang bulanan — berlaku untuk SEMUA PLTA, khusus admin. */
 	/** Panel satu bulan. Bulan yang belum diisi tetap balik dengan `id` null. */
 	getMonthlyPanel(

@@ -201,11 +201,11 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
 				access: 'dataTools',
 				steps: [
 					'Pada bagian **Ringkasan**, tekan **Input data** — atau **Edit data** bila periode itu sudah terisi.',
-					'Isi kondisi hidrologi (prediksi dan realisasi) serta energi bulan ini dan energi akumulasi (dalam MWh): target, prognosa ketersediaan energi primer, dan realisasi.',
+					'Pilih kondisi hidrologi (prediksi dan realisasi) — **Kering**, **Normal Kering**, **Normal**, **Normal Basah**, atau **Basah** — lalu isi energi bulan ini dan energi akumulasi (dalam MWh): target, prognosa ketersediaan energi primer, dan realisasi.',
 					'Tekan **Simpan Data**.'
 				],
 				notes: [
-					'Field yang dikosongkan tidak menimpa data yang sudah tersimpan.',
+					'Angka energi yang dikosongkan tidak menimpa data yang sudah tersimpan. Kondisi hidrologi yang diubah ke **Belum diisi** dikosongkan.',
 					'Prognosa pencapaian beserta kesimpulan **Tercapai** / **Belum tercapai** dihitung otomatis oleh server.',
 					'Untuk mengisi seluruh PLTA sekaligus, gunakan menu **Upload** tab **Excel Bulanan**.'
 				]
@@ -283,6 +283,7 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
 				],
 				notes: [
 					'Jam yang diisi dianggap WIB. Mengisi ulang tanggal dan jam yang sama akan memperbarui nilai lama.',
+					'**Target TMA** diisi per tanggal: cukup **Tanggal** dan **Nilai**, tanpa jam. Untuk satu bulan sekaligus, unduh template di tab **Upload Excel**.',
 					'Untuk konstanta (penanda **Konstanta (input)**, mis. TMA Limpas atau SWC), cukup isi **Nilai** lalu tekan **Simpan Data** — tanpa tanggal, dan tanpa tab Upload Excel maupun Hapus Data. Nilai baru menggantikan yang lama.',
 					'Berkas Excel hanya untuk satu parameter, dengan kolom **datetime + value** atau **tanggal + jam + value**.',
 					'Di tab **Upload Excel**, pilih **Isi template** dan **Tanggal**, lalu tekan **Unduh Template** untuk mendapat berkas parameter itu. Nilai yang sudah tersimpan ikut terisi, jadi tinggal dikoreksi.'
@@ -407,6 +408,7 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
 			{
 				title: 'Membuat laporan',
 				example: 'report-create',
+				access: 'dataTools',
 				steps: [
 					'Buka menu **Laporan**, tab **Laporan Time Series**, dan pilih PLTA di kanan atas.',
 					'Tekan **Buat Laporan**.',
@@ -476,7 +478,7 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
 				steps: [
 					'Buka **Upload**, tab **Excel Bulanan**.',
 					'Pilih **Bulan** dan **Tahun** di panel kanan, lalu tekan **Unduh Template**. Template sudah terisi data tersimpan, jadi cukup dikoreksi.',
-					'Isi template. Kolom **kode_plta** adalah kuncinya; **nama_plta** hanya rujukan.',
+					'Isi template. Kolom **kode_plta** adalah kuncinya; **nama_plta** hanya rujukan. Kondisi hidrologi dipilih dari daftar di selnya.',
 					'Tarik berkas ke kotak unggah, atau klik kotaknya untuk memilih berkas.',
 					'Tekan **Unggah sekarang**.'
 				],
@@ -575,8 +577,8 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
 					'Tekan **Tambah** atau **Simpan**.'
 				],
 				notes: [
-					'**Kode** tidak bisa diubah setelah dibuat, karena dipakai sebagai kunci di template Excel.',
-					'PLTA dan Wilayah Sungai tidak bisa dihapus. Untuk menghentikan PLTA, ubah **Status PLTA** menjadi **Nonaktif**.',
+					'**Kode** ditulis huruf besar, angka, dan tanda hubung (mis. **PLTA-KTG1**); kode Wilayah Sungai diawali **WS-** (mis. **WS-SERAYU**). Kode tidak bisa diubah setelah dibuat, karena dipakai sebagai kunci di template Excel.',
+					'Wilayah Sungai yang belum membawahi PLTA bisa dihapus dengan tombol **Hapus** di barisnya — misalnya untuk membuat ulang yang salah ketik kodenya. PLTA tidak bisa dihapus; untuk menghentikannya, ubah **Status PLTA** menjadi **Nonaktif**.',
 					'Konstanta PLTA (batas TMA, SWC, formula inflow) belum bisa diubah dari sini dan tidak ikut berubah saat PLTA disimpan.'
 				]
 			},
@@ -634,7 +636,8 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
 					'Tekan sakelar di kolom **Status** untuk mengubah status akun. Menonaktifkan meminta konfirmasi **Ya, nonaktifkan**; pengguna nonaktif tidak bisa masuk.',
 					'Tekan ikon edit untuk mengubah nama, email, peran, atau status.',
 					'Tekan ikon hapus lalu konfirmasi untuk menghapus akun.',
-					'Tekan ikon keluar (di antara ikon edit dan hapus) lalu **Ya, cabut sesi** untuk mengeluarkan pengguna dari semua perangkatnya — misalnya bila akunnya dicurigai dipakai orang lain. Akunnya tetap aktif dan bisa masuk kembali.',
+					'Tekan ikon kunci untuk **Reset Password** pengguna yang lupa password. Isi password baru dua kali; semua sesi pengguna itu ikut berakhir. Sampaikan password lewat jalur aman dan minta ia menggantinya sendiri di **Profil Saya**.',
+					'Tekan ikon keluar (di antara ikon kunci dan hapus) lalu **Ya, cabut sesi** untuk mengeluarkan pengguna dari semua perangkatnya — misalnya bila akunnya dicurigai dipakai orang lain. Akunnya tetap aktif dan bisa masuk kembali.',
 					'Akun Anda sendiri tidak bisa dinonaktifkan, dicabut sesinya, atau dihapus dari sini; barisnya hanya punya tombol **Profil Saya**.'
 				]
 			}

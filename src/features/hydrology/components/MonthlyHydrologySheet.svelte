@@ -1,16 +1,24 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import IconSave from '~icons/ph/floppy-disk';
 	import Button from '$components/controls/Button.svelte';
 	import Input from '$components/controls/Input.svelte';
+	import Select, { type SelectOption } from '$components/controls/Select.svelte';
 	import Sheet from '$components/ui/Sheet.svelte';
 	import { notificationStore } from '$shared/lib/notification.svelte';
-	import { createUpsertMonthlyHydrologyMutation } from '../api/queries';
+	import {
+		createMonthlyConditionsQuery,
+		createUpsertMonthlyHydrologyMutation
+	} from '../api/queries';
 	import { getHydrologyErrorMessage } from '../error';
 	import type { MonthlyHydrology } from '../model';
 	import {
+		MONTHLY_HYDROLOGY_CONDITIONS,
 		buildMonthlyHydrologyPayload,
 		createEmptyMonthlyForm,
 		isEmptyMonthlyHydrologyPayload,
+		isLegacyHydrologyCondition,
+		matchHydrologyCondition,
 		type MonthlyHydrologyFormValues
 	} from '../monthly-form';
 
@@ -63,6 +71,34 @@
 	];
 
 	const upsertMutation = createUpsertMonthlyHydrologyMutation();
+	const conditionsQuery = createMonthlyConditionsQuery();
+
+	/** Dari server bila sudah termuat; cadangan statis bila belum atau gagal. */
+	const conditions = $derived(conditionsQuery.data ?? MONTHLY_HYDROLOGY_CONDITIONS);
+
+	/**
+	 * "Belum diisi" bernilai `''`: untuk data yang sudah punya kondisi, memilihnya
+	 * mengosongkan kondisi itu. Nilai lama di luar kelas (isian bebas sebelum
+	 * 6 Nov 2026) tetap tampil sebagai opsi nonaktif supaya operator tahu apa
+	 * yang tersimpan, tetapi tidak bisa dipilih ulang.
+	 */
+	function conditionOptions(current: string): SelectOption[] {
+		const options: SelectOption[] = [
+			{ value: '', label: 'Belum diisi' },
+			...conditions.map((condition) => ({ value: condition, label: condition }))
+		];
+		if (isLegacyHydrologyCondition(current, conditions)) {
+			options.push({ value: current, label: `${current} (bukan kelas baku)`, disabled: true });
+		}
+		return options;
+	}
+
+	function legacyHint(saved: string | null | undefined, current: string): string | undefined {
+		if (!isLegacyHydrologyCondition(saved, conditions) || current !== saved?.trim()) {
+			return undefined;
+		}
+		return `Tersimpan "${saved}", bukan salah satu kelas. Pilih kelas yang sesuai; bila dibiarkan, nilai ini tidak diubah.`;
+	}
 
 	let values = $state<MonthlyHydrologyFormValues>(createEmptyMonthlyForm());
 	/** Isian saat panel dibuka, untuk mengenali perubahan yang belum disimpan. */
@@ -73,12 +109,19 @@
 	// `values` sesudah menulisnya menjadikannya dependensi efek ini sendiri, dan
 	// efek berputar tanpa henti (`effect_update_depth_exceeded`) — tombol
 	// "Edit data" dulu membuat seluruh halaman gagal ditampilkan.
+	//
+	// Daftar kelas dibaca lewat `untrack`: kalau ia ikut jadi dependensi, daftar
+	// dari server yang tiba sesudah panel terbuka akan menyetel ulang isian yang
+	// sedang diketik operator.
 	$effect(() => {
 		if (!isOpen) return;
 
+		const known = untrack(() => conditions);
+		const toFormCondition = (saved: string | null | undefined) =>
+			matchHydrologyCondition(saved, known) ?? saved?.trim() ?? '';
 		const next: MonthlyHydrologyFormValues = {
-			hydrologyPrediction: record?.hydrologyPrediction ?? '',
-			hydrologyActual: record?.hydrologyActual ?? '',
+			hydrologyPrediction: toFormCondition(record?.hydrologyPrediction),
+			hydrologyActual: toFormCondition(record?.hydrologyActual),
 			predictedProductionMwh: record?.predictedProductionMwh ?? null,
 			targetProductionMwh: record?.targetProductionMwh ?? null,
 			actualProductionMwh: record?.actualProductionMwh ?? null,
@@ -96,7 +139,13 @@
 	async function submitHydrology(event: SubmitEvent) {
 		event.preventDefault();
 
-		const payload = buildMonthlyHydrologyPayload(values);
+		const payload = buildMonthlyHydrologyPayload(values, {
+			conditions,
+			saved: {
+				hydrologyPrediction: record?.hydrologyPrediction ?? null,
+				hydrologyActual: record?.hydrologyActual ?? null
+			}
+		});
 
 		if (isEmptyMonthlyHydrologyPayload(payload)) {
 			notificationStore.addToast({
@@ -121,7 +170,7 @@
 
 <Sheet {isOpen} title="Input Hidrologi Bulanan" isDismissible={!isPending} {isDirty} {onClose}>
 	{#snippet description()}
-		Upsert parsial data {monthLabel}
+		Isi atau ubah data {monthLabel}
 		{year} untuk PLTA {plantName}.
 	{/snippet}
 
@@ -138,29 +187,27 @@
 			<div>
 				<h3 class="text-sm font-semibold text-text-strong">Kondisi hidrologi</h3>
 				<p class="mt-1 text-xs text-text-muted">
-					Field kosong tidak akan menimpa data yang sudah tersimpan.
+					Pilih salah satu kelas. "Belum diisi" mengosongkan kondisi yang tersimpan; angka energi
+					yang dikosongkan tidak menimpa data tersimpan.
 				</p>
 			</div>
 
-			<label class="field-label flex flex-col gap-2">
-				Prediksi Hidrologi
-				<textarea
+			<div class="grid gap-4 sm:grid-cols-2">
+				<Select
+					label="Prediksi Hidrologi"
 					bind:value={values.hydrologyPrediction}
+					options={conditionOptions(values.hydrologyPrediction)}
 					disabled={isPending}
-					rows={3}
-					placeholder="Contoh: Normal–Basah"
-					class="field resize-y font-normal"></textarea>
-			</label>
-
-			<label class="field-label flex flex-col gap-2">
-				Realisasi Hidrologi
-				<textarea
+					helperText={legacyHint(record?.hydrologyPrediction, values.hydrologyPrediction)}
+				/>
+				<Select
+					label="Realisasi Hidrologi"
 					bind:value={values.hydrologyActual}
+					options={conditionOptions(values.hydrologyActual)}
 					disabled={isPending}
-					rows={3}
-					placeholder="Masukkan kondisi realisasi..."
-					class="field resize-y font-normal"></textarea>
-			</label>
+					helperText={legacyHint(record?.hydrologyActual, values.hydrologyActual)}
+				/>
+			</div>
 		</section>
 
 		{#each ENERGY_GROUPS as group (group.title)}

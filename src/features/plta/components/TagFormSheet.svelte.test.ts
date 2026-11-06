@@ -5,7 +5,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { pltaRepository } from '../api/repository';
 import Harness from './TagFormSheet.test-harness.svelte';
 
-vi.mock('../api/repository', () => ({ pltaRepository: { createTag: vi.fn() } }));
+vi.mock('../api/repository', () => ({
+	pltaRepository: { createTag: vi.fn(), listParameters: vi.fn() }
+}));
 
 const repository = vi.mocked(pltaRepository);
 
@@ -17,6 +19,7 @@ function renderSheet() {
 beforeEach(() => {
 	document.body.removeAttribute('style');
 	vi.clearAllMocks();
+	repository.listParameters.mockResolvedValue([]);
 });
 
 describe('sheet tambah parameter', () => {

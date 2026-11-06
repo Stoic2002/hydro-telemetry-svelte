@@ -6,7 +6,7 @@
 	import { Axis, Bars, Chart, Highlight, Rule, Spline, Svg, Tooltip } from 'layerchart';
 
 	import { formatDayMonthTimeWIB } from '$shared/lib/date';
-	import { timeAxisFormatter, valueAxisTicks } from '$shared/utils/chart';
+	import { barTimeInterval, timeAxisFormatter, valueAxisTicks } from '$shared/utils/chart';
 	import { formatNumber } from '$shared/utils/number';
 	import { displayUnit } from '$shared/utils/unit';
 	import {
@@ -152,6 +152,9 @@
 						data={chart.data}
 						x="time"
 						xScale={scaleTime()}
+						xInterval={chart.isBarChart
+							? barTimeInterval(chart.data.map((datum) => datum.time))
+							: null}
 						yDomain={chart.leftDomain}
 						padding={{ top: 14, right: chart.rightDomain ? 58 : 18, bottom: 28, left: 58 }}
 						tooltipContext={{ mode: 'bisect-x' }}

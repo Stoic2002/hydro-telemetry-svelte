@@ -5,6 +5,7 @@ import {
 	buildMonthlyComparison,
 	currentWibDate,
 	dashboardMetricRows,
+	describeSensorProblem,
 	formatReadingAge,
 	freshnessThresholdsFor,
 	HOURLY_SENSOR_FRESHNESS_MINUTES,
@@ -661,5 +662,59 @@ describe('mode tampilan Hidrologi Harian', () => {
 		expect(parseDailyZoneFilter('hulu')).toBe('hulu');
 		expect(parseDailyZoneFilter('atap')).toBe('semua');
 		expect(parseDailyRowFilter(null)).toBe('semua');
+	});
+});
+
+describe('describeSensorProblem', () => {
+	const labels: Record<string, string> = { beban: 'Beban', ph: 'pH' };
+	const labelOf = (key: string) => labels[key];
+
+	it('menyebut komunikasi terputus beserta sejak kapan', () => {
+		expect(
+			describeSensorProblem(
+				{
+					parameter: 'beban',
+					station: 'U1',
+					kind: 'communication',
+					since: '2026-11-06T10:32:28+07:00',
+					value: null
+				},
+				labelOf
+			)
+		).toEqual({
+			key: 'beban|U1|communication',
+			name: 'Beban · U1',
+			detail: 'komunikasi terputus sejak 06 Nov 10:32'
+		});
+	});
+
+	it('menampilkan angka mustahilnya', () => {
+		expect(
+			describeSensorProblem(
+				{
+					parameter: 'ph',
+					station: 'CLANGAP',
+					kind: 'impossible',
+					since: '2026-11-03T21:57:15+07:00',
+					value: 0
+				},
+				labelOf
+			).detail
+		).toBe('nilai tidak wajar (0) sejak 03 Nov 21:57');
+	});
+
+	it('memakai kunci parameter selama katalog nama belum termuat', () => {
+		expect(
+			describeSensorProblem(
+				{
+					parameter: 'total_outflow',
+					station: '',
+					kind: 'communication',
+					since: null,
+					value: null
+				},
+				() => undefined
+			)
+		).toMatchObject({ name: 'total_outflow', detail: 'komunikasi terputus' });
 	});
 });
