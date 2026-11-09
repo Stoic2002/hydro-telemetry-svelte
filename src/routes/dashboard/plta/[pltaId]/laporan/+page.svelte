@@ -11,6 +11,7 @@
 	import ResourceTableSkeleton from '$components/skeletons/ResourceTableSkeleton.svelte';
 	import EmptyState from '$components/ui/EmptyState.svelte';
 	import ErrorState from '$components/ui/ErrorState.svelte';
+	import InfoTip from '$components/ui/InfoTip.svelte';
 	import PageHeader from '$components/ui/PageHeader.svelte';
 	import SearchForm from '$components/controls/SearchForm.svelte';
 	import RefetchBar from '$components/ui/RefetchBar.svelte';
@@ -483,12 +484,12 @@
 			</div>
 
 			<fieldset class="flex flex-col gap-2">
-				<legend class="field-label">
-					Parameter <span class="font-normal text-text-muted">· kosongkan berarti semua</span>
+				<legend class="field-label mb-1 flex items-center gap-1.5">
+					<span>
+						Parameter <span class="font-normal text-text-muted">· kosongkan berarti semua</span>
+					</span>
+					<InfoTip label="Keterangan parameter" text="Pilihan berasal dari tag aktif PLTA." />
 				</legend>
-				<p class="mb-1 text-xs leading-relaxed text-text-muted">
-					Pilihan berasal dari tag aktif PLTA.
-				</p>
 
 				{#if tagsQuery.isLoading || tagsQuery.isPlaceholderData}
 					<p class="loading-text" role="status">Memuat parameter…</p>

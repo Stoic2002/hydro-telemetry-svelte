@@ -1,5 +1,5 @@
 import { MONITORING_PARAMETERS } from '../monitoring';
-import type { ParameterInfo, TagInput, TagInputProtocol, TagPanel } from './model';
+import type { ParameterInfo, TagFormula, TagInput, TagInputProtocol, TagPanel } from './model';
 import type { FormErrors, ParsedForm } from './plant-form';
 
 /** Batas panjang dari Swagger (`TagMappingCreate`). */
@@ -29,9 +29,10 @@ export function tagParameterOptions(catalog: readonly ParameterInfo[] | undefine
 }
 
 /**
- * Protokol yang boleh dipilih. `derived` (formulasi) tidak ditawarkan: server
- * menolaknya karena nilainya dihitung sistem (keputusan rapat tim 27 Okt
- * 2026: hanya parameter yang bukan formulasi).
+ * Protokol yang boleh dipilih. `derived` (formulasi) ditawarkan sejak Swagger
+ * 9 Nov 2026 — dulu server menolaknya, dan rapat tim 27 Okt 2026 membatasi form
+ * ini pada parameter yang bukan formulasi. Jenis formulasinya dipilih
+ * terpisah (`DERIVED_KIND_OPTIONS`); alamatnya tidak diisi pengguna.
  */
 export const TAG_PROTOCOL_OPTIONS: {
 	value: TagInputProtocol;
@@ -74,8 +75,41 @@ export const TAG_PROTOCOL_OPTIONS: {
 		addressLabel: 'Alamat',
 		addressPlaceholder: 'upload',
 		addressHint: 'Diisi operator lewat Input data atau Upload; alamatnya cukup "upload".'
+	},
+	{
+		value: 'derived',
+		label: 'Formulasi (dihitung server)',
+		addressLabel: 'Alamat',
+		addressPlaceholder: '',
+		addressHint: ''
 	}
 ];
+
+/** Jenis formulasi `derived` yang diterima `POST /tags`. */
+export type DerivedKind = 'swc' | 'rumus';
+
+export const DERIVED_KIND_OPTIONS: {
+	value: DerivedKind;
+	label: string;
+	address: string;
+	/** Parameter yang dikunci server untuk jenis ini. */
+	parameter: string;
+}[] = [
+	{
+		value: 'swc',
+		label: 'Debit unit dari SWC',
+		address: 'computed:swc',
+		parameter: 'total_outflow'
+	},
+	{ value: 'rumus', label: 'Rumus kustom', address: 'rumus', parameter: 'rumus' }
+];
+
+/** Station unit turbin untuk `computed:swc`: `T1`, `T2`, … (Swagger `POST /tags`). */
+export const SWC_STATION_PATTERN = /^T\d+$/;
+
+export function derivedKindConfig(kind: DerivedKind) {
+	return DERIVED_KIND_OPTIONS.find((option) => option.value === kind) ?? DERIVED_KIND_OPTIONS[0];
+}
 
 export const TAG_PANEL_OPTIONS: { value: TagPanel | ''; label: string }[] = [
 	{ value: '', label: 'Tidak di panel' },
@@ -89,6 +123,8 @@ export interface TagFormValues {
 	station: string;
 	label: string;
 	protocol: TagInputProtocol;
+	/** Hanya berlaku untuk protokol `derived`. */
+	derivedKind: DerivedKind;
 	address: string;
 	unit: string;
 	panel: TagPanel | '';
@@ -103,7 +139,8 @@ export interface TagFormValues {
 	timestampPath: string;
 }
 
-export type TagFormField = keyof TagFormValues;
+/** `formula` = galat isian rumus kustom, yang tampil di editor rumusnya sendiri. */
+export type TagFormField = keyof TagFormValues | 'formula';
 
 export function emptyTagForm(): TagFormValues {
 	return {
@@ -111,6 +148,7 @@ export function emptyTagForm(): TagFormValues {
 		station: '',
 		label: '',
 		protocol: 'upload',
+		derivedKind: 'swc',
 		address: 'upload',
 		unit: '',
 		panel: '',
@@ -168,10 +206,20 @@ function addressError(protocol: TagInputProtocol, address: string): string | und
 	return undefined;
 }
 
+export interface DerivedTagOptions {
+	/** Rumus kustom yang sudah lolos `parseFormulaForm`; `null` bila belum. */
+	formula?: TagFormula | null;
+	/** `pola_kode` dari kamus rumus. */
+	codePattern?: RegExp;
+}
+
 export function parseTagForm(
 	pltaId: string,
-	values: TagFormValues
+	values: TagFormValues,
+	options: DerivedTagOptions = {}
 ): ParsedForm<TagInput, TagFormField> {
+	if (values.protocol === 'derived') return parseDerivedTagForm(pltaId, values, options);
+
 	const errors: FormErrors<TagFormField> = {};
 
 	const parameter = values.parameter;
@@ -236,7 +284,78 @@ export function parseTagForm(
 			minValid,
 			maxValid,
 			enabled: values.enabled,
-			panel: values.panel === '' ? null : values.panel
+			panel: values.panel === '' ? null : values.panel,
+			formula: null
+		}
+	};
+}
+
+/**
+ * Tag formulasi. Alamat dan parameternya ditentukan jenisnya, bukan diisi
+ * pengguna, dan skala/offset wajib 1/0 (Swagger `POST /tags`): nilai `derived`
+ * disimpan apa adanya.
+ *
+ * - `computed:swc`: debit unit = beban unit × SWC ÷ 3,6, hanya untuk
+ *   `total_outflow` ber-station unit turbin `T<n>`.
+ * - `rumus`: station = kode rumus, definisinya di `formula`.
+ */
+function parseDerivedTagForm(
+	pltaId: string,
+	values: TagFormValues,
+	{ formula = null, codePattern = /^[A-Z][A-Z0-9_]*$/ }: DerivedTagOptions
+): ParsedForm<TagInput, TagFormField> {
+	const errors: FormErrors<TagFormField> = {};
+	const kind = derivedKindConfig(values.derivedKind);
+
+	// Kode rumus dibesarkan otomatis, seperti kode PLTA: `efisiensi` = `EFISIENSI`.
+	const station =
+		kind.value === 'rumus' ? values.station.trim().toUpperCase() : values.station.trim();
+	if (kind.value === 'swc') {
+		if (!station) errors.station = 'Isi unit turbin, mis. T1.';
+		else if (!SWC_STATION_PATTERN.test(station)) errors.station = 'Unit turbin ditulis T1, T2, …';
+	} else {
+		if (!station) errors.station = 'Isi kode rumus, mis. EFISIENSI_TOTAL.';
+		else if (station.length > TAG_STATION_MAX_LENGTH) {
+			errors.station = `Maksimal ${TAG_STATION_MAX_LENGTH} karakter.`;
+		} else if (!codePattern.test(station)) {
+			errors.station = 'Huruf besar, angka, dan garis bawah; diawali huruf.';
+		}
+		if (!formula) errors.formula = 'Lengkapi rumus.';
+	}
+
+	const label = optionalText(values.label);
+	if (label && label.length > TAG_LABEL_MAX_LENGTH) {
+		errors.label = `Maksimal ${TAG_LABEL_MAX_LENGTH} karakter.`;
+	}
+
+	const minValid = numberOrNull(values.minValid);
+	const maxValid = numberOrNull(values.maxValid);
+	if (minValid !== null && maxValid !== null && minValid >= maxValid) {
+		errors.maxValid = 'Batas atas harus lebih besar dari batas bawah.';
+	}
+
+	if (Object.keys(errors).length > 0) return { ok: false, errors };
+
+	return {
+		ok: true,
+		input: {
+			pltaId,
+			parameter: kind.parameter,
+			station,
+			label,
+			protocol: 'derived',
+			address: kind.address,
+			httpHeaders: null,
+			valuePath: null,
+			timestampPath: null,
+			scale: 1,
+			offset: 0,
+			unit: optionalText(values.unit),
+			minValid,
+			maxValid,
+			enabled: values.enabled,
+			panel: values.panel === '' ? null : values.panel,
+			formula: kind.value === 'rumus' ? formula : null
 		}
 	};
 }

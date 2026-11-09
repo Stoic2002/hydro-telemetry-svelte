@@ -116,7 +116,15 @@ export default defineConfig(({ mode }) => ({
 					setupFiles: ['./src/test/setup.ts'],
 					include: ['src/**/*.svelte.{test,spec}.{js,ts}'],
 					clearMocks: true,
-					restoreMocks: true
+					restoreMocks: true,
+					/**
+					 * Menu bits-ui (`DropdownMenu`) lambat di jsdom: 5–13 dtk per test
+					 * bahkan saat berjalan sendiri. Di bawah beban penuh `bun run check`,
+					 * `afterAll` di `setup.ts` (timer 50 ms) baru sempat berjalan sesudah
+					 * batas bawaan 10 dtk, dan berkas yang semua test-nya lulus ditandai
+					 * gagal (9 Nov 2026: `OverflowMenu` gagal tiga kali berturut-turut).
+					 */
+					hookTimeout: 30_000
 				}
 			},
 

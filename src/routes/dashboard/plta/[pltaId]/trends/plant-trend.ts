@@ -68,13 +68,20 @@ export function selectTrendChart(
 	);
 }
 
+/**
+ * Urutan warna deret di satu grafik, bukan urutan token: token 1 (cyan), 2
+ * (biru), dan 4 (cyan tua) serumpun, dan memakainya berurutan membuat TMA
+ * Waduk dan Inflow sama-sama biru (temuan QA T14, 4 Nov 2026). Deret yang
+ * bersebelahan kini selalu berbeda rona: cyan, amber, ungu, hijau, biru, cyan
+ * tua. Token-nya sendiri tidak diubah karena dipakai Forecasting dan peta.
+ */
 export const TREND_SERIES_COLORS = [
 	'var(--color-chart-series-1)',
-	'var(--color-chart-series-2)',
-	'var(--color-chart-series-3)',
-	'var(--color-chart-series-4)',
 	'var(--color-chart-series-5)',
-	'var(--color-chart-series-6)'
+	'var(--color-chart-series-3)',
+	'var(--color-chart-series-6)',
+	'var(--color-chart-series-2)',
+	'var(--color-chart-series-4)'
 ];
 
 export type TrendAxis = 'left' | 'right';
@@ -246,20 +253,8 @@ export function buildTrendChart(
 	};
 }
 
-/**
- * Pemetaan linear nilai sumbu kanan ke ruang sumbu kiri. Satu `Chart` hanya
- * punya satu skala Y, jadi deret bersatuan kedua digambar dalam ruang sumbu
- * kiri dan label sumbu kanannya dipetakan balik. Tooltip tetap membaca nilai
- * aslinya dari `values`.
- */
-export function axisMapping(left: [number, number], right: [number, number]) {
-	const leftSpan = left[1] - left[0] || 1;
-	const rightSpan = right[1] - right[0] || 1;
-	return {
-		toLeft: (value: number) => left[0] + ((value - right[0]) / rightSpan) * leftSpan,
-		toRight: (value: number) => right[0] + ((value - left[0]) / leftSpan) * rightSpan
-	};
-}
+/** Dipindah ke `shared/utils/chart.ts` (dipakai juga grafik energi bulanan). */
+export { axisMapping } from '$shared/utils/chart';
 
 /**
  * Nilai deret pada waktu `time` untuk tooltip: garis tangga memakai nilai

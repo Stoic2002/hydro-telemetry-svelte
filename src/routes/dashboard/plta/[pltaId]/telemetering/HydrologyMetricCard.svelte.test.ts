@@ -74,3 +74,31 @@ describe('kontrol zona yang ditempelkan ke sebuah baris', () => {
 		expect(precedingLabel()).not.toContain('Parameter');
 	});
 });
+
+/**
+ * Mode satu zona (permintaan tim 9 Nov 2026): baris dibaca per kolom — kiri
+ * dari atas ke bawah, lalu kanan. Dulu satu grid yang terisi per baris, jadi
+ * urutan 1, 2, 3 tersebar kiri-kanan-kiri dan terbaca acak.
+ */
+describe('kartu zona selebar halaman', () => {
+	it('mengisi kolom kiri lebih dulu, lalu kolom kanan', () => {
+		const rows = [1, 2, 3, 4, 5].map((index) => row(index));
+		render(HydrologyMetricCard, {
+			props: { zone: 'upstream', isWide: true, sections: [{ title: 'Hulu', rows }] }
+		});
+
+		const columnOf = (index: number) =>
+			document.getElementById(`metric-metric_${index}`)?.parentElement;
+		const left = columnOf(1);
+		const right = columnOf(4);
+
+		expect(left).not.toBe(right);
+		expect([1, 2, 3].map(columnOf)).toEqual([left, left, left]);
+		expect([4, 5].map(columnOf)).toEqual([right, right]);
+		// Urutan dokumen tetap 1 → 5, sehingga menumpuk dengan benar di layar sempit.
+		const order = [...document.querySelectorAll('[id^="metric-metric_"]')].map(
+			(element) => element.id
+		);
+		expect(order).toEqual([1, 2, 3, 4, 5].map((index) => `metric-metric_${index}`));
+	});
+});

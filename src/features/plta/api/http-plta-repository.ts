@@ -7,10 +7,15 @@ import type {
 	PlantTag,
 	RiverBasin,
 	RiverBasinChanges,
+	FormulaDictionary,
+	TagFormula,
+	TagFormulaVariable,
 	TagInput
 } from '../model';
 import type { PLTARepository } from './plta-repository';
 import {
+	apiFormulaDictionarySchema,
+	apiFormulaTestSchema,
 	apiParameterCatalogSchema,
 	apiPlantSchema,
 	apiPlantTagSchema,
@@ -114,9 +119,74 @@ function plantBody(changes: PlantChanges): Record<string, unknown> {
 	return body;
 }
 
+type ApiFormulaVariable =
+	| { konstanta: string }
+	| {
+			parameter: string;
+			station: string;
+			ambil: 'terbaru' | 'rata_jam' | 'harian';
+			bawaan: number | null;
+	  };
+
+function mapFormulaVariable(variable: ApiFormulaVariable): TagFormulaVariable {
+	return 'konstanta' in variable
+		? { kind: 'constant', constant: variable.konstanta }
+		: {
+				kind: 'series',
+				parameter: variable.parameter,
+				station: variable.station,
+				take: variable.ambil,
+				fallback: variable.bawaan
+			};
+}
+
+function mapFormulaDictionary(
+	dictionary: ReturnType<typeof apiFormulaDictionarySchema.parse>
+): FormulaDictionary {
+	return {
+		functions: dictionary.fungsi.map((item) => ({ name: item.nama, description: item.keterangan })),
+		operators: dictionary.operator,
+		takeModes: dictionary.ambil.map((item) => ({ name: item.nama, description: item.keterangan })),
+		constants: dictionary.konstanta,
+		limits: dictionary.batas,
+		codePattern: dictionary.pola_kode,
+		variablePattern: dictionary.pola_variabel,
+		example: {
+			expression: dictionary.contoh.ekspresi,
+			variables: Object.fromEntries(
+				Object.entries(dictionary.contoh.variabel).map(([name, variable]) => [
+					name,
+					mapFormulaVariable(variable)
+				])
+			)
+		}
+	};
+}
+
+/** `TagFormula` → `DefinisiRumus` Swagger. */
+export function formulaBody(formula: TagFormula) {
+	return {
+		ekspresi: formula.expression,
+		variabel: Object.fromEntries(
+			Object.entries(formula.variables).map(([name, variable]) => [
+				name,
+				variable.kind === 'constant'
+					? { konstanta: variable.constant }
+					: {
+							parameter: variable.parameter,
+							station: variable.station,
+							ambil: variable.take,
+							bawaan: variable.fallback
+						}
+			])
+		)
+	};
+}
+
 /**
  * Badan `POST /tags`. Bidang REST hanya disertakan untuk protokol `rest`:
  * server menolak bidang itu di protokol lain, bahkan bila nilainya `null`.
+ * `rumus` hanya untuk tag `derived` beralamat `rumus`.
  */
 function tagBody(input: TagInput): Record<string, unknown> {
 	return {
@@ -133,6 +203,7 @@ function tagBody(input: TagInput): Record<string, unknown> {
 		max_valid: input.maxValid,
 		enabled: input.enabled,
 		panel: input.panel,
+		...(input.protocol === 'derived' && input.formula ? { rumus: formulaBody(input.formula) } : {}),
 		...(input.protocol === 'rest'
 			? {
 					http_headers: input.httpHeaders,
@@ -268,6 +339,32 @@ export const httpPltaRepository: PLTARepository = {
 		});
 
 		return mapPlant(parseResponse(payload, apiPlantSchema, endpoint));
+	},
+
+	async getFormulaDictionary() {
+		const endpoint = '/api/v1/tags/rumus/kamus';
+		const payload = await apiRequest<unknown>(endpoint, { method: 'GET' });
+		return mapFormulaDictionary(parseResponse(payload, apiFormulaDictionarySchema, endpoint));
+	},
+
+	async testFormula(pltaId, formula, code) {
+		const endpoint = '/api/v1/tags/rumus/uji';
+		const payload = await apiRequest<unknown>(endpoint, {
+			method: 'POST',
+			json: { plta_id: pltaId, station: code || null, rumus: formulaBody(formula) }
+		});
+		const result = parseResponse(payload, apiFormulaTestSchema, endpoint);
+		return {
+			value: result.nilai,
+			time: result.waktu,
+			variables: result.variabel.map((item) => ({
+				name: item.nama,
+				value: item.nilai,
+				time: item.waktu,
+				source: item.sumber
+			})),
+			problems: result.masalah
+		};
 	},
 
 	async createTag(input) {

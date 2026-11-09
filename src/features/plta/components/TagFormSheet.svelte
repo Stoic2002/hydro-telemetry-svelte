@@ -5,21 +5,36 @@
 	import Select from '$components/controls/Select.svelte';
 	import StatusToggle from '$components/controls/StatusToggle.svelte';
 	import Banner from '$components/ui/Banner.svelte';
+	import InfoTip from '$components/ui/InfoTip.svelte';
 	import Sheet from '$components/ui/Sheet.svelte';
 	import { notificationStore } from '$shared/lib/notification.svelte';
-	import { createCreateTagMutation, createParameterCatalogQuery } from '../api/queries';
+	import {
+		createCreateTagMutation,
+		createFormulaDictionaryQuery,
+		createParameterCatalogQuery
+	} from '../api/queries';
+	import FormulaEditor from './FormulaEditor.svelte';
+	import {
+		emptyFormulaForm,
+		formulaCodePattern,
+		parseFormulaForm,
+		type FormulaFormValues
+	} from '../formula-form';
 	import { getTagSaveErrorDetail } from '../error';
 	import type { TagInputProtocol } from '../model';
 	import {
+		DERIVED_KIND_OPTIONS,
 		TAG_ADDRESS_MAX_LENGTH,
 		TAG_LABEL_MAX_LENGTH,
 		TAG_PANEL_OPTIONS,
 		TAG_PATH_MAX_LENGTH,
 		TAG_PROTOCOL_OPTIONS,
 		TAG_STATION_MAX_LENGTH,
+		derivedKindConfig,
 		emptyTagForm,
 		parseTagForm,
 		tagParameterOptions,
+		type DerivedKind,
 		type TagFormValues
 	} from '../tag-form';
 
@@ -34,9 +49,9 @@
 
 	/**
 	 * Daftarkan parameter baru untuk satu PLTA (khusus admin, `POST /tags`).
-	 * Hanya parameter yang bukan formulasi: protokol `derived` tidak ditawarkan
-	 * (keputusan rapat tim 27 Okt 2026). Bidang lanjutan (skala, batas valid)
-	 * berbawaan aman, jadi form inti cukup parameter, protokol, dan alamat.
+	 * Bidang lanjutan (skala, batas valid) berbawaan aman, jadi form inti cukup
+	 * parameter, protokol, dan alamat. Protokol **Formulasi** (`derived`, sejak
+	 * Swagger 9 Nov 2026) mengunci parameter dan alamatnya sesuai jenisnya.
 	 */
 	const createMutation = createCreateTagMutation();
 	const catalogQuery = createParameterCatalogQuery(() => isOpen);
@@ -45,6 +60,7 @@
 	const ENV_PLACEHOLDER = '${NAMA_ENV}';
 
 	let values = $state<TagFormValues>(emptyTagForm());
+	let formulaValues = $state<FormulaFormValues>(emptyFormulaForm());
 	let showErrors = $state(false);
 	let serverProblems = $state<{ message: string; problems: string[] } | null>(null);
 	/** Satuan terakhir yang diisi otomatis; isian tangan pengguna tidak ditimpa. */
@@ -54,14 +70,35 @@
 		if (!isOpen) return;
 		void pltaId;
 		values = emptyTagForm();
+		formulaValues = emptyFormulaForm();
 		showErrors = false;
 		serverProblems = null;
 		autoUnit = '';
 	});
 
-	const parsed = $derived(parseTagForm(pltaId, values));
+	const isDerived = $derived(values.protocol === 'derived');
+	const isSwc = $derived(isDerived && values.derivedKind === 'swc');
+	const isRumus = $derived(isDerived && values.derivedKind === 'rumus');
+
+	// Kamus hanya dimuat saat rumus kustom dipilih; statis per rilis server.
+	const dictionaryQuery = createFormulaDictionaryQuery(() => isOpen && isRumus);
+	const formulaParsed = $derived(parseFormulaForm(formulaValues, dictionaryQuery.data));
+	const formulaErrors = $derived(showErrors ? formulaParsed.errors : { rows: {} });
+	const formula = $derived(formulaParsed.ok ? formulaParsed.formula : null);
+
+	const parsed = $derived(
+		parseTagForm(pltaId, values, {
+			formula: isRumus ? formula : null,
+			codePattern: formulaCodePattern(dictionaryQuery.data)
+		})
+	);
 	const errors = $derived(showErrors && !parsed.ok ? parsed.errors : {});
-	const isDirty = $derived(JSON.stringify(values) !== JSON.stringify(emptyTagForm()));
+	const isDirty = $derived(
+		JSON.stringify(values) !== JSON.stringify(emptyTagForm()) ||
+			(isRumus && JSON.stringify(formulaValues) !== JSON.stringify(emptyFormulaForm()))
+	);
+	/** Kode rumus seperti yang akan dikirim, untuk Uji rumus. */
+	const formulaCode = $derived(values.station.trim().toUpperCase());
 	const isPending = $derived(createMutation.isPending);
 	const protocolConfig = $derived(
 		TAG_PROTOCOL_OPTIONS.find((option) => option.value === values.protocol) ??
@@ -77,13 +114,31 @@
 		}
 	}
 
-	/** Alamat bawaan "upload" hanya masuk akal untuk input manual. */
+	/**
+	 * Alamat bawaan "upload" hanya masuk akal untuk input manual. Formulasi
+	 * mengunci parameternya; meninggalkan formulasi melepas kunci itu.
+	 */
 	function changeProtocol(next: string) {
 		const protocol = next as TagInputProtocol;
+		const wasDerived = values.protocol === 'derived';
 		const address = values.address.trim();
 		values.protocol = protocol;
+		if (protocol === 'derived') {
+			changeDerivedKind(values.derivedKind);
+			return;
+		}
+		if (wasDerived) {
+			values.parameter = '';
+			values.address = protocol === 'upload' ? 'upload' : '';
+			return;
+		}
 		if (protocol === 'upload' && address === '') values.address = 'upload';
 		else if (protocol !== 'upload' && address === 'upload') values.address = '';
+	}
+
+	function changeDerivedKind(next: string) {
+		values.derivedKind = next as DerivedKind;
+		changeParameter(derivedKindConfig(values.derivedKind).parameter);
 	}
 
 	async function save(event: SubmitEvent) {
@@ -111,8 +166,7 @@
 
 <Sheet {isOpen} title="Tambah parameter" isDismissible={!isPending} {isDirty} {onClose}>
 	{#snippet description()}
-		Sumber data baru untuk PLTA {plantName}. Parameter formulasi dihitung sistem dan tidak
-		ditambahkan di sini.
+		Sumber data baru untuk PLTA {plantName}.
 	{/snippet}
 
 	<form id="tag-form" onsubmit={save} class="flex flex-col gap-6" novalidate>
@@ -133,19 +187,26 @@
 				placeholder="Pilih parameter"
 				value={values.parameter}
 				onValueChange={changeParameter}
-				options={parameterOptions}
-				disabled={isPending || catalogQuery.isLoading}
+				options={isRumus ? [{ value: 'rumus', label: 'Rumus kustom · rumus' }] : parameterOptions}
+				disabled={isPending || catalogQuery.isLoading || isDerived}
 				error={errors.parameter}
+				hint={isDerived
+					? 'Ditentukan jenis formulasi yang dipilih di bawah.'
+					: 'Untuk parameter yang dihitung server, pilih protokol Formulasi.'}
 			/>
 			<div class="grid gap-4 sm:grid-cols-2">
 				<Input
-					label="Station (opsional)"
-					placeholder="mis. G1, KANAN"
+					label={isSwc ? 'Unit turbin' : isRumus ? 'Kode rumus' : 'Station (opsional)'}
+					placeholder={isSwc ? 'mis. T1' : isRumus ? 'mis. EFISIENSI_TOTAL' : 'mis. G1, KANAN'}
 					maxlength={TAG_STATION_MAX_LENGTH}
 					bind:value={values.station}
 					disabled={isPending}
 					error={errors.station}
-					helperText="Kosongkan bila hanya satu sumber."
+					hint={isSwc
+						? 'Satu tag per unit turbin.'
+						: isRumus
+							? 'Huruf besar, angka, dan garis bawah. Hasilnya tampil sebagai deret rumus dengan kode ini di panel harian, tren, dan laporan.'
+							: 'Kosongkan bila hanya satu sumber.'}
 				/>
 				<Input
 					label="Satuan (opsional)"
@@ -182,75 +243,130 @@
 				}))}
 				disabled={isPending}
 			/>
-			<Input
-				label={protocolConfig.addressLabel}
-				placeholder={protocolConfig.addressPlaceholder}
-				maxlength={TAG_ADDRESS_MAX_LENGTH}
-				bind:value={values.address}
-				disabled={isPending}
-				error={errors.address}
-				helperText={protocolConfig.addressHint}
-			/>
-
-			{#if values.protocol === 'rest'}
-				<label class="field-label flex flex-col gap-1.5">
-					Header HTTP (opsional)
-					<textarea
-						rows="3"
-						placeholder={'Authorization: Bearer ${API_TOKEN}'}
-						bind:value={values.httpHeaders}
-						disabled={isPending}
-						aria-invalid={errors.httpHeaders ? 'true' : undefined}
-						class={`field min-h-20 py-2 font-mono text-xs ${errors.httpHeaders ? 'field-invalid' : ''}`}
-					></textarea>
-					{#if errors.httpHeaders}
-						<span class="text-xs font-medium text-status-danger-strong">{errors.httpHeaders}</span>
-					{:else}
-						<span class="text-xs font-normal text-text-muted">
-							Satu per baris. Rahasia ditulis sebagai {ENV_PLACEHOLDER} yang diizinkan server.
-						</span>
+			{#if isDerived}
+				<Select
+					label="Jenis formulasi"
+					value={values.derivedKind}
+					onValueChange={changeDerivedKind}
+					options={DERIVED_KIND_OPTIONS.map((option) => ({
+						value: option.value,
+						label: option.label
+					}))}
+					disabled={isPending}
+					hint="Dihitung server tiap jam, mulai siklus jam berikutnya setelah disimpan. Maksimal 50 rumus per PLTA."
+				/>
+				{#if isSwc}
+					<!--
+						Ditulis langsung, bukan tooltip: harus dibaca sebelum menyimpan.
+						Satu unit bertanda mengubah cara total debit PLTA dihitung.
+					-->
+					<p class="text-xs leading-5 text-status-warning-strong">
+						Debit unit = beban unit × SWC ÷ 3,6. Tandai <strong>semua</strong> unit turbin PLTA ini: begitu
+						ada satu unit bertanda, total debit PLTA = jumlah unit yang bertanda.
+					</p>
+				{/if}
+				{#if isRumus}
+					{#if dictionaryQuery.isError}
+						<p class="text-xs text-status-warning-strong">
+							Kamus rumus belum termuat; pilihan konstanta belum tersedia.
+						</p>
 					{/if}
-				</label>
-				<div class="grid gap-4 sm:grid-cols-2">
-					<Input
-						label="Jalur nilai (opsional)"
-						placeholder="[data.nama_station=X].data.tma"
-						maxlength={TAG_PATH_MAX_LENGTH}
-						bind:value={values.valuePath}
+					<FormulaEditor
+						bind:values={formulaValues}
+						errors={formulaErrors}
+						dictionary={dictionaryQuery.data}
+						{parameterOptions}
 						disabled={isPending}
-						error={errors.valuePath}
+						{pltaId}
+						code={formulaCode}
+						{formula}
+						onInvalidTest={() => (showErrors = true)}
 					/>
-					<Input
-						label="Jalur waktu (opsional)"
-						maxlength={TAG_PATH_MAX_LENGTH}
-						bind:value={values.timestampPath}
-						disabled={isPending}
-						error={errors.timestampPath}
-					/>
-				</div>
+				{/if}
+			{:else}
+				<Input
+					label={protocolConfig.addressLabel}
+					placeholder={protocolConfig.addressPlaceholder}
+					maxlength={TAG_ADDRESS_MAX_LENGTH}
+					bind:value={values.address}
+					disabled={isPending}
+					error={errors.address}
+					hint={protocolConfig.addressHint}
+				/>
+
+				{#if values.protocol === 'rest'}
+					<div class="flex flex-col gap-1.5">
+						<div class="flex items-center gap-1.5">
+							<label for="tag-http-headers" class="field-label">Header HTTP (opsional)</label>
+							<InfoTip
+								label="Keterangan Header HTTP"
+								text={`Satu per baris. Rahasia ditulis sebagai ${ENV_PLACEHOLDER} yang diizinkan server.`}
+							/>
+						</div>
+						<textarea
+							id="tag-http-headers"
+							rows="3"
+							placeholder={'Authorization: Bearer ${API_TOKEN}'}
+							bind:value={values.httpHeaders}
+							disabled={isPending}
+							aria-invalid={errors.httpHeaders ? 'true' : undefined}
+							aria-describedby={errors.httpHeaders ? 'tag-http-headers-error' : undefined}
+							class={`field min-h-20 py-2 font-mono text-xs ${errors.httpHeaders ? 'field-invalid' : ''}`}
+						></textarea>
+						{#if errors.httpHeaders}
+							<span
+								id="tag-http-headers-error"
+								class="text-xs font-medium text-status-danger-strong"
+							>
+								{errors.httpHeaders}
+							</span>
+						{/if}
+					</div>
+					<div class="grid gap-4 sm:grid-cols-2">
+						<Input
+							label="Jalur nilai (opsional)"
+							placeholder="[data.nama_station=X].data.tma"
+							maxlength={TAG_PATH_MAX_LENGTH}
+							bind:value={values.valuePath}
+							disabled={isPending}
+							error={errors.valuePath}
+						/>
+						<Input
+							label="Jalur waktu (opsional)"
+							maxlength={TAG_PATH_MAX_LENGTH}
+							bind:value={values.timestampPath}
+							disabled={isPending}
+							error={errors.timestampPath}
+						/>
+					</div>
+				{/if}
 			{/if}
 		</section>
 
 		<section class="flex flex-col gap-4 border-t border-surface-overlay pt-5">
 			<div class="grid grid-cols-2 gap-4">
-				<Input
-					label="Skala"
-					type="number"
-					step="any"
-					bind:value={values.scale}
-					disabled={isPending}
-					error={errors.scale}
-				/>
-				<Input
-					label="Offset"
-					type="number"
-					step="any"
-					bind:value={values.offset}
-					disabled={isPending}
-					error={errors.offset}
-				/>
+				{#if !isDerived}
+					<Input
+						label="Skala"
+						hint="Biarkan skala 1 dan offset 0 bila bacaan tidak perlu dikonversi."
+						type="number"
+						step="any"
+						bind:value={values.scale}
+						disabled={isPending}
+						error={errors.scale}
+					/>
+					<Input
+						label="Offset"
+						type="number"
+						step="any"
+						bind:value={values.offset}
+						disabled={isPending}
+						error={errors.offset}
+					/>
+				{/if}
 				<Input
 					label="Batas bawah"
+					hint="Pembacaan di luar batas ditandai tidak wajar."
 					type="number"
 					step="any"
 					placeholder="Tanpa batas"
@@ -267,10 +383,6 @@
 					error={errors.maxValid}
 				/>
 			</div>
-			<p class="-mt-2 text-xs text-text-muted">
-				Biarkan skala 1 dan offset 0 bila bacaan tidak perlu dikonversi. Pembacaan di luar batas
-				ditandai tidak wajar.
-			</p>
 			<StatusToggle
 				label="Status parameter"
 				align="stretch"

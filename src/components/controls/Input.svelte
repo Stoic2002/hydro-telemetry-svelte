@@ -1,11 +1,18 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
+	import InfoTip from '$components/ui/InfoTip.svelte';
 	import type { HTMLInputAttributes } from 'svelte/elements';
 
 	interface Props extends Omit<HTMLInputAttributes, 'size'> {
 		label?: string;
 		error?: string;
 		helperText?: string;
+		/**
+		 * Keterangan penjelas di tooltip (i) di samping label, bukan teks di bawah
+		 * field (keputusan tim 9 Nov 2026). `helperText` hanya untuk yang harus
+		 * terbaca tanpa diarahkan kursor.
+		 */
+		hint?: string;
 		leftIcon?: Snippet;
 		rightIcon?: Snippet;
 		/** `md` = kontrol standar, `sm` = kontrol filter kompak. */
@@ -19,6 +26,7 @@
 		label,
 		error,
 		helperText,
+		hint,
 		leftIcon,
 		rightIcon,
 		size = 'md',
@@ -46,7 +54,12 @@
 </script>
 
 <div class={`flex w-full min-w-0 flex-col gap-1.5 ${className}`}>
-	{#if label}
+	{#if label && hint}
+		<div class="flex items-center gap-1.5">
+			<label for={inputId} class="field-label">{label}</label>
+			<InfoTip text={hint} label={`Keterangan ${label}`} />
+		</div>
+	{:else if label}
 		<label for={inputId} class="field-label">{label}</label>
 	{/if}
 

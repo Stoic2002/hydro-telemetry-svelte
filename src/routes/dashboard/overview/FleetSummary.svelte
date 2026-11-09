@@ -2,6 +2,7 @@
 	import IconArrowRight from '~icons/ph/arrow-right';
 
 	import Badge from '$components/controls/Badge.svelte';
+	import InfoTip from '$components/ui/InfoTip.svelte';
 	import type { MonthlyHydrologyOverview } from '$features/hydrology';
 	import { formatNumber } from '$shared/utils/number';
 	import { hasReportRange, reportPeriodLabel } from '../hydrology-report';
@@ -41,6 +42,10 @@
 
 	const summary = createFleetSummary(() => registeredPlantCount);
 	const overview = $derived(summary.overview);
+	/** Keterangan akumulasi hanya berarti untuk rentang atau sepanjang tahun. */
+	const showsAccumulationNote = $derived(
+		hasReportRange(summary.period) || summary.month === undefined
+	);
 	const previousMonth = $derived(summary.previousMonth);
 
 	function formatPercent(value: number | null): string {
@@ -49,10 +54,14 @@
 
 	type AverageKey = keyof MonthlyHydrologyOverview['averages'];
 
-	/** Rata-rata energi per PLTA: Prognosa, Target, Realisasi — untuk bulan dan akumulasinya. */
+	/**
+	 * Rata-rata energi per PLTA: Prognosa, Target, Realisasi — untuk bulan dan
+	 * akumulasinya. `label` hanya kunci; nama yang tampil diambil dari periode
+	 * yang dikirim server (`monthlyAverageLabel`, `accumulatedThrough`).
+	 */
 	const AVERAGE_GROUPS: { label: string; keys: [string, AverageKey][] }[] = [
 		{
-			label: 'Bulan ini',
+			label: 'Bulanan',
 			keys: [
 				['Prognosa', 'predictedProductionMwh'],
 				['Target', 'targetProductionMwh'],
@@ -196,10 +205,21 @@
 			<dl class="mt-1 flex flex-wrap gap-x-5 gap-y-1">
 				{#each AVERAGE_GROUPS as group (group.label)}
 					<div class="flex flex-wrap items-baseline gap-x-2.5">
-						<dt class="text-xs text-text-secondary">
+						<dt class="flex items-center gap-1 text-xs text-text-secondary">
 							{group.label === 'Akumulasi'
 								? `Akumulasi s.d. ${summary.accumulatedThrough}`
-								: group.label}
+								: summary.monthlyAverageLabel}
+							{#if group.label === 'Akumulasi' && showsAccumulationNote}
+								<!--
+									Server merangkum blok akumulasi dari SATU bulan: yang terakhir
+									berdata. Menjumlahkan akumulasi lintas bulan menghitung bulan yang
+									sama berkali-kali.
+								-->
+								<InfoTip
+									label="Keterangan akumulasi"
+									text={`Akumulasi = posisi ${summary.accumulatedThrough}, bukan jumlah seluruh bulan dalam rentang.`}
+								/>
+							{/if}
 						</dt>
 						{#each group.keys as [label, key] (key)}
 							{@const average = overview.averages[key]}
@@ -212,16 +232,5 @@
 				{/each}
 			</dl>
 		</div>
-	{/if}
-
-	{#if !summary.query.isLoading && !summary.rangeError && overview && overview.rowCount > 0 && (hasReportRange(summary.period) || summary.month === undefined)}
-		<!--
-			Server merangkum blok akumulasi dari SATU bulan: yang terakhir
-			berdata. Menjumlahkan akumulasi lintas bulan menghitung bulan yang
-			sama berkali-kali.
-		-->
-		<p class="mt-2.5 border-t border-surface-overlay pt-2.5 text-xs text-text-muted">
-			Akumulasi = posisi {summary.accumulatedThrough}, bukan jumlah seluruh bulan.
-		</p>
 	{/if}
 </section>

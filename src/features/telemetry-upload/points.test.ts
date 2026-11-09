@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
+	hasTelemetryRowErrors,
+	initialTelemetryRow,
+	validateTelemetryRows,
 	buildConstantPoint,
 	buildDeleteRange,
 	buildTelemetryPoints,
@@ -116,5 +119,90 @@ describe('Target TMA', () => {
 	it('hanya plan_water_level yang bernilai per tanggal', () => {
 		expect(isDailyValueParameter('plan_water_level')).toBe(true);
 		expect(isDailyValueParameter('plan_outflow_hjv')).toBe(false);
+	});
+});
+
+/** Temuan QA T5 (4 Nov 2026): galat ditempel di bidangnya, bukan satu toast umum. */
+describe('validateTelemetryRows', () => {
+	it('Target TMA tidak pernah meminta jam', () => {
+		const [errors] = validateTelemetryRows([{ date: '2026-11-06', time: '', value: null }], {
+			dailyValue: true
+		});
+
+		expect(errors).toEqual({ value: 'Isi nilai.' });
+	});
+
+	it('menandai bidang yang kosong per baris', () => {
+		expect(
+			validateTelemetryRows(
+				[
+					{ date: '2026-11-06', time: '10:00', value: 1 },
+					{ date: '', time: '', value: null }
+				],
+				{ dailyValue: false }
+			)
+		).toEqual([{}, { date: 'Isi tanggal.', time: 'Isi jam.', value: 'Isi nilai.' }]);
+	});
+
+	it('menandai waktu kembar di baris kedua', () => {
+		const rows = [
+			{ date: '2026-11-06', time: '10:00', value: 1 },
+			{ date: '2026-11-06', time: '10:00', value: 2 }
+		];
+
+		expect(validateTelemetryRows(rows, { dailyValue: false })[1].time).toContain('sudah ada');
+		expect(validateTelemetryRows(rows, { dailyValue: true })[1].date).toContain('sudah ada');
+		expect(hasTelemetryRowErrors(validateTelemetryRows(rows, { dailyValue: false }))).toBe(true);
+	});
+
+	it('baris yang lengkap tidak bergalat', () => {
+		expect(
+			hasTelemetryRowErrors(
+				validateTelemetryRows([{ date: '2026-11-06', time: '10:00', value: 0 }], {
+					dailyValue: false
+				})
+			)
+		).toBe(false);
+	});
+});
+
+/** Temuan QA T6: "Edit data" terisi nilai yang tersimpan pada waktu yang sama. */
+describe('initialTelemetryRow', () => {
+	const options = { constant: false, dailyValue: false };
+
+	it('kosong untuk Input data', () => {
+		expect(initialTelemetryRow(undefined, '2026-11-06', options)).toEqual({
+			date: '2026-11-06',
+			time: '00:00',
+			value: null
+		});
+	});
+
+	it('titik berjam diisi tanggal dan jam WIB dari waktu ukurnya', () => {
+		expect(
+			initialTelemetryRow({ value: 12.5, time: '2026-11-06T03:00:00Z' }, '2026-11-05', options)
+		).toEqual({ date: '2026-11-06', time: '10:00', value: 12.5 });
+	});
+
+	it('Target TMA memakai tanggal waktu ukurnya pada 00.00', () => {
+		expect(
+			initialTelemetryRow({ value: 229.5, time: '2026-11-04T00:00:00+07:00' }, '2026-11-06', {
+				constant: false,
+				dailyValue: true
+			})
+		).toEqual({ date: '2026-11-04', time: '00:00', value: 229.5 });
+	});
+
+	it('konstanta hanya mengisi nilai', () => {
+		expect(
+			initialTelemetryRow({ value: 231.1, time: null }, '2026-11-06', {
+				constant: true,
+				dailyValue: false
+			}).value
+		).toBe(231.1);
+	});
+
+	it('titik berjam tanpa waktu ukur tidak diisi, supaya tidak membuat titik baru', () => {
+		expect(initialTelemetryRow({ value: 5, time: null }, '2026-11-06', options).value).toBeNull();
 	});
 });

@@ -234,6 +234,32 @@ describe('Target TMA', () => {
 		]);
 	});
 
+	it('Simpan tanpa nilai menandai bidang Nilai dan tidak menyebut jam (temuan QA T5)', async () => {
+		const user = userEvent.setup();
+		renderSheet(TARGET_TMA);
+
+		await user.click(screen.getByRole('button', { name: 'Simpan Data' }));
+
+		expect(await screen.findByText('Isi nilai.')).toBeInTheDocument();
+		expect(screen.getByRole('spinbutton', { name: /Nilai/ })).toHaveAttribute(
+			'aria-invalid',
+			'true'
+		);
+		expect(screen.queryByText(/jam/i)).not.toBeInTheDocument();
+		expect(repository.uploadPoints).not.toHaveBeenCalled();
+	});
+
+	it('Edit data terbuka berisi nilai tersimpan (temuan QA T6)', async () => {
+		renderSheet({
+			...TARGET_TMA,
+			current: { value: 229.5, time: '2026-10-15T00:00:00+07:00' }
+		});
+
+		expect(await screen.findByRole('spinbutton', { name: /Nilai/ })).toHaveValue(229.5);
+		expect(screen.getByLabelText('Tanggal')).toHaveValue('2026-10-15');
+		expect(screen.getByText(/Terisi nilai yang tersimpan/)).toBeInTheDocument();
+	});
+
 	it('template selalu satu bulan per hari', async () => {
 		const user = userEvent.setup();
 		repository.downloadTemplate.mockResolvedValue(new Blob(['x']));

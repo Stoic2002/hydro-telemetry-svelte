@@ -8,6 +8,7 @@ import {
 	hasReportRange,
 	isFleetAchieved,
 	missingPlantCount,
+	monthlyPeriodLabel,
 	nextReportSearch,
 	parseReportEndMonth,
 	parseReportEndYear,
@@ -57,6 +58,18 @@ export function createFleetSummary(registeredPlantCount: () => number | null) {
 	 */
 	const accumulatedThrough = $derived(
 		formatReportMonthKey(overview?.accumulated.periodEnd ?? null) ?? periodLabel
+	);
+	/**
+	 * Nama baris rata-rata energi bulanan. Dulu selalu "Bulan ini", juga untuk
+	 * September atau rentang Jan–Okt (temuan QA T8, 4 Nov 2026). Server menyebut
+	 * bulan yang benar-benar terwakili di blok `bulanan`; untuk lebih dari satu
+	 * bulan, rata-ratanya per PLTA per bulan, jadi labelnya menyebut itu.
+	 */
+	const monthlyAverageLabel = $derived(
+		monthlyPeriodLabel(
+			overview?.monthly.periodStart ?? null,
+			overview?.monthly.periodEnd ?? null
+		) ?? periodLabel
 	);
 	const plantsWithoutData = $derived(
 		overview ? missingPlantCount(overview, registeredPlantCount()) : 0
@@ -123,6 +136,9 @@ export function createFleetSummary(registeredPlantCount: () => number | null) {
 		},
 		get accumulatedThrough() {
 			return accumulatedThrough;
+		},
+		get monthlyAverageLabel() {
+			return monthlyAverageLabel;
 		},
 		get plantsWithoutData() {
 			return plantsWithoutData;

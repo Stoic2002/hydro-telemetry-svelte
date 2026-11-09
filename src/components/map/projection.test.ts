@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+	fitAboveOverlay,
 	RIGHT_PANEL_GUTTER_PX,
 	horizontalShiftForWidth,
 	pixelShiftToLongitude
@@ -50,5 +51,51 @@ describe('horizontalShiftForWidth', () => {
 		for (const width of [640, 700, 800, 1200, 1480]) {
 			expect(horizontalShiftForWidth(width)).toBeLessThanOrEqual(width / 4);
 		}
+	});
+});
+
+/** Temuan QA T7: kartu ringkasan menutupi Wonogiri dan separuh selatan peta. */
+describe('fitAboveOverlay', () => {
+	it('tidak mengubah apa pun tanpa kartu', () => {
+		expect(
+			fitAboveOverlay({ mapHeight: 560, overlayHeight: 0, contentTop: 100, contentBottom: 500 })
+		).toEqual({ scaleFactor: 1, offsetY: 0 });
+	});
+
+	it('hanya menggeser naik bila isinya muat di atas kartu', () => {
+		const fit = fitAboveOverlay({
+			mapHeight: 560,
+			overlayHeight: 120,
+			contentTop: 120,
+			contentBottom: 450,
+			padding: 10
+		});
+
+		expect(fit.scaleFactor).toBe(1);
+		// Dasar isi (450) naik ke batas atas kartu: 560 − 120 − 10 = 430.
+		expect(fit.offsetY).toBe(-20);
+	});
+
+	it('tidak menggeser bila isinya sudah di atas kartu', () => {
+		expect(
+			fitAboveOverlay({ mapHeight: 560, overlayHeight: 80, contentTop: 60, contentBottom: 400 })
+		).toEqual({ scaleFactor: 1, offsetY: 0 });
+	});
+
+	it('memperkecil secukupnya bila isinya lebih tinggi dari sisa ruang', () => {
+		const fit = fitAboveOverlay({
+			mapHeight: 560,
+			overlayHeight: 230,
+			contentTop: 100,
+			contentBottom: 500,
+			padding: 10
+		});
+		const middle = 280;
+		const top = middle + (100 - middle) * fit.scaleFactor + fit.offsetY;
+		const bottom = middle + (500 - middle) * fit.scaleFactor + fit.offsetY;
+
+		expect(fit.scaleFactor).toBeCloseTo(310 / 400);
+		expect(top).toBeCloseTo(10);
+		expect(bottom).toBeCloseTo(320);
 	});
 });

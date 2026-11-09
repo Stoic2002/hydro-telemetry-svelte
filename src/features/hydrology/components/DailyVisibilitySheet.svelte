@@ -5,6 +5,7 @@
 	import Button from '$components/controls/Button.svelte';
 	import Input from '$components/controls/Input.svelte';
 	import StatusToggle from '$components/controls/StatusToggle.svelte';
+	import InfoTip from '$components/ui/InfoTip.svelte';
 	import Banner from '$components/ui/Banner.svelte';
 	import Sheet from '$components/ui/Sheet.svelte';
 	import SortableList from '$components/ui/SortableList.svelte';
@@ -236,16 +237,19 @@
 					Nama belum tersimpan; perubahan tampil/urutan sudah tersimpan.
 				</Banner>
 			{/if}
-			{#if canRename}
-				<p class="text-xs text-text-muted">
-					Ubah nama metrik langsung di kotaknya; ikon putar balik mengembalikan nama bawaan.
-				</p>
-			{/if}
 			<div class="flex flex-col gap-2">
 				<div class="flex items-baseline justify-between gap-3">
-					<p class="text-xs text-text-muted" role="status">
-						{hiddenInDraft} dari {metrics.length} metrik disembunyikan
-					</p>
+					<div class="flex items-center gap-1.5">
+						<p class="text-xs text-text-muted" role="status">
+							{hiddenInDraft} dari {metrics.length} metrik disembunyikan
+						</p>
+						{#if canRename}
+							<InfoTip
+								label="Cara mengubah nama metrik"
+								text="Ubah nama metrik langsung di kotaknya; ikon putar balik mengembalikan nama bawaan."
+							/>
+						{/if}
+					</div>
 					{#if canReset}
 						<button
 							type="button"

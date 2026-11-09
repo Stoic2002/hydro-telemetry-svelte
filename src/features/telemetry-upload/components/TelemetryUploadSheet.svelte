@@ -8,6 +8,7 @@
 
 	import Button from '$components/controls/Button.svelte';
 	import Select from '$components/controls/Select.svelte';
+	import InfoTip from '$components/ui/InfoTip.svelte';
 	import ConfirmDialog from '$components/ui/ConfirmDialog.svelte';
 	import Sheet from '$components/ui/Sheet.svelte';
 	import { notificationStore } from '$shared/lib/notification.svelte';
@@ -30,10 +31,14 @@
 		buildConstantPoint,
 		buildDeleteRange,
 		buildTelemetryPoints,
+		hasTelemetryRowErrors,
+		initialTelemetryRow,
 		isConstantParameter,
 		isDailyValueParameter,
+		validateTelemetryRows,
 		type TelemetryPointRow,
-		type TelemetryRangeBoundary
+		type TelemetryRangeBoundary,
+		type TelemetryRowErrors
 	} from '../points';
 	import {
 		TELEMETRY_TEMPLATE_SCOPE_OPTIONS,
@@ -61,9 +66,20 @@
 
 	let pointRowId = 0;
 
-	function createPointRow(date: string): PointRow {
+	function createPointRow(date: string, initial?: TelemetryPointRow): PointRow {
 		pointRowId += 1;
-		return { id: pointRowId, date, time: '00:00', value: null };
+		return { id: pointRowId, date, time: '00:00', value: null, ...initial };
+	}
+
+	/** Isian saat panel dibuka; `isDirty` membandingkan dengan ini, bukan dengan kosong. */
+	let rowsBaseline = $state('');
+	/** Galat baris baru ditampilkan setelah operator menekan Simpan sekali. */
+	let showRowErrors = $state(false);
+	/** Form "Edit data" terbuka berisi nilai tersimpan. */
+	let isPrefilled = $state(false);
+
+	function rowsSignature(items: readonly TelemetryPointRow[]): string {
+		return JSON.stringify(items.map(({ date, time, value }) => ({ date, time, value })));
 	}
 
 	const uploadPointsMutation = createUploadTelemetryPointsMutation();
@@ -96,7 +112,17 @@
 	 */
 	$effect(() => {
 		station = target.stations[0]?.station ?? '';
-		rows = [createPointRow(defaultDate)];
+		const firstRow = createPointRow(
+			defaultDate,
+			initialTelemetryRow(target.current, defaultDate, {
+				constant: isConstantParameter(target.parameter),
+				dailyValue: isDailyValueParameter(target.parameter)
+			})
+		);
+		rows = [firstRow];
+		rowsBaseline = rowsSignature([firstRow]);
+		isPrefilled = firstRow.value !== null;
+		showRowErrors = false;
 		file = null;
 		// Bawaan satu hari penuh pada tanggal panel. 23.59, bukan 23.00: data
 		// manual tidak selalu jatuh tepat di jam bulat.
@@ -113,10 +139,8 @@
 			uploadExcelMutation.isPending ||
 			deletePointsMutation.isPending
 	);
-	/** Ada nilai yang sudah diketik atau berkas yang sudah dipilih. */
-	const isDirty = $derived(
-		file !== null || rows.length > 1 || rows.some((row) => row.value !== null)
-	);
+	/** Isian berubah dari saat panel dibuka, atau berkas sudah dipilih. */
+	const isDirty = $derived(file !== null || rowsSignature(rows) !== rowsBaseline);
 	const deleteRange = $derived(buildDeleteRange(deleteFrom, deleteTo));
 	const templateScope = $derived(templateScopeValue as TelemetryTemplateScope);
 	const unit = $derived(target.unit);
@@ -132,19 +156,30 @@
 		target.stations.map((option) => ({ value: option.station, label: option.label }))
 	);
 
+	/**
+	 * Galat per bidang, ditampilkan sesudah Simpan ditekan sekali dan langsung
+	 * hilang begitu bidangnya diperbaiki. Konstanta hanya punya bidang Nilai.
+	 */
+	const rowErrors = $derived(
+		showRowErrors
+			? isConstant
+				? [
+						rows[0]?.value === null || !Number.isFinite(rows[0]?.value)
+							? { value: 'Isi nilai.' }
+							: {}
+					]
+				: validateTelemetryRows(rows, { dailyValue: isDailyValue })
+			: []
+	);
+
 	async function submitManual() {
+		showRowErrors = true;
 		const points = isConstant
 			? buildConstantPoint(rows[0]?.value ?? null)
-			: buildTelemetryPoints(rows);
-		if (!points) {
-			notificationStore.addToast({
-				type: 'error',
-				message: isConstant
-					? 'Isi nilai terlebih dahulu'
-					: 'Lengkapi tanggal, jam, dan nilai tanpa timestamp duplikat'
-			});
-			return;
-		}
+			: hasTelemetryRowErrors(validateTelemetryRows(rows, { dailyValue: isDailyValue }))
+				? null
+				: buildTelemetryPoints(rows);
+		if (!points) return;
 
 		try {
 			const result = await uploadPointsMutation.mutateAsync({
@@ -308,21 +343,37 @@
 			-->
 			<section class="flex flex-col gap-2">
 				{#if rows[0]}
-					<label class="field-label flex flex-col gap-1.5">
-						Nilai {unit ? `(${unit})` : ''}
+					<div class="flex flex-col gap-1.5">
+						<div class="flex items-center gap-1.5">
+							<label for="telemetry-constant-value" class="field-label">
+								Nilai {unit ? `(${unit})` : ''}
+							</label>
+							<InfoTip
+								label="Keterangan nilai konstanta"
+								text="Konstanta berlaku tanpa tanggal; nilai baru menggantikan yang lama."
+							/>
+						</div>
 						<input
+							id="telemetry-constant-value"
 							type="number"
 							step="any"
 							placeholder="0"
 							bind:value={rows[0].value}
 							disabled={isPending}
-							class="field h-10"
+							aria-invalid={rowErrors[0]?.value ? 'true' : undefined}
+							aria-describedby={rowErrors[0]?.value ? 'telemetry-constant-value-error' : undefined}
+							class={`field h-10 ${rowErrors[0]?.value ? 'field-invalid' : ''}`}
 						/>
-					</label>
+						{#if rowErrors[0]?.value}
+							<span
+								id="telemetry-constant-value-error"
+								class="text-xs font-medium text-status-danger-strong"
+							>
+								{rowErrors[0].value}
+							</span>
+						{/if}
+					</div>
 				{/if}
-				<p class="text-xs text-text-muted">
-					Konstanta berlaku tanpa tanggal; nilai baru menggantikan yang lama.
-				</p>
 			</section>
 		{:else}
 			<div class="grid grid-cols-3 border-b border-border-subtle">
@@ -344,14 +395,24 @@
 
 			{#if mode === 'manual'}
 				<section class="flex flex-col gap-4">
-					<p class="text-xs text-text-muted">
-						{isDailyValue
-							? 'Satu nilai per tanggal, dicatat pukul 00.00 WIB. Tanggal yang sama menimpa nilai lama.'
-							: 'Waktu dalam WIB. Waktu yang sama menimpa nilai lama.'}
-					</p>
+					<div class="flex items-start gap-1.5">
+						<p class="text-xs text-text-muted">
+							{isDailyValue ? 'Satu nilai per tanggal, pukul 00.00 WIB.' : 'Waktu dalam WIB.'}
+							{#if isPrefilled}
+								Terisi nilai yang tersimpan — ubah lalu simpan untuk menimpanya.
+							{/if}
+						</p>
+						<InfoTip
+							label="Keterangan isian manual"
+							text={isDailyValue
+								? 'Tanggal yang sama menimpa nilai lama.'
+								: 'Waktu yang sama menimpa nilai lama.'}
+						/>
+					</div>
 
 					<div class="divide-y divide-surface-overlay border-y border-surface-overlay">
 						{#each rows as row, index (row.id)}
+							{@const errors: TelemetryRowErrors = rowErrors[index] ?? {}}
 							<div class="py-4">
 								<div class="mb-3 flex items-center justify-between">
 									<span class="text-xs font-medium text-text-muted">Data {index + 1}</span>
@@ -378,8 +439,14 @@
 											type="date"
 											bind:value={row.date}
 											disabled={isPending}
-											class="field h-10"
+											aria-invalid={errors.date ? 'true' : undefined}
+											class={`field h-10 ${errors.date ? 'field-invalid' : ''}`}
 										/>
+										{#if errors.date}
+											<span class="text-xs font-medium text-status-danger-strong"
+												>{errors.date}</span
+											>
+										{/if}
 									</label>
 									{#if !isDailyValue}
 										<label class="field-label flex flex-col gap-1.5">
@@ -388,8 +455,14 @@
 												type="time"
 												bind:value={row.time}
 												disabled={isPending}
-												class="field h-10"
+												aria-invalid={errors.time ? 'true' : undefined}
+												class={`field h-10 ${errors.time ? 'field-invalid' : ''}`}
 											/>
+											{#if errors.time}
+												<span class="text-xs font-medium text-status-danger-strong">
+													{errors.time}
+												</span>
+											{/if}
 										</label>
 									{/if}
 									<label class="field-label flex flex-col gap-1.5">
@@ -400,8 +473,14 @@
 											placeholder="0"
 											bind:value={row.value}
 											disabled={isPending}
-											class="field h-10"
+											aria-invalid={errors.value ? 'true' : undefined}
+											class={`field h-10 ${errors.value ? 'field-invalid' : ''}`}
 										/>
+										{#if errors.value}
+											<span class="text-xs font-medium text-status-danger-strong"
+												>{errors.value}</span
+											>
+										{/if}
 									</label>
 								</div>
 							</div>
@@ -420,16 +499,13 @@
 				</section>
 			{:else if mode === 'excel'}
 				<section class="flex flex-col gap-4">
-					<p class="text-xs text-text-muted">
-						Satu berkas untuk parameter ini saja. Paling mudah mulai dari template.
-					</p>
-
 					<div class="flex flex-col gap-3 rounded-xl border border-border-subtle p-4">
-						<div>
+						<div class="flex items-center gap-1.5">
 							<h4 class="text-xs font-semibold text-text-strong">Template</h4>
-							<p class="mt-1 text-xs text-text-muted">
-								Sudah berisi nilai tersimpan; cukup dikoreksi.
-							</p>
+							<InfoTip
+								label="Keterangan template"
+								text="Satu berkas untuk parameter ini saja. Template sudah berisi nilai tersimpan, jadi cukup dikoreksi lalu diunggah."
+							/>
 						</div>
 
 						<div class="grid gap-3 sm:grid-cols-2">
@@ -489,10 +565,13 @@
 			{:else}
 				<section class="flex flex-col gap-4">
 					<!-- Nilai salah cukup diunggah ulang di waktu yang sama; tab ini untuk jam/station keliru. -->
-					<p class="text-xs text-text-muted">
-						Untuk jam atau station yang keliru. Hanya isian manual dan unggahan yang terhapus — data
-						sensor aman. Waktu awal dan akhir ikut terhapus.
-					</p>
+					<div class="flex items-start gap-1.5">
+						<p class="text-xs text-text-muted">Waktu awal dan akhir ikut terhapus.</p>
+						<InfoTip
+							label="Keterangan hapus data"
+							text="Untuk jam atau station yang keliru. Hanya isian manual dan unggahan yang terhapus — data sensor aman."
+						/>
+					</div>
 
 					{#each [{ label: 'Dari', boundary: deleteFrom }, { label: 'Sampai', boundary: deleteTo }] as item (item.label)}
 						<fieldset class="grid gap-3 sm:grid-cols-2">

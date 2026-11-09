@@ -159,10 +159,6 @@
 </script>
 
 <div class="flex flex-col gap-6">
-	<p class="text-xs text-text-muted">
-		Satu berkas mengisi angka produksi dan keterangan hidrologi seluruh PLTA.
-	</p>
-
 	<div class="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_268px]">
 		<div class="flex flex-col gap-5">
 			{#if !selectedFile}
@@ -324,10 +320,6 @@
 				{templateMutation.isPending ? 'Menyiapkan…' : 'Unduh Template'}
 			</button>
 
-			<p class="text-xs leading-relaxed text-text-muted">
-				Satu baris per PLTA, sudah berisi nilai tersimpan.
-			</p>
-
 			<div class="border-t border-border-subtle pt-2.5">
 				<p class="table-head-cell">Kolom template</p>
 				<ul class="mt-1.5 flex flex-col gap-1">
@@ -339,6 +331,7 @@
 
 			<UploadTips
 				tips={[
+					{ term: 'Template', text: 'satu baris per PLTA, sudah berisi nilai tersimpan.' },
 					{ term: 'Baris 2', text: 'berisi kunci kolom — jangan diubah.' },
 					{ term: 'Kolom akumulasi', text: 'diisi posisi Januari s.d. bulan barisnya.' },
 					{ term: 'kode_plta', text: 'adalah kuncinya; nama_plta hanya rujukan.' }

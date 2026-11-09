@@ -142,30 +142,51 @@
 		<p class="px-4 py-3 text-xs text-text-muted">{emptyMessage}</p>
 	{/if}
 
+	{#snippet metricRow(row: MetricSection['rows'][number])}
+		<MetricRowItem {row} {onUpload} />
+		{#if zoneControl && isControlAnchored && row.key === zoneControlAfterKey}
+			<div class="py-2.5">
+				{@render zoneControl()}
+			</div>
+		{/if}
+	{/snippet}
+
 	{#each visibleSections as section (section.title)}
 		<section>
 			{#if visibleSections.length > 1}
 				<div class="table-head-cell px-4 py-2">{section.title}</div>
 			{/if}
-			<!--
-				Dua kolom saat kartu tampil sendirian: garis pemisah memakai border-b
-				per baris, bukan divide-y, karena divide-y dalam grid menggambar garis
-				di atas baris pertama kolom kanan.
-			-->
-			<div
-				class={isWide
-					? 'grid px-4 lg:grid-cols-2 lg:gap-x-10 [&>*]:border-b [&>*]:border-surface-overlay'
-					: `divide-y ${presentation.dividerClassName} px-4`}
-			>
-				{#each section.rows as row (row.label)}
-					<MetricRowItem {row} {onUpload} />
-					{#if zoneControl && isControlAnchored && row.key === zoneControlAfterKey}
-						<div class="py-2.5 lg:col-span-2">
-							{@render zoneControl()}
+			{#if isWide}
+				<!--
+					Dua kolom saat kartu tampil sendirian, dibaca per kolom: separuh
+					pertama turun di kiri, sisanya turun di kanan. Dulu satu grid dua
+					kolom yang terisi per baris — urutan 1 di kiri, 2 di kanan, 3 di
+					kiri — sehingga urutan panel terbaca acak (permintaan tim 9 Nov 2026).
+					Di bawah `lg` kedua kolom menumpuk, jadi urutannya tetap 1 → n.
+				-->
+				{@const half = Math.ceil(section.rows.length / 2)}
+				<div class="grid items-start px-4 lg:grid-cols-2 lg:gap-x-10">
+					{#each [section.rows.slice(0, half), section.rows.slice(half)] as column, columnIndex (columnIndex)}
+						<div
+							class={`divide-y ${presentation.dividerClassName} ${
+								columnIndex === 0 && half < section.rows.length
+									? 'border-b border-surface-overlay lg:border-b-0'
+									: ''
+							}`}
+						>
+							{#each column as row (row.label)}
+								{@render metricRow(row)}
+							{/each}
 						</div>
-					{/if}
-				{/each}
-			</div>
+					{/each}
+				</div>
+			{:else}
+				<div class={`divide-y ${presentation.dividerClassName} px-4`}>
+					{#each section.rows as row (row.label)}
+						{@render metricRow(row)}
+					{/each}
+				</div>
+			{/if}
 		</section>
 	{/each}
 

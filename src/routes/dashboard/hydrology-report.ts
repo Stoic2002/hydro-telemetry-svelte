@@ -114,6 +114,20 @@ export function formatReportMonthKey(value: string | null): string | null {
 	return month >= 1 && month <= 12 ? `${MONTHS[month - 1]} ${match[1]}` : null;
 }
 
+/**
+ * Nama periode blok `bulanan` overview dari `periode_awal`/`periode_akhir`.
+ * Satu bulan → `September 2026`; lebih dari satu → angka rata-ratanya per
+ * PLTA per bulan, jadi namanya menyebut itu. `null` bila server tidak
+ * menyebut periodenya.
+ */
+export function monthlyPeriodLabel(start: string | null, end: string | null): string | null {
+	const first = formatReportMonthKey(start);
+	const last = formatReportMonthKey(end);
+	if (!first && !last) return null;
+	if (!first || !last || start === end) return first ?? last;
+	return `Per bulan, ${first} – ${last}`;
+}
+
 /** Tahun dan bulan berjalan: bawaan pemilih periode bila URL tidak menyebutnya. */
 export function currentReportPeriod(now = new Date()): { year: number; month: number } {
 	return { year: now.getFullYear(), month: now.getMonth() + 1 };

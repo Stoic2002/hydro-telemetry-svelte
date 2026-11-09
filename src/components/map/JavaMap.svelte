@@ -16,7 +16,8 @@
 	import { formatMetric } from '$shared/utils/number';
 	import { getLabelCoordinate } from './label-placement';
 	import { spreadMarkers, type SpreadMarker } from './marker-spread';
-	import { horizontalShiftForWidth, pixelShiftToLongitude } from './projection';
+	import { fitAboveOverlay, horizontalShiftForWidth, pixelShiftToLongitude } from './projection';
+	import InfoTip from '$components/ui/InfoTip.svelte';
 	import { CLOUD_TIERS } from './cloud-mask';
 	import { MEASURED_RAIN_COLOR, describeMeasuredRain } from './measured-rain';
 	import { createCloudImageryQuery, createMapLayersQuery, type RiverProperties } from './queries';
@@ -158,11 +159,30 @@
 
 	/**
 	 * Tinggi kartu yang menempel di dasar peta (0 saat tersembunyi di bawah
-	 * `lg`). Peta digeser naik setengahnya supaya penanda di pantai selatan —
-	 * Wadaslintang, Pejengkolan, Wonogiri — tidak tertutup kartu. Laut di atas
-	 * pantai utara cukup lapang untuk menampung geserannya.
+	 * `lg`). Proyeksi menyesuaikan diri supaya seluruh penanda PLTA berada di
+	 * atas kartu — lihat `fitAboveOverlay`.
 	 */
 	let bottomOverlayHeight = $state(0);
+
+	/** Ruang label nama di atas penanda dan lingkaran penanda di bawah titiknya. */
+	const MARKER_LABEL_SPACE_PX = 26;
+	const MARKER_RADIUS_SPACE_PX = 14;
+	/** Batas utara dan selatan Jawa Tengah, dipakai bila belum ada PLTA berkoordinat. */
+	const FALLBACK_LATITUDES = [-6.4, -8.2] as const;
+
+	function buildProjection(scale: number, offsetY: number) {
+		const config = projectionConfig ?? DEFAULT_PROJECTION;
+		const [baseLongitude, baseLatitude] = config.center ?? DEFAULT_PROJECTION.center;
+		// Digeser ke kiri sejauh setengah lebar panel melayang di kanan, supaya
+		// daratan tidak tertutup sakelar citra awan dan legenda.
+		const centerLongitude =
+			baseLongitude + pixelShiftToLongitude(horizontalShiftForWidth(mapSize.width), scale);
+
+		return geoMercator()
+			.center([centerLongitude, baseLatitude])
+			.scale(scale)
+			.translate([mapSize.width / 2, mapSize.height / 2 + offsetY]);
+	}
 
 	const projection = $derived.by(() => {
 		const config = projectionConfig ?? DEFAULT_PROJECTION;
@@ -171,17 +191,30 @@
 			mapSize.height / MAP_VIEWBOX.height
 		);
 		const effectiveScale = (config.scale ?? DEFAULT_PROJECTION.scale) * viewportScale;
-		const [baseLongitude, baseLatitude] = config.center ?? DEFAULT_PROJECTION.center;
+		const base = buildProjection(effectiveScale, 0);
 
-		// Digeser ke kiri sejauh setengah lebar panel melayang di kanan, supaya
-		// daratan tidak tertutup sakelar citra awan dan legenda.
-		const centerLongitude =
-			baseLongitude + pixelShiftToLongitude(horizontalShiftForWidth(mapSize.width), effectiveScale);
+		// Rentang y isi peta pada proyeksi dasar: penanda PLTA, atau batas
+		// provinsi selama katalog PLTA belum berkoordinat.
+		const plantYs = plantList.flatMap((plant) =>
+			plant.longitude === null || plant.latitude === null
+				? []
+				: [base([plant.longitude, plant.latitude])?.[1] ?? Number.NaN]
+		);
+		const ys = (
+			plantYs.length > 0
+				? plantYs
+				: FALLBACK_LATITUDES.map((latitude) => base([110, latitude])?.[1] ?? Number.NaN)
+		).filter(Number.isFinite);
+		if (ys.length === 0) return base;
 
-		return geoMercator()
-			.center([centerLongitude, baseLatitude])
-			.scale(effectiveScale)
-			.translate([mapSize.width / 2, mapSize.height / 2 - bottomOverlayHeight / 2]);
+		const fit = fitAboveOverlay({
+			mapHeight: mapSize.height,
+			overlayHeight: bottomOverlayHeight,
+			contentTop: Math.min(...ys) - MARKER_LABEL_SPACE_PX,
+			contentBottom: Math.max(...ys) + MARKER_RADIUS_SPACE_PX
+		});
+		if (fit.scaleFactor === 1 && fit.offsetY === 0) return base;
+		return buildProjection(effectiveScale * fit.scaleFactor, fit.offsetY);
 	});
 
 	const path = $derived(geoPath(projection));
@@ -680,6 +713,10 @@
 						<span class="flex items-center gap-1.5 text-sm font-medium text-text-primary">
 							<IconCloudRain class="size-3.5 shrink-0 text-text-muted" aria-hidden="true" />
 							Awan Hujan
+							<InfoTip
+								label="Keterangan citra awan hujan"
+								text="Perkiraan dari suhu puncak awan (Himawari-9), bukan hujan terukur."
+							/>
 						</span>
 						<button
 							type="button"
@@ -726,9 +763,6 @@
 											<span>{CLOUD_TIERS[0].label}</span>
 										</p>
 									</div>
-									<p class="mt-1.5 text-xs text-text-muted">
-										Perkiraan dari suhu puncak awan, bukan hujan terukur.
-									</p>
 								{:else}
 									<p class="mt-1 text-xs text-text-muted">
 										Tidak ada awan hujan di atas Jawa Tengah.

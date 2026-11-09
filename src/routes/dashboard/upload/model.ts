@@ -10,7 +10,17 @@ import type { Plant, UploadTab } from '$features/plta';
  * sah.
  */
 
-export const UPLOAD_TABS: { value: UploadTab; label: string; description: string }[] = [
+/**
+ * `hint` = keterangan tambahan tab itu, tampil sebagai (i) di samping kalimat
+ * kepala halaman (permintaan tim 9 Nov 2026: penjelasan lewat hover). Dulu
+ * paragraf pembuka di atas kotak unggah yang sebagian mengulang `description`.
+ */
+export const UPLOAD_TABS: {
+	value: UploadTab;
+	label: string;
+	description: string;
+	hint?: string;
+}[] = [
 	{
 		value: 'excel',
 		label: 'Excel Bulanan',
@@ -20,18 +30,22 @@ export const UPLOAD_TABS: { value: UploadTab; label: string; description: string
 	{
 		value: 'harian',
 		label: 'Excel Harian',
-		description: 'Unggah satu berkas Excel untuk mengisi nilai harian manual seluruh PLTA sekaligus'
+		description:
+			'Unggah satu berkas Excel untuk mengisi nilai harian manual seluruh PLTA sekaligus',
+		hint: 'Untuk rencana dan realisasi yang tidak datang dari sensor.'
 	},
 	{
 		value: 'prakiraan',
 		label: 'Gambar Hujan',
 		description:
-			'Unggah gambar prakiraan dan realisasi curah hujan serta sifat hujan bulanan untuk seluruh PLTA'
+			'Unggah gambar prakiraan dan realisasi curah hujan serta sifat hujan bulanan untuk seluruh PLTA',
+		hint: 'Mengunggah ulang periode dan jenis yang sama menggantikan gambar sebelumnya. Hapus hanya bila gambar salah terunggah dan penggantinya belum ada.'
 	},
 	{
 		value: 'eva',
 		label: 'Input EVA',
-		description: 'Unggah data elevasi dan volume waduk untuk memperbarui kurva EVA satu PLTA'
+		description: 'Unggah data elevasi dan volume waduk untuk memperbarui kurva EVA satu PLTA',
+		hint: 'Pilih PLTA-nya di panel kanan sebelum mengunggah. Template wajib berisi kolom Elevasi, Volume, dan Area, dan sudah berisi kurva tersimpan.'
 	}
 ];
 

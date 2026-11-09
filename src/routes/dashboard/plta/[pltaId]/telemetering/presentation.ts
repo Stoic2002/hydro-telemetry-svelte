@@ -342,10 +342,25 @@ export function dashboardMetricRow(
 		source,
 		sourceType,
 		hasData: true,
-		uploadTarget,
+		uploadTarget: withCurrentValue(uploadTarget, metric, override),
 		subRows: metricSubRows(metric),
 		freshness
 	};
+}
+
+/**
+ * "Edit data" membawa nilai yang sedang tampil supaya form terisi (temuan QA
+ * T6). Hanya untuk metrik satu station dan nilai dari server sendiri — nilai
+ * realtime pengganti dan agregat multi-stasiun bukan titik yang bisa ditimpa.
+ */
+function withCurrentValue(
+	uploadTarget: DailyTelemetryUploadTarget | undefined,
+	metric: DashboardMetric,
+	override: MetricOverride | undefined
+): DailyTelemetryUploadTarget | undefined {
+	if (!uploadTarget || override || uploadTarget.stations.length !== 1) return uploadTarget;
+	if (metric.value === null || !Number.isFinite(metric.value)) return uploadTarget;
+	return { ...uploadTarget, current: { value: metric.value, time: metric.time } };
 }
 
 export function dashboardMetricRows(

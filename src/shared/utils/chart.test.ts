@@ -94,6 +94,12 @@ describe('rentang sumbu minimum per satuan', () => {
 		expect((low + high) / 2).toBeCloseTo(230.34);
 	});
 
+	it('TMA yang datar sama sekali juga hanya selebar 0,2 m, bukan 2% dari nilainya', () => {
+		const [low, high] = chartValueDomain([223.1, 223.1, 223.1], minimumAxisSpan('mdpl'));
+		expect(high - low).toBeCloseTo(0.2);
+		expect((low + high) / 2).toBeCloseTo(223.1);
+	});
+
 	it('tidak menyempitkan rentang yang sudah lebar', () => {
 		const domain = chartValueDomain([229, 231], minimumAxisSpan('mdpl'));
 		expect(domain[1] - domain[0]).toBeGreaterThan(2);

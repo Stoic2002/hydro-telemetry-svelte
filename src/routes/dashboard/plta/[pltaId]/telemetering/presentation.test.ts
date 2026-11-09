@@ -514,8 +514,8 @@ describe('umur pembacaan sensor', () => {
 					label: 'Debit spillway',
 					parameter: 'outflow_spillway',
 					unit: 'm³/s',
-					tags: []
-				} as never
+					stations: [{ station: '', label: 'Default' }]
+				}
 			},
 			{},
 			[],
@@ -716,5 +716,52 @@ describe('describeSensorProblem', () => {
 				() => undefined
 			)
 		).toMatchObject({ name: 'total_outflow', detail: 'komunikasi terputus' });
+	});
+});
+
+/** Temuan QA T6: "Edit data" membawa nilai yang tampil supaya form terisi. */
+describe('nilai tersimpan untuk Edit data', () => {
+	const target = {
+		label: 'Target TMA',
+		parameter: 'plan_water_level' as const,
+		unit: 'mdpl',
+		stations: [{ station: '', label: 'Default' }]
+	};
+	const metric: DashboardMetric = {
+		...measuredMetric,
+		value: 229.5,
+		time: '2026-11-06T00:00:00+07:00',
+		source: 'plan'
+	};
+
+	it('menyertakan nilai dan waktunya untuk metrik satu station', () => {
+		const [row] = dashboardMetricRows({ target_tma: metric }, false, { target_tma: target });
+
+		expect(row.uploadTarget?.current).toEqual({
+			value: 229.5,
+			time: '2026-11-06T00:00:00+07:00'
+		});
+	});
+
+	it('tidak menyertakan agregat metrik multi-stasiun', () => {
+		const [row] = dashboardMetricRows({ debit_spillway: metric }, false, {
+			debit_spillway: {
+				...target,
+				stations: [
+					{ station: 'G1', label: 'G1' },
+					{ station: 'G2', label: 'G2' }
+				]
+			}
+		});
+
+		expect(row.uploadTarget?.current).toBeUndefined();
+	});
+
+	it('tidak menyertakan apa pun saat nilainya kosong', () => {
+		const [row] = dashboardMetricRows({ target_tma: { ...metric, value: null } }, false, {
+			target_tma: target
+		});
+
+		expect(row.uploadTarget?.current).toBeUndefined();
 	});
 });

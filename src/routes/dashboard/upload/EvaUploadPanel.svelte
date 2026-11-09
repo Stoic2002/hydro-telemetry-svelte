@@ -152,13 +152,7 @@
 	/>
 
 	<section class="w-full border-t border-border-subtle pt-6">
-		<p class="text-xs text-text-muted">
-			Kurva elevasi dan volume waduk berlaku untuk <strong class="font-medium text-text-secondary"
-				>satu PLTA</strong
-			>. Pilih PLTA-nya di panel kanan sebelum mengunggah.
-		</p>
-
-		<div class="mt-3.5 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_268px]">
+		<div class="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_268px]">
 			<div class="flex flex-col gap-5">
 				{#if !selectedFile}
 					<FileDropzone
@@ -260,11 +254,6 @@
 					<IconDownload class="size-3.5" />
 					{templateMutation.isPending ? 'Menyiapkan…' : 'Unduh Template'}
 				</button>
-				<p class="text-xs leading-relaxed text-text-muted">
-					Kolom wajib <span class="font-medium text-text-secondary">Elevasi, Volume, Area</span>.
-					Sudah berisi kurva {displayName}
-					{year} yang tersimpan.
-				</p>
 			</aside>
 		</div>
 	</section>

@@ -41,13 +41,7 @@
 
 <div class="flex flex-col gap-6">
 	<section>
-		<p class="text-xs text-text-muted">
-			Gambar berlaku untuk seluruh PLTA. Mengunggah ulang periode dan jenis yang sama akan
-			menggantikan gambar sebelumnya. Hapus hanya bila gambar salah terunggah dan penggantinya belum
-			ada.
-		</p>
-
-		<div class="mt-3 grid gap-3 sm:grid-cols-2">
+		<div class="grid gap-3 sm:grid-cols-2">
 			{#each IMAGE_KINDS as item (item.kind)}
 				{@const title = MONTHLY_IMAGE_KIND_LABEL[item.kind]}
 				<article

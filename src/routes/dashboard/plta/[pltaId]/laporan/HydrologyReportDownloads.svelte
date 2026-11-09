@@ -7,6 +7,7 @@
 
 	import Button from '$components/controls/Button.svelte';
 	import Select from '$components/controls/Select.svelte';
+	import InfoTip from '$components/ui/InfoTip.svelte';
 	import {
 		createDownloadDailyReportMutation,
 		createDownloadMonthlyReportMutation,
@@ -246,11 +247,18 @@
 					<IconFileXls class="size-[18px]" aria-hidden="true" />
 				</span>
 				<div class="min-w-0">
-					<h3 class="card-title">Laporan Hidrologi Bulanan</h3>
-					<p class="mt-0.5 text-xs text-text-muted">
-						{monthlyPeriodLabel} · {scopeLabel}. Rekap per PLTA dengan status pencapaian, plus
-						lembar ringkasan.
-					</p>
+					<h3 class="card-title flex items-center gap-1.5">
+						Laporan Hidrologi Bulanan
+						<!--
+							Swagger 9 Nov 2026: tiga lembar — DATA, RINGKASAN, dan PETA BMKG
+							(hanya 12 bulan terakhir rentang, ±0,5 MB per bulan berpeta lengkap).
+						-->
+						<InfoTip
+							label="Isi laporan hidrologi bulanan"
+							text="Tiga lembar: rekap per PLTA dengan status pencapaian, ringkasan rata-rata, dan peta BMKG (prediksi & realisasi). Peta hanya untuk 12 bulan terakhir rentang."
+						/>
+					</h3>
+					<p class="mt-0.5 text-xs text-text-muted">{monthlyPeriodLabel} · {scopeLabel}</p>
 				</div>
 			</div>
 			<Button
@@ -274,11 +282,17 @@
 					<IconFileXls class="size-[18px]" aria-hidden="true" />
 				</span>
 				<div class="min-w-0">
-					<h3 class="card-title">Laporan Hidrologi Harian</h3>
+					<h3 class="card-title flex items-center gap-1.5">
+						Laporan Hidrologi Harian
+						<InfoTip
+							label="Isi laporan hidrologi harian"
+							text="Satu lembar per panel, satu baris per PLTA per tanggal."
+						/>
+					</h3>
 					<p class="mt-0.5 text-xs text-text-muted">
-						{periodLabel} · {scopeLabel}. Satu lembar per panel, satu baris per PLTA per tanggal.
+						{periodLabel} · {scopeLabel}
 						{#if hasReportRange(monthlyPeriod)}
-							<span class="text-status-warning-strong">Tidak mendukung rentang.</span>
+							· <span class="text-status-warning-strong">Tidak mendukung rentang.</span>
 						{/if}
 					</p>
 				</div>

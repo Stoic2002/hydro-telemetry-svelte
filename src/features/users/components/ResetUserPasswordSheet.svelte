@@ -77,7 +77,7 @@
 			autocomplete="new-password"
 			bind:value={form.values.newPassword}
 			error={form.errors.newPassword}
-			helperText="8–128 karakter."
+			hint="8–128 karakter."
 			disabled={isPending}
 		/>
 		<Input

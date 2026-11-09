@@ -16,7 +16,7 @@ vi.mock('$features/hydrology/api/repository', () => ({
 	hydrologyRepository: {
 		getMonthlyPanel: vi.fn(),
 		getMonthlyImage: vi.fn(),
-		getMonthlyChart: vi.fn()
+		listMonthly: vi.fn()
 	}
 }));
 
@@ -61,11 +61,7 @@ beforeEach(() => {
 	vi.clearAllMocks();
 	repository.getMonthlyPanel.mockResolvedValue(null);
 	repository.getMonthlyImage.mockRejectedValue(new Error('tidak dipakai'));
-	repository.getMonthlyChart.mockResolvedValue({
-		pltaId: PLANT.id,
-		registeredPlantCount: 13,
-		points: []
-	});
+	repository.listMonthly.mockResolvedValue([]);
 });
 
 describe('isian ringkasan bulanan per peran', () => {
@@ -84,5 +80,38 @@ describe('isian ringkasan bulanan per peran', () => {
 		renderPage();
 
 		expect(await screen.findByRole('button', { name: /^(Input|Edit) data$/ })).toBeInTheDocument();
+	});
+});
+
+describe('pintasan laporan', () => {
+	it('menautkan ke Laporan Hidrologi dengan PLTA dan periode yang sedang dibuka', async () => {
+		signInAs('Viewer');
+
+		renderPage();
+
+		const link = await screen.findByRole('link', { name: 'Buka laporan' });
+		const url = new URL(link.getAttribute('href') ?? '', 'http://lokal');
+		expect(url.pathname).toBe(`/dashboard/plta/${PLANT.id}/laporan`);
+		expect(Object.fromEntries(url.searchParams)).toEqual({
+			tab: 'hidrologi',
+			tahun: String(new Date().getFullYear()),
+			bulan: String(new Date().getMonth() + 1),
+			plta: PLANT.id
+		});
+	});
+});
+
+describe('grafik energi', () => {
+	it('mengambil satu tahun dari daftar bulanan, bukan dari grafik akumulasi', async () => {
+		signInAs('Viewer');
+
+		renderPage();
+
+		await screen.findByText('Belum ada energi pada tahun ini.');
+		expect(repository.listMonthly).toHaveBeenCalledWith(
+			PLANT.id,
+			new Date().getFullYear(),
+			expect.anything()
+		);
 	});
 });

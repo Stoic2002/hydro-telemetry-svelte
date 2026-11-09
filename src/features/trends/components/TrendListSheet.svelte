@@ -7,6 +7,7 @@
 	import Input from '$components/controls/Input.svelte';
 	import Select from '$components/controls/Select.svelte';
 	import Banner from '$components/ui/Banner.svelte';
+	import InfoTip from '$components/ui/InfoTip.svelte';
 	import Sheet from '$components/ui/Sheet.svelte';
 	import SortableList from '$components/ui/SortableList.svelte';
 	import { notificationStore } from '$shared/lib/notification.svelte';
@@ -138,9 +139,12 @@
 
 <Sheet {isOpen} title="Atur daftar tren" isDismissible={!isPending} {isDirty} {onClose}>
 	{#snippet description()}
-		Pilih metrik yang tampil di Tren & Grafik PLTA {plantName}, seret untuk mengubah urutan, dan
-		beri nama grup yang sama untuk menggambarnya dalam satu grafik. Berlaku untuk semua pengguna
-		PLTA ini.
+		Pilih metrik yang tampil di Tren & Grafik PLTA {plantName}. Berlaku untuk semua pengguna PLTA
+		ini.
+		<InfoTip
+			label="Cara mengatur daftar tren"
+			text="Seret baris untuk mengubah urutan. Beri nama grup yang sama untuk menggambar beberapa metrik dalam satu grafik."
+		/>
 	{/snippet}
 
 	{#if listQuery.isPending || catalogQuery.isPending}

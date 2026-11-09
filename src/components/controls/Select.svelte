@@ -8,6 +8,7 @@
 
 <script lang="ts">
 	import type { Snippet } from 'svelte';
+	import InfoTip from '$components/ui/InfoTip.svelte';
 	import { Select } from 'bits-ui';
 	import IconCaretDown from '~icons/ph/caret-down';
 	import IconCheck from '~icons/ph/check';
@@ -16,6 +17,12 @@
 		label?: string;
 		error?: string;
 		helperText?: string;
+		/**
+		 * Keterangan penjelas di tooltip (i) di samping label, bukan teks di bawah
+		 * field (keputusan tim 9 Nov 2026). `helperText` hanya untuk yang harus
+		 * terbaca tanpa diarahkan kursor.
+		 */
+		hint?: string;
 		options: SelectOption[];
 		leadingIcon?: Snippet;
 		controlSize?: 'sm' | 'md';
@@ -36,6 +43,7 @@
 		label,
 		error,
 		helperText,
+		hint,
 		options,
 		leadingIcon,
 		controlSize = 'md',
@@ -65,7 +73,12 @@
 </script>
 
 <div class={`flex w-full min-w-0 flex-col gap-1.5 ${className}`}>
-	{#if label}
+	{#if label && hint}
+		<div class="flex items-center gap-1.5">
+			<label for={triggerId} class="field-label">{label}</label>
+			<InfoTip text={hint} label={`Keterangan ${label}`} />
+		</div>
+	{:else if label}
 		<label for={triggerId} class="field-label">{label}</label>
 	{/if}
 

@@ -11,6 +11,7 @@
 	import Input from '$components/controls/Input.svelte';
 	import ConfirmDialog from '$components/ui/ConfirmDialog.svelte';
 	import ErrorState from '$components/ui/ErrorState.svelte';
+	import InfoTip from '$components/ui/InfoTip.svelte';
 	import PageHeader from '$components/ui/PageHeader.svelte';
 	import {
 		createChangeCurrentPasswordMutation,
@@ -164,7 +165,13 @@
 					<div class="flex flex-col gap-4 p-[18px]">
 						<div class="flex flex-col gap-2.5 rounded-lg bg-surface-overlay p-3.5">
 							<div class="flex items-center justify-between gap-3">
-								<span class="text-xs text-text-muted">Username</span>
+								<span class="flex items-center gap-1 text-xs text-text-muted">
+									Username
+									<InfoTip
+										label="Keterangan username dan peran"
+										text="Username dan peran dikelola admin dan tidak bisa diubah dari halaman ini."
+									/>
+								</span>
 								<span class="font-mono text-[12.5px] font-medium text-text-primary">
 									@{user.username}
 								</span>
@@ -173,9 +180,6 @@
 								<span class="text-xs text-text-muted">Peran</span>
 								<RoleBadge role={user.role} />
 							</div>
-							<p class="text-[11px] leading-relaxed text-text-muted">
-								Keduanya dikelola admin dan tidak bisa diubah dari halaman ini.
-							</p>
 						</div>
 
 						<Input

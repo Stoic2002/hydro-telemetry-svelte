@@ -210,7 +210,8 @@ describe('tag baru', () => {
 		minValid: null,
 		maxValid: null,
 		enabled: true,
-		panel: 'dam' as const
+		panel: 'dam' as const,
+		formula: null
 	};
 
 	it('tidak mengirim bidang REST untuk protokol lain', async () => {
@@ -253,6 +254,144 @@ describe('tag baru', () => {
 			http_headers: { Authorization: 'Bearer ${TOKEN}' },
 			value_path: 'data.tma',
 			timestamp_path: null
+		});
+	});
+});
+
+describe('tag formulasi', () => {
+	it('SWC: tanpa rumus dan tanpa bidang REST', async () => {
+		apiRequestMock.mockResolvedValue(tag({ protocol: 'derived', address: 'computed:swc' }));
+
+		await httpPltaRepository.createTag({
+			pltaId: PLTA_ID,
+			parameter: 'total_outflow',
+			station: 'T1',
+			label: null,
+			protocol: 'derived',
+			address: 'computed:swc',
+			httpHeaders: null,
+			valuePath: null,
+			timestampPath: null,
+			scale: 1,
+			offset: 0,
+			unit: 'm3/s',
+			minValid: null,
+			maxValid: null,
+			enabled: true,
+			panel: null,
+			formula: null
+		});
+
+		const body = apiRequestMock.mock.calls[0][1]?.json as Record<string, unknown>;
+		expect(body).toMatchObject({ protocol: 'derived', address: 'computed:swc', station: 'T1' });
+		expect(body).not.toHaveProperty('rumus');
+		expect(body).not.toHaveProperty('http_headers');
+	});
+});
+
+describe('rumus kustom', () => {
+	const FORMULA = {
+		expression: 'jika(b > 1, a / b * 3.6, 0)',
+		variables: {
+			a: {
+				kind: 'series' as const,
+				parameter: 'beban',
+				station: 'T1',
+				take: 'rata_jam' as const,
+				fallback: 0
+			},
+			b: { kind: 'constant' as const, constant: 'swc' }
+		}
+	};
+	const API_FORMULA = {
+		ekspresi: 'jika(b > 1, a / b * 3.6, 0)',
+		variabel: {
+			a: { parameter: 'beban', station: 'T1', ambil: 'rata_jam', bawaan: 0 },
+			b: { konstanta: 'swc' }
+		}
+	};
+
+	it('mengirim rumus bersama tag derived beralamat rumus', async () => {
+		apiRequestMock.mockResolvedValue(tag({ protocol: 'derived', address: 'rumus' }));
+
+		await httpPltaRepository.createTag({
+			pltaId: PLTA_ID,
+			parameter: 'rumus',
+			station: 'EFISIENSI',
+			label: 'Efisiensi',
+			protocol: 'derived',
+			address: 'rumus',
+			httpHeaders: null,
+			valuePath: null,
+			timestampPath: null,
+			scale: 1,
+			offset: 0,
+			unit: '%',
+			minValid: null,
+			maxValid: null,
+			enabled: true,
+			panel: 'dam',
+			formula: FORMULA
+		});
+
+		expect(apiRequestMock.mock.calls[0][1]?.json).toMatchObject({
+			parameter: 'rumus',
+			station: 'EFISIENSI',
+			address: 'rumus',
+			rumus: API_FORMULA
+		});
+	});
+
+	it('menguji rumus tanpa menyimpan dan memetakan hasilnya', async () => {
+		apiRequestMock.mockResolvedValue({
+			nilai: 12.5,
+			waktu: '2026-11-09T14:00:00+07:00',
+			variabel: [
+				{ nama: 'a', nilai: 40, waktu: '2026-11-09T13:58:00+07:00', sumber: 'deret' },
+				{ nama: 'b', nilai: 3.2, waktu: null, sumber: 'konstanta' }
+			],
+			masalah: []
+		});
+
+		const result = await httpPltaRepository.testFormula(PLTA_ID, FORMULA);
+
+		const [endpoint, options] = apiRequestMock.mock.calls[0];
+		expect(endpoint).toBe('/api/v1/tags/rumus/uji');
+		expect(options?.method).toBe('POST');
+		// Rumus baru: `station` null (tidak ada rumus lama yang bisa dirujuk melingkar).
+		expect(options?.json).toEqual({ plta_id: PLTA_ID, station: null, rumus: API_FORMULA });
+		expect(result).toEqual({
+			value: 12.5,
+			time: '2026-11-09T14:00:00+07:00',
+			variables: [
+				{ name: 'a', value: 40, time: '2026-11-09T13:58:00+07:00', source: 'deret' },
+				{ name: 'b', value: 3.2, time: null, source: 'konstanta' }
+			],
+			problems: []
+		});
+	});
+
+	it('memetakan kamus, termasuk contohnya', async () => {
+		apiRequestMock.mockResolvedValue({
+			fungsi: [{ nama: 'jika', keterangan: 'jika(syarat, ya, tidak)' }],
+			operator: ['+', '-'],
+			ambil: [{ nama: 'terbaru', keterangan: 'nilai terakhir ≤ 3 jam' }],
+			konstanta: ['swc', 'tma_limpas'],
+			batas: { variabel: 20 },
+			pola_kode: '^[A-Z][A-Z0-9_]*$',
+			pola_variabel: '^[a-z][a-z0-9_]*$',
+			contoh: API_FORMULA
+		});
+
+		const dictionary = await httpPltaRepository.getFormulaDictionary();
+
+		expect(apiRequestMock.mock.calls[0][0]).toBe('/api/v1/tags/rumus/kamus');
+		expect(dictionary).toMatchObject({
+			functions: [{ name: 'jika', description: 'jika(syarat, ya, tidak)' }],
+			takeModes: [{ name: 'terbaru', description: 'nilai terakhir ≤ 3 jam' }],
+			constants: ['swc', 'tma_limpas'],
+			limits: { variabel: 20 },
+			example: FORMULA
 		});
 	});
 });

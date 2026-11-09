@@ -63,6 +63,50 @@ export const apiParameterCatalogSchema = z.array(
 	})
 );
 
+const apiFormulaVariableSchema = z.union([
+	z.object({ konstanta: z.string() }),
+	z.object({
+		parameter: z.string(),
+		station: z.string().default(''),
+		ambil: z.enum(['terbaru', 'rata_jam', 'harian']).default('terbaru'),
+		bawaan: z.number().nullable().default(null)
+	})
+]);
+
+export const apiFormulaDefinitionSchema = z.object({
+	ekspresi: z.string(),
+	variabel: z.record(z.string(), apiFormulaVariableSchema)
+});
+
+const apiNamedTextSchema = z.object({ nama: z.string(), keterangan: z.string() });
+
+/** `KamusRumus` — semua bidang wajib di Swagger 9 Nov 2026. */
+export const apiFormulaDictionarySchema = z.object({
+	fungsi: z.array(apiNamedTextSchema),
+	operator: z.array(z.string()),
+	ambil: z.array(apiNamedTextSchema),
+	konstanta: z.array(z.string()),
+	batas: z.record(z.string(), z.number()),
+	pola_kode: z.string(),
+	pola_variabel: z.string(),
+	contoh: apiFormulaDefinitionSchema
+});
+
+/** `HasilUjiRumus`. */
+export const apiFormulaTestSchema = z.object({
+	nilai: z.number().nullable(),
+	waktu: z.string(),
+	variabel: z.array(
+		z.object({
+			nama: z.string(),
+			nilai: z.number().nullable(),
+			waktu: z.string().nullable(),
+			sumber: z.enum(['deret', 'bawaan', 'konstanta', 'kosong'])
+		})
+	),
+	masalah: z.array(z.string())
+});
+
 function paginatedSchema<TSchema extends z.ZodType>(itemSchema: TSchema) {
 	return z.object({
 		items: z.array(itemSchema),

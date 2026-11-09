@@ -2,6 +2,7 @@
 	import IconRefresh from '~icons/ph/arrow-clockwise';
 	import Badge, { type BadgeTone } from '$components/controls/Badge.svelte';
 	import Banner from '$components/ui/Banner.svelte';
+	import InfoTip from '$components/ui/InfoTip.svelte';
 	import { createElevationStatusQuery, type ElevationReadiness } from '$features/uploads';
 	import { formatNumber } from '$shared/utils/number';
 
@@ -36,7 +37,13 @@
 
 <section aria-labelledby="elevation-status-title">
 	<div class="flex flex-wrap items-baseline justify-between gap-2">
-		<h2 id="elevation-status-title" class="section-title">Status kurva seluruh PLTA</h2>
+		<h2 id="elevation-status-title" class="section-title flex items-center gap-1.5">
+			Status kurva seluruh PLTA
+			<InfoTip
+				label="Keterangan status kurva"
+				text="Hanya kurva berstatus published yang dipakai menghitung volume waduk. Kurva lama tetap berlaku sampai ada kurva published yang lebih baru."
+			/>
+		</h2>
 		{#if status}
 			<p class="text-xs text-text-muted">
 				<span class="font-medium text-text-secondary">{status.totals.ready}</span> dari
@@ -46,10 +53,6 @@
 			</p>
 		{/if}
 	</div>
-	<p class="mt-1 text-xs text-text-muted">
-		Hanya kurva berstatus <span class="font-medium text-text-secondary">published</span> yang dipakai
-		menghitung volume waduk. Kurva lama tetap berlaku sampai ada kurva published yang lebih baru.
-	</p>
 
 	{#if statusQuery.isLoading}
 		<div role="status" class="mt-3 flex flex-col gap-2">

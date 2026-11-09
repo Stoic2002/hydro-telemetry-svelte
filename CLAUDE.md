@@ -233,14 +233,19 @@ null` untuk keduanya. Banner **"N sensor bermasalah"** (merah bila ada yang
   hari ini (`withTrendReferences`); batas yang lebih jauh dari selebar rentang
   data hanya ditulis di keterangan beserta jaraknya, supaya garis TMA tidak
   rata. Sumbu `mdpl` paling sempit **0,2 m** (`minimumAxisSpan`, keputusan
-  tim 17 Okt 2026) — 4 cm dulu digambar setinggi grafik. Grafik beresolusi jam
+  tim 17 Okt 2026) — 4 cm dulu digambar setinggi grafik. TMA yang datar sama
+  sekali juga selebar 0,2 m, bukan ±2% nilainya (±4,5 m menyeret garis MOL ke
+  grafik 24 jam, T13). Warna deret tidak memakai token berurutan
+  (`TREND_SERIES_COLORS`: token 1/2/4 serumpun biru, T14). Grafik beresolusi jam
   (24 jam, 7 hari) menyegarkan diri tiap 5 menit; jam halaman ikut berdetak
   karena rentangnya dibulatkan ke akhir jam berjalan. **PLTA yang `diatur: false` jatuh ke tampilan lama** di
   bawah ini (`ParameterTrendView`), supaya halamannya tidak kosong.
 - **Tren & Grafik (cadangan, daftar belum diatur)**: hanya **satu** grafik dengan pemilih parameter (bukan 4
   grafik). Rentang default 24 jam. Daftar parameter diambil dari API tags. Garis
-  grafik menampilkan nilai saat di-hover. Parameter terakumulasi (`*rainfall*`,
-  `total_outflow`) diagregasi `sum`, sisanya `avg`; curah hujan digambar sebagai
+  grafik menampilkan nilai saat di-hover. `agg` = penggabungan **antar-stasiun**, bukan antar-waktu: hanya
+  `total_outflow` yang `sum`; curah hujan `avg` (rata-rata total antar-penakar —
+  server sudah menjumlah per jam/hari per stasiun; `sum` dulu membuat hujan
+  Soedirman ±4 kali lipat, 9 Nov 2026), sisanya `avg`; curah hujan digambar sebagai
   batang. **Pembanding periode** (`?compare=previous|last-year`, garis
   putus-putus di sumbu waktu yang sama) **dihapus 27 Okt 2026 atas keputusan
   rapat tim**, di tampilan cadangan maupun daftar tren; `?compare=` di tautan
@@ -296,13 +301,19 @@ null` untuk keduanya. Banner **"N sensor bermasalah"** (merah bila ada yang
   dan belum ada layarnya. **Tambah parameter** (27 Okt 2026, rapat tim: hanya
   yang bukan formulasi) ada di tab Tag & Parameter, khusus admin:
   `TagFormSheet`, `POST /tags`, validasi murni di `features/plta/tag-form.ts`.
-  Protokol `derived` tidak ditawarkan (server menolaknya); bidang REST
+  **Protokol Formulasi (`derived`) ditawarkan sejak 9 Nov 2026** (dulu server
+  menolaknya): jenis **Debit unit dari SWC** (`address: computed:swc`,
+  parameter dikunci `total_outflow`, station `T<n>`, peringatan "tandai semua
+  unit" tertulis langsung) dan **Rumus kustom** (`parameter: rumus`, `address:
+rumus`, station = kode rumus dibesarkan otomatis, `rumus: {ekspresi,
+variabel}`; editor `FormulaEditor`, logika murni `formula-form.ts`; kamus
+  `GET /tags/rumus/kamus` dimuat hanya saat jenis ini dipilih; **Uji rumus** =
+  `POST /tags/rumus/uji`, aturan sama persis dengan simpan). Skala/offset
+  derived wajib 1/0 dan disembunyikan. Bidang REST
   (`http_headers`, `value_path`, `timestamp_path`) hanya dikirim untuk `rest`
   karena server menolaknya di protokol lain. Nama dan satuan parameter dari
   `GET /parameter` (`tagParameterOptions`), dengan kuncinya di samping; satuan
-  terisi otomatis selama belum diisi tangan. Rumus kustom (staging 2 Nov 2026:
-  `parameter: rumus`, `GET /tags/rumus/kamus`, `POST /tags/rumus/uji`) belum
-  ditawarkan. Parameter yang belum dikenal FE dilewati di data monitoring dan
+  terisi otomatis selama belum diisi tangan. Parameter yang belum dikenal FE dilewati di data monitoring dan
   realtime, bukan menolak seluruh snapshot. `409` = kombinasi PLTA/parameter/station
   sudah ada; `400` membawa `detail.masalah[]`. Ubah/hapus tag dan OPC browse
   belum.
@@ -471,17 +482,25 @@ null` untuk keduanya. Banner **"N sensor bermasalah"** (merah bila ada yang
   **laporan harian tidak mendukung rentang**. Mengubah beberapa parameter URL
   harus dalam satu `goto` (`setPeriods`/`setFilters`) — dua `goto` berturut-turut
   sama-sama membaca URL lama dan yang kedua membatalkan yang pertama.
-- **Grafik akumulasi** (`GET /hydrology/monthly/chart`) ada di Hidrologi
-  Bulanan, per PLTA aktif untuk tahun terpilih (Jan–Des). Bulan yang belum
-  diisi bernilai `null` dan **tidak diberi batang**, bukan batang nol (sejak 13 Okt 2026
-  grafiknya batang berdampingan target/realisasi, bukan dua garis; sumbu Y
-  selalu dari nol). Tanpa `plta_id`
-  nilainya JUMLAH seluruh PLTA dan `n_target`/`n_realisasi` harus diperiksa
-  sebelum kedua garis dibandingkan — komponennya sudah memperingatkan bila
-  tidak sama, tetapi grafik gabungan seluruh PLTA belum ada layarnya. Kunci
-  query-nya di bawah `dashboardRoot(pltaId)` supaya ikut segar setelah isian
-  bulanan diubah. Test komponen grafik butuh stub `window.matchMedia` di
-  `src/test/setup.ts` (layerchart → `svelte/motion`).
+- **Grafik energi** (9 Nov 2026) di Hidrologi Bulanan, per PLTA aktif untuk
+  tahun terpilih (Jan–Des): **satu** grafik kombinasi (`MonthlyEnergyChart`)
+  dari `GET /hydrology/monthly?tahun=` (`createMonthlyHydrologyQuery`,
+  `telemetering/energy-chart.ts`). **Batang** = energi bulan itu (target /
+  prediksi / realisasi, sumbu kiri), **garis** = akumulasi Januari s.d. bulan
+  itu (warna sama, pekat; target putus-putus; sumbu kanan lewat `axisMapping`,
+  kini di `shared/utils/chart.ts`). Kedua sumbu dari nol — akumulasi Desember
+  ±12× energi sebulan, jadi satu sumbu membuat batang tenggelam. Server hanya
+  mengirim bulan yang diisi; sisanya `null` → tanpa batang dan garis terputus,
+  bukan nol. Dulu dua grafik terpisah, dan akumulasinya dari
+  `GET /hydrology/monthly/chart` (batang 13 Okt–9 Nov, sebelumnya garis) yang
+  **tidak memuat prediksi**; `createMonthlyChartQuery` tetap ada untuk grafik
+  gabungan seluruh PLTA kelak (nilai = JUMLAH seluruh PLTA, periksa
+  `n_target`/`n_realisasi` sebelum membandingkan). Test komponen grafik butuh
+  stub `window.matchMedia` di `src/test/setup.ts` (layerchart →
+  `svelte/motion`). **Buka laporan** di kepala kartu Ringkasan = tautan ke
+  Laporan › Laporan Hidrologi (`?tab=hidrologi&tahun=&bulan=&plta=`) untuk PLTA
+  dan bulan yang dibuka (semua peran); sengaja tautan, bukan unduhan langsung
+  (9 Nov 2026), supaya rentang dan cakupan masih bisa diubah.
 - **Tombol "Input data" di Hidrologi Harian** mengikuti **hanya** field `input`
   (`{parameter, station}`) dari server — di tingkat metrik, atau per entri
   `stations` untuk metrik multi-stasiun (pintu spillway G1–G4 jadi pilihan
@@ -517,7 +536,9 @@ null` untuk keduanya. Banner **"N sensor bermasalah"** (merah bila ada yang
   aktif menggantikan kata Mode; bukan "Tampilan" karena ikon pengatur panel
   sudah bernama "Atur tampilan"): dua sumbu di URL yang bisa
   dipadukan — `?zona=` (hulu/bendungan/hilir; satu zona = kartu selebar
-  halaman, baris dua kolom) dan `?baris=` (perhatian/manual/ringkas;
+  halaman, baris dua kolom **dibaca per kolom** — separuh pertama turun di kiri,
+  sisanya di kanan, permintaan tim 9 Nov 2026; dulu grid terisi per baris dan
+  urutannya terbaca acak) dan `?baris=` (perhatian/manual/ringkas;
   `filterMetricRows`). Baris tersaring tampil semua tanpa batas ringkas lima
   baris. "Isian manual" tidak ditawarkan ke Viewer. Isi mode Ringkas
   (`SUMMARY_METRIC_KEYS`) masih usulan dan menunggu kesepakatan tim. Mengganti

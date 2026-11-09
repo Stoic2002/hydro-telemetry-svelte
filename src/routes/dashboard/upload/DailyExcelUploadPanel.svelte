@@ -8,6 +8,7 @@
 	import SegmentedControl from '$components/controls/SegmentedControl.svelte';
 	import StatusToggle from '$components/controls/StatusToggle.svelte';
 	import Banner from '$components/ui/Banner.svelte';
+	import InfoTip from '$components/ui/InfoTip.svelte';
 	import UploadHistoryPanel from '$features/audit/components/UploadHistoryPanel.svelte';
 	import {
 		createDownloadDailyTemplateMutation,
@@ -139,11 +140,6 @@
 </script>
 
 <div class="flex flex-col gap-6">
-	<p class="text-xs text-text-muted">
-		Satu berkas mengisi nilai harian manual seluruh PLTA — rencana dan realisasi yang tidak datang
-		dari sensor.
-	</p>
-
 	<div class="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_268px]">
 		<div class="flex flex-col gap-5">
 			{#if !selectedFile}
@@ -175,7 +171,15 @@
 						</p>
 					{:else}
 						<div class="mt-3 flex flex-col gap-1.5">
-							<p class="field-label">Sel kosong di berkas</p>
+							<p class="field-label flex items-center gap-1">
+								Sel kosong di berkas
+								<InfoTip
+									label="Keterangan sel kosong"
+									text={emptyCells === 'skip'
+										? 'Dilewati: sel kosong tidak mengubah nilai lama.'
+										: 'Isi nilai terakhir: sel kosong diisi nilai terakhir di kolom yang sama, dan ikut tersimpan.'}
+								/>
+							</p>
 							<SegmentedControl
 								ariaLabel="Perlakuan sel kosong"
 								value={emptyCells}
@@ -185,13 +189,6 @@
 									{ value: 'carry-forward', label: 'Isi nilai terakhir' }
 								]}
 							/>
-							<p class="text-xs leading-relaxed text-text-muted">
-								{#if emptyCells === 'skip'}
-									Sel kosong tidak mengubah nilai lama.
-								{:else}
-									Sel kosong diisi nilai terakhir di kolom yang sama, dan ikut tersimpan.
-								{/if}
-							</p>
 						</div>
 						<button
 							type="button"
@@ -330,13 +327,12 @@
 				{templateMutation.isPending ? 'Menyiapkan…' : 'Unduh Template'}
 			</button>
 
-			<p class="text-xs leading-relaxed text-text-muted">
-				{perHour ? '24 baris' : 'Satu baris'} per PLTA per tanggal, maks. {MAX_DAILY_TEMPLATE_RANGE_DAYS}
-				hari. Sudah berisi nilai tersimpan.
-			</p>
-
 			<UploadTips
 				tips={[
+					{
+						term: 'Template',
+						text: `${perHour ? '24 baris' : 'satu baris'} per PLTA per tanggal, maks. ${MAX_DAILY_TEMPLATE_RANGE_DAYS} hari, sudah berisi nilai tersimpan.`
+					},
 					{ term: 'Sel gelap:', text: 'tidak berlaku untuk PLTA itu, biarkan kosong.' },
 					{ term: 'kode_plta + tanggal', text: 'adalah kuncinya; nama_plta hanya rujukan.' },
 					{

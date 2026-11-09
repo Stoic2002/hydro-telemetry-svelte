@@ -126,7 +126,7 @@
 			max={today}
 			disabled={isPending}
 			error={rangeError ?? undefined}
-			helperText={`Maksimal ${maxDays} hari.`}
+			hint={`Maksimal ${maxDays} hari.`}
 		/>
 	</div>
 

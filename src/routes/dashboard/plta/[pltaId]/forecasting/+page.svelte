@@ -7,6 +7,7 @@
 	import Skeleton from '$components/controls/Skeleton.svelte';
 	import SegmentedControl from '$components/controls/SegmentedControl.svelte';
 	import Banner from '$components/ui/Banner.svelte';
+	import InfoTip from '$components/ui/InfoTip.svelte';
 	import EmptyState from '$components/ui/EmptyState.svelte';
 	import ErrorState from '$components/ui/ErrorState.svelte';
 	import PageHeader from '$components/ui/PageHeader.svelte';
@@ -358,10 +359,13 @@
 				class="flex flex-col justify-between gap-3 border-b border-surface-overlay px-5 py-4 sm:flex-row sm:items-start"
 			>
 				<div>
-					<h2 class="section-title">{series?.label ?? parameterLabel}</h2>
-					<p class="mt-1 text-xs text-text-muted">
-						Aktual historis dan prediksi P50 dari model terbaru.
-					</p>
+					<h2 class="section-title flex items-center gap-1.5">
+						{series?.label ?? parameterLabel}
+						<InfoTip
+							label="Keterangan grafik prediksi"
+							text="Aktual historis dan prediksi P50 dari model terbaru."
+						/>
+					</h2>
 				</div>
 				<div class="text-left text-xs text-text-muted sm:text-right">
 					<p class="font-medium">{series?.modelName}</p>

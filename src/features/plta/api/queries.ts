@@ -14,6 +14,7 @@ import type {
 	RiverBasinChanges,
 	RiverBasinInput,
 	TagBounds,
+	TagFormula,
 	TagInput
 } from '../model';
 import { pltaRepository } from './repository';
@@ -79,6 +80,7 @@ export const pltaQueryKeys = {
 	riverBasins: () => [...pltaQueryKeys.all, 'river-basins'] as const,
 	riverBasinList: (params: ListParams) => [...pltaQueryKeys.riverBasins(), 'list', params] as const,
 	parameters: () => [...pltaQueryKeys.all, 'parameters'] as const,
+	formulaDictionary: () => [...pltaQueryKeys.all, 'formula-dictionary'] as const,
 	lists: () => [...pltaQueryKeys.all, 'list'] as const,
 	list: (params: ListParams) => [...pltaQueryKeys.lists(), params] as const,
 	catalog: () => [...pltaQueryKeys.lists(), 'catalog'] as const,
@@ -108,6 +110,24 @@ export function createParameterCatalogQuery(enabled: () => boolean = () => true)
 		queryFn: () => pltaRepository.listParameters(),
 		enabled: enabled(),
 		staleTime: Infinity
+	}));
+}
+
+/** Kamus rumus statis per rilis server (Swagger: "aman di-cache"). */
+export function createFormulaDictionaryQuery(enabled: () => boolean) {
+	return createQuery(() => ({
+		queryKey: pltaQueryKeys.formulaDictionary(),
+		queryFn: () => pltaRepository.getFormulaDictionary(),
+		enabled: enabled(),
+		staleTime: Infinity
+	}));
+}
+
+/** Pratinjau rumus; tidak menulis apa pun, jadi tidak ada cache yang perlu disegarkan. */
+export function createTestFormulaMutation() {
+	return createMutation(() => ({
+		mutationFn: (input: { pltaId: string; formula: TagFormula; code?: string }) =>
+			pltaRepository.testFormula(input.pltaId, input.formula, input.code)
 	}));
 }
 

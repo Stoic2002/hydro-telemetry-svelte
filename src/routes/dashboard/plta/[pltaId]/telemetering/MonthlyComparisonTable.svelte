@@ -114,11 +114,3 @@
 		</tbody>
 	{/each}
 </table>
-
-<p class="mt-2 text-xs leading-relaxed text-text-muted">
-	Kolom <span class="font-medium text-text-secondary">Prediksi</span> pada energi adalah
-	<span class="font-medium text-text-secondary">prognosa ketersediaan energi primer</span>;
-	<span class="font-medium text-text-secondary">target</span> dan
-	<span class="font-medium text-text-secondary">realisasi</span> adalah produksi energi listrik. Prognosa
-	pencapaian = prognosa ÷ target.
-</p>

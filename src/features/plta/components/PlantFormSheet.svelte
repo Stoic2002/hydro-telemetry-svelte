@@ -122,7 +122,7 @@
 					bind:value={values.code}
 					disabled={isPending || isEdit}
 					error={errors.code}
-					helperText={isEdit ? undefined : 'Huruf besar, angka, dan tanda hubung.'}
+					hint={isEdit ? undefined : 'Huruf besar, angka, dan tanda hubung.'}
 				/>
 				<Input
 					label="Nama"
@@ -151,6 +151,7 @@
 					type="number"
 					step="any"
 					placeholder="-7,39"
+					hint="Tanpa koordinat, PLTA tidak tampil di peta Overview."
 					bind:value={values.latitude}
 					disabled={isPending}
 					error={errors.latitude}
@@ -174,9 +175,6 @@
 					error={errors.capacityMw}
 				/>
 			</div>
-			<p class="-mt-2 text-xs text-text-muted">
-				Tanpa koordinat, PLTA tidak tampil di peta Overview.
-			</p>
 		</section>
 
 		<section class="flex flex-col gap-4 border-t border-surface-overlay pt-5">

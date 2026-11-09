@@ -1,7 +1,9 @@
 import type {
+	FormulaDictionary,
+	FormulaTestResult,
 	ListParams,
-	ParameterInfo,
 	PaginatedResult,
+	ParameterInfo,
 	Plant,
 	PlantChanges,
 	PlantInput,
@@ -11,6 +13,7 @@ import type {
 	RiverBasinChanges,
 	RiverBasinInput,
 	TagBounds,
+	TagFormula,
 	TagInput
 } from '../model';
 
@@ -43,4 +46,12 @@ export interface PLTARepository {
 	 * `400` bila konfigurasinya tak sah (`detail.masalah[]`).
 	 */
 	createTag(input: TagInput): Promise<PlantTag>;
+	/** Bahan pembangun rumus kustom; statis per rilis server. */
+	getFormulaDictionary(): Promise<FormulaDictionary>;
+	/**
+	 * Khusus admin. Menghitung rumus dengan data saat ini tanpa menyimpan, dengan
+	 * aturan yang sama persis dengan `POST /tags`. `code` = kode rumus yang sedang
+	 * diubah (rujukan melingkar); kosongkan untuk rumus baru.
+	 */
+	testFormula(pltaId: string, formula: TagFormula, code?: string): Promise<FormulaTestResult>;
 }

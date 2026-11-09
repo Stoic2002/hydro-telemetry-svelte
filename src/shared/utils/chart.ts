@@ -18,8 +18,13 @@ export function chartValueDomain(values: number[], minimumSpan = 0): [number, nu
 	const valueRange = maximumValue - minimumValue;
 
 	// Rentang datar tetap perlu ruang agar garisnya tidak menempel di tepi, tapi
-	// padding-nya tidak boleh sampai menenggelamkan datanya sendiri.
-	const padding = valueRange > 0 ? valueRange * 0.12 : Math.max(Math.abs(maximumValue) * 0.02, 0.5);
+	// padding-nya tidak boleh sampai menenggelamkan datanya sendiri. Satuan yang
+	// punya rentang minimum (mdpl) memakai rentang itu: 2% dari TMA 223 mdpl
+	// = ±4,5 m, cukup lebar untuk menyeret garis MOL 4,8 m di bawahnya masuk
+	// grafik 24 jam dan meratakan garis TMA (temuan QA T13, 4 Nov 2026).
+	const flatPadding =
+		minimumSpan > 0 ? minimumSpan / 2 : Math.max(Math.abs(maximumValue) * 0.02, 0.5);
+	const padding = valueRange > 0 ? valueRange * 0.12 : flatPadding;
 
 	const low = minimumValue >= 0 ? Math.max(0, minimumValue - padding) : minimumValue - padding;
 	const high = maximumValue + padding;
@@ -115,4 +120,20 @@ export function barTimeInterval(times: readonly Date[]): TimeInterval {
 		offset: (date: Date, step = 1) => new Date(date.getTime() + step * stepMs)
 	};
 	return interval as unknown as TimeInterval;
+}
+
+/**
+ * Pemetaan linear nilai sumbu kanan ke ruang sumbu kiri. Satu `Chart` hanya
+ * punya satu skala Y, jadi deret bersatuan atau berskala kedua digambar dalam
+ * ruang sumbu kiri dan label sumbu kanannya dipetakan balik. Tooltip tetap
+ * membaca nilai aslinya. Dipakai Tren & Grafik (satuan kedua) dan grafik energi
+ * Hidrologi Bulanan (akumulasi di kanan, energi bulanan di kiri).
+ */
+export function axisMapping(left: [number, number], right: [number, number]) {
+	const leftSpan = left[1] - left[0] || 1;
+	const rightSpan = right[1] - right[0] || 1;
+	return {
+		toLeft: (value: number) => left[0] + ((value - right[0]) / rightSpan) * leftSpan,
+		toRight: (value: number) => right[0] + ((value - left[0]) / leftSpan) * rightSpan
+	};
 }

@@ -106,8 +106,66 @@ export interface ParameterInfo {
 	group: string;
 }
 
-/** Protokol yang boleh didaftarkan pengguna; `derived` (formulasi) dikelola sistem. */
-export type TagInputProtocol = Exclude<PlantTagProtocol, 'derived'>;
+/**
+ * Protokol yang boleh didaftarkan admin. Sejak Swagger 9 Nov 2026 termasuk
+ * `derived` (formulasi, dihitung server tiap jam): debit unit dari SWC
+ * (`computed:swc`) dan rumus kustom (`rumus`).
+ */
+export type TagInputProtocol = PlantTagProtocol;
+
+/** Cara variabel rumus membaca deret (`GET /tags/rumus/kamus` › `ambil`). */
+export type TagFormulaTake = 'terbaru' | 'rata_jam' | 'harian';
+
+/** Sumber nilai satu variabel rumus: deret PLTA yang sama, atau konstanta efektif PLTA. */
+export type TagFormulaVariable =
+	| {
+			kind: 'series';
+			parameter: string;
+			/** `''` = tanpa station. */
+			station: string;
+			take: TagFormulaTake;
+			/** Pengganti bila deret kosong; `null` = rumus tak dihitung jam itu. */
+			fallback: number | null;
+	  }
+	| { kind: 'constant'; constant: string };
+
+/** Rumus kustom (`DefinisiRumus`): ekspresi + variabel yang dipakainya. */
+export interface TagFormula {
+	expression: string;
+	variables: Record<string, TagFormulaVariable>;
+}
+
+/** Bahan pembangun rumus dari `GET /tags/rumus/kamus`; statis per rilis server. */
+export interface FormulaDictionary {
+	functions: { name: string; description: string }[];
+	operators: string[];
+	takeModes: { name: string; description: string }[];
+	/** Kunci konstanta angka PLTA, mis. `swc`, `tma_limpas`. */
+	constants: string[];
+	/** Batas server, mis. jumlah variabel dan panjang ekspresi. */
+	limits: Record<string, number>;
+	/** Regex kode rumus (= `station` tag). */
+	codePattern: string;
+	/** Regex nama variabel. */
+	variablePattern: string;
+	example: TagFormula;
+}
+
+/** Hasil `POST /tags/rumus/uji`: rumus dihitung dengan data SAAT INI, tanpa menyimpan. */
+export interface FormulaTestResult {
+	/** `null` bila ada masalah. */
+	value: number | null;
+	/** Jam acuan (awal jam berjalan, WIB). */
+	time: string;
+	variables: {
+		name: string;
+		value: number | null;
+		time: string | null;
+		source: 'deret' | 'bawaan' | 'konstanta' | 'kosong';
+	}[];
+	/** Kosong = siap disimpan. */
+	problems: string[];
+}
 
 /** Panel Hidrologi Harian tempat parameter ini tampil; `null` = tidak di panel. */
 export type TagPanel = 'hulu' | 'dam' | 'hilir';
@@ -134,6 +192,8 @@ export interface TagInput {
 	maxValid: number | null;
 	enabled: boolean;
 	panel: TagPanel | null;
+	/** Hanya untuk tag `derived` beralamat `rumus`; `null` untuk tag lain. */
+	formula: TagFormula | null;
 }
 
 export interface PlantTagListParams extends ListParams {

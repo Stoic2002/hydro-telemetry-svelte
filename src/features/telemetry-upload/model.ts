@@ -78,4 +78,10 @@ export interface DailyTelemetryUploadTarget {
 	unit: string;
 	/** Minimal satu. Lebih dari satu untuk metrik multi-stasiun (pintu spillway G1–G4). */
 	stations: DailyTelemetryUploadStation[];
+	/**
+	 * Nilai tersimpan yang tampil di panel beserta waktunya, untuk mengisi form
+	 * "Edit data". Hanya untuk metrik satu station — nilai metrik multi-stasiun
+	 * adalah agregat, bukan nilai yang bisa ditimpa.
+	 */
+	current?: { value: number; time: string | null };
 }

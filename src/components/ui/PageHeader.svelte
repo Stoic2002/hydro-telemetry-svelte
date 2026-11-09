@@ -1,4 +1,5 @@
 <script lang="ts">
+	import InfoTip from './InfoTip.svelte';
 	import type { Snippet } from 'svelte';
 
 	interface Props {
@@ -7,6 +8,8 @@
 		title: string;
 		/** Satu kalimat ringkas. Judul halaman tidak memakai ikon dekoratif. */
 		description: string;
+		/** Keterangan tambahan, tampil sebagai (i) dengan tooltip di ujung deskripsi. */
+		descriptionHint?: string;
 		/** Filter atau aksi utama, ditempatkan di kanan judul. */
 		actions?: Snippet;
 		class?: string;
@@ -17,7 +20,14 @@
 	 * kiri, filter/aksi di kanan, lalu garis 1px penuh sebagai batas ke konten.
 	 * Garis itu yang menggantikan kartu pembungkus.
 	 */
-	let { eyebrow, title, description, actions, class: className = '' }: Props = $props();
+	let {
+		eyebrow,
+		title,
+		description,
+		descriptionHint,
+		actions,
+		class: className = ''
+	}: Props = $props();
 </script>
 
 <header
@@ -28,7 +38,12 @@
 			<span class="text-[11px] leading-none font-medium text-text-muted">{eyebrow}</span>
 		{/if}
 		<h1 class="page-title">{title}</h1>
-		<p class="page-description">{description}</p>
+		<p class="page-description">
+			{description}
+			{#if descriptionHint}
+				<InfoTip label="Keterangan halaman" text={descriptionHint} class="ml-0.5" />
+			{/if}
+		</p>
 	</div>
 
 	{#if actions}

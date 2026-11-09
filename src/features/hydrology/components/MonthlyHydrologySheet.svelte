@@ -4,6 +4,7 @@
 	import Button from '$components/controls/Button.svelte';
 	import Input from '$components/controls/Input.svelte';
 	import Select, { type SelectOption } from '$components/controls/Select.svelte';
+	import InfoTip from '$components/ui/InfoTip.svelte';
 	import Sheet from '$components/ui/Sheet.svelte';
 	import { notificationStore } from '$shared/lib/notification.svelte';
 	import {
@@ -52,7 +53,7 @@
 		{
 			title: 'Energi bulan ini',
 			description:
-				'Semua nilai dalam MWh. Prognosa adalah ketersediaan energi primer; target dan realisasi adalah produksi energi listrik.',
+				'Prognosa adalah ketersediaan energi primer; target dan realisasi adalah produksi energi listrik. Prognosa pencapaian dan kesimpulannya (Tercapai / Belum tercapai) dihitung otomatis oleh server.',
 			fields: [
 				{ key: 'targetProductionMwh', label: 'Target Produksi Energi Listrik' },
 				{ key: 'predictedProductionMwh', label: 'Prognosa Ketersediaan Energi Primer' },
@@ -61,7 +62,7 @@
 		},
 		{
 			title: 'Energi akumulasi s.d. bulan ini',
-			description: 'Akumulasi sampai bulan ini, dalam MWh.',
+			description: 'Akumulasi Januari sampai bulan ini, termasuk bulan ini.',
 			fields: [
 				{ key: 'targetAccumulatedMwh', label: 'Target Akumulasi Produksi Energi Listrik' },
 				{ key: 'predictedAccumulatedMwh', label: 'Prognosa Akumulasi Ketersediaan Energi Primer' },
@@ -184,12 +185,12 @@
 		</div>
 
 		<section class="flex flex-col gap-4">
-			<div>
+			<div class="flex items-center gap-1.5">
 				<h3 class="text-sm font-semibold text-text-strong">Kondisi hidrologi</h3>
-				<p class="mt-1 text-xs text-text-muted">
-					Pilih salah satu kelas. "Belum diisi" mengosongkan kondisi yang tersimpan; angka energi
-					yang dikosongkan tidak menimpa data tersimpan.
-				</p>
+				<InfoTip
+					label="Keterangan kondisi hidrologi"
+					text="Pilih salah satu kelas. “Belum diisi” mengosongkan kondisi yang tersimpan; angka energi yang dikosongkan tidak menimpa data tersimpan."
+				/>
 			</div>
 
 			<div class="grid gap-4 sm:grid-cols-2">
@@ -212,9 +213,11 @@
 
 		{#each ENERGY_GROUPS as group (group.title)}
 			<section class="flex flex-col gap-4 border-t border-surface-overlay pt-5">
-				<div>
-					<h3 class="text-sm font-semibold text-text-strong">{group.title}</h3>
-					<p class="mt-1 text-xs text-text-muted">{group.description}</p>
+				<div class="flex items-center gap-1.5">
+					<h3 class="text-sm font-semibold text-text-strong">
+						{group.title} <span class="metric-unit ml-0.5">MWh</span>
+					</h3>
+					<InfoTip label={`Keterangan ${group.title}`} text={group.description} />
 				</div>
 
 				{#each group.fields as field (field.key)}
@@ -230,11 +233,6 @@
 				{/each}
 			</section>
 		{/each}
-
-		<p class="text-xs leading-5 text-text-muted">
-			Prognosa pencapaian dan kesimpulannya (Tercapai / Belum tercapai) dihitung otomatis oleh
-			server.
-		</p>
 	</form>
 
 	{#snippet footer()}

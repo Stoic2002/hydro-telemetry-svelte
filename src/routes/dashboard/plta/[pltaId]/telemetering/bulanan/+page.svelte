@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import IconInfo from '~icons/ph/info';
+	import IconReport from '~icons/ph/file-text';
 	import IconPencil from '~icons/ph/pencil-line';
 	import IconRefresh from '~icons/ph/arrow-clockwise';
 	import IconUpload from '~icons/ph/upload-simple';
@@ -9,22 +9,25 @@
 	import Button from '$components/controls/Button.svelte';
 	import Select from '$components/controls/Select.svelte';
 	import Banner from '$components/ui/Banner.svelte';
+	import ErrorState from '$components/ui/ErrorState.svelte';
+	import InfoTip from '$components/ui/InfoTip.svelte';
 	import PageHeader from '$components/ui/PageHeader.svelte';
 	import { authStore, canEditHydrologyData, canUploadMonthlyHydrology } from '$features/auth';
 	import {
-		createMonthlyChartQuery,
+		createMonthlyHydrologyQuery,
 		createMonthlyHydrologyImageQuery,
 		createMonthlyHydrologyPanelQuery,
 		getHydrologyErrorMessage,
 		type MonthlyHydrologyImageKind
 	} from '$features/hydrology';
 	import MonthlyHydrologySheet from '$features/hydrology/components/MonthlyHydrologySheet.svelte';
-	import { UPLOAD_PATH, getActivePLTA, getUploadPath } from '$features/plta';
+	import { UPLOAD_PATH, getActivePLTA, getPLTADashboardPath, getUploadPath } from '$features/plta';
 	import PlantSwitcher from '$features/plta/components/PlantSwitcher.svelte';
 	import { parseReportMonth, parseReportYear } from '../../../../hydrology-report';
 	import { createObjectUrl } from '$shared/lib/object-url.svelte';
 	import ForecastMapCard from '../ForecastMapCard.svelte';
-	import MonthlyAccumulationChart from '../MonthlyAccumulationChart.svelte';
+	import MonthlyEnergyChart from '../MonthlyEnergyChart.svelte';
+	import { buildEnergyMonths } from '../energy-chart';
 	import MonthlyComparisonTable from '../MonthlyComparisonTable.svelte';
 	import { MONTHS, buildMonthlyComparison } from '../presentation';
 
@@ -72,12 +75,15 @@
 
 	const record = $derived(panelQuery.data ?? undefined);
 
-	// Grafik akumulasi mengikuti tahun terpilih (Januari–Desember). Bulan yang
-	// belum diisi tetap ada di sumbu X dengan nilai kosong.
-	const chartQuery = createMonthlyChartQuery(
+	// Grafik energi bulanan dan akumulasi mengikuti tahun terpilih
+	// (Januari–Desember) dari satu sumber: `GET /hydrology/monthly?tahun=` memuat
+	// prediksi, target, dan realisasi keduanya. `/hydrology/monthly/chart` tidak
+	// memuat prediksi, jadi tidak dipakai lagi di sini (9 Nov 2026).
+	const yearQuery = createMonthlyHydrologyQuery(
 		() => pltaId,
-		() => ({ year: Number(year) })
+		() => Number(year)
 	);
+	const energyMonths = $derived(buildEnergyMonths(yearQuery.data ?? [], Number(year)));
 
 	// `id` null berarti baris bulanan PLTA ini belum ada, sedangkan path gambar
 	// tetap terisi karena gambarnya global — keduanya tidak boleh dicampur.
@@ -122,6 +128,20 @@
 	}));
 
 	const comparison = $derived(buildMonthlyComparison(record, monthLabel));
+
+	/**
+	 * Pintasan ke Laporan › Laporan Hidrologi, sudah terisi PLTA dan periode yang
+	 * sedang dibuka (permintaan tim 9 Nov 2026: tautan, bukan unduhan langsung —
+	 * di sana rentang dan cakupan masih bisa diubah sebelum mengunduh).
+	 */
+	const reportHref = $derived(
+		`${getPLTADashboardPath(pltaId, 'laporan')}?${new URLSearchParams({
+			tab: 'hidrologi',
+			tahun: year,
+			bulan: month,
+			plta: pltaId
+		}).toString()}`
+	);
 
 	async function setPeriod(key: 'tahun' | 'bulan', value: string) {
 		// Salinan sekali pakai untuk menyusun URL berikutnya; dibuang setelah
@@ -185,20 +205,50 @@
 	<div class="grid gap-6 xl:grid-cols-2">
 		<section>
 			<div class="flex items-center justify-between gap-3">
-				<h2 class="card-title">Ringkasan {monthLabel} {year}</h2>
-				{#if canEditData}
-					<Button
-						type="button"
-						size="sm"
-						variant="ghost"
-						disabled={panelQuery.isLoading}
-						onclick={() => (isMonthlySheetOpen = true)}
-						class="shrink-0 whitespace-nowrap text-brand-primary-strong"
+				<h2 class="card-title flex items-center gap-1.5">
+					Ringkasan {monthLabel}
+					{year}
+					<!--
+						Keterangan istilah dan batasan prediksi — dulu dua paragraf yang
+						selalu tertulis di bawah tabel dan di dasar halaman (permintaan tim
+						9 Nov 2026: penjelasan lewat hover).
+					-->
+					<InfoTip label="Keterangan ringkasan bulanan">
+						<span class="flex flex-col gap-1.5">
+							<span>
+								Kolom <strong class="font-medium text-surface-raised">Prediksi</strong> pada energi adalah
+								prognosa ketersediaan energi primer; target dan realisasi adalah produksi energi listrik.
+								Prognosa pencapaian = prognosa ÷ target.
+							</span>
+							<span>
+								Prediksi hidrologi belum mempertimbangkan kebutuhan alokasi air, kesiapan unit
+								pembangkit, dan kebutuhan sistem kelistrikan.
+							</span>
+						</span>
+					</InfoTip>
+				</h2>
+				<div class="flex shrink-0 items-center gap-1">
+					<a
+						href={reportHref}
+						class="btn btn-ghost btn-sm h-8 whitespace-nowrap text-brand-primary-strong"
 					>
-						{#snippet leftIcon()}<IconPencil class="size-3.5" />{/snippet}
-						{hasMonthlyRecord ? 'Edit data' : 'Input data'}
-					</Button>
-				{/if}
+						<IconReport class="size-3.5" />
+						Buka laporan
+					</a>
+					{#if canEditData}
+						<Button
+							type="button"
+							size="sm"
+							variant="ghost"
+							disabled={panelQuery.isLoading}
+							onclick={() => (isMonthlySheetOpen = true)}
+							class="whitespace-nowrap text-brand-primary-strong"
+						>
+							{#snippet leftIcon()}<IconPencil class="size-3.5" />{/snippet}
+							{hasMonthlyRecord ? 'Edit data' : 'Input data'}
+						</Button>
+					{/if}
+				</div>
 			</div>
 
 			<div class="mt-2.5">
@@ -222,7 +272,13 @@
 
 		<section>
 			<div class="flex items-center justify-between gap-3">
-				<h2 class="card-title">Gambar Hujan</h2>
+				<h2 class="card-title flex items-center gap-1.5">
+					Gambar Hujan
+					<InfoTip
+						label="Keterangan gambar hujan"
+						text="Peta BMKG berlaku sama untuk seluruh PLTA."
+					/>
+				</h2>
 				<span class="shrink-0 text-xs text-text-muted">{monthLabel} {year}</span>
 			</div>
 
@@ -245,43 +301,45 @@
 				{/each}
 			</div>
 
-			<p class="mt-2 text-xs text-text-muted">
-				<!-- Spasi sebelum tautan harus di luar `{#if}`: spasi di awal blok dibuang. -->
-				Gambar sama untuk seluruh PLTA.
-				{#if canUploadImage}
-					<a
-						href={getUploadPath('prakiraan')}
-						class="font-medium text-brand-primary-strong hover:text-brand-primary-pressed"
-					>
-						Unggah dari menu Upload</a
-					>.
-				{/if}
-			</p>
+			{#if canUploadImage}
+				<a
+					href={getUploadPath('prakiraan')}
+					class="mt-2 inline-flex text-xs font-medium text-brand-primary-strong hover:text-brand-primary-pressed"
+				>
+					Unggah gambar dari menu Upload
+				</a>
+			{/if}
 		</section>
 	</div>
 
+	<!--
+		Energi bulanan (batang) dan akumulasinya (garis) dalam satu grafik, satu
+		sumber data (permintaan tim 9 Nov 2026).
+	-->
 	<section>
 		<div class="flex items-center justify-between gap-3">
-			<h2 class="card-title">Akumulasi produksi {year}</h2>
-			<span class="shrink-0 text-xs text-text-muted">Target vs realisasi, MWh</span>
+			<h2 class="card-title">Energi {year}</h2>
+			<span class="shrink-0 text-xs text-text-muted">Bulanan dan akumulasi</span>
 		</div>
-		<div class="mt-2.5">
-			<MonthlyAccumulationChart
-				chart={chartQuery.data}
-				isLoading={chartQuery.isLoading}
-				isError={chartQuery.isError}
-				onRetry={() => void chartQuery.refetch()}
-			/>
-		</div>
+		{#if yearQuery.isLoading}
+			<div class="mt-2.5" role="status" aria-label="Memuat grafik energi">
+				<div class="skeleton-shimmer h-[300px] rounded-xl"></div>
+				<span class="sr-only">Memuat grafik energi...</span>
+			</div>
+		{:else if yearQuery.isError}
+			<div class="mt-2.5">
+				<ErrorState
+					title="Grafik energi belum bisa dimuat"
+					description={getHydrologyErrorMessage(yearQuery.error)}
+					onRetry={() => void yearQuery.refetch()}
+				/>
+			</div>
+		{:else}
+			<div class="mt-2.5">
+				<MonthlyEnergyChart months={energyMonths} />
+			</div>
+		{/if}
 	</section>
-
-	<div class="flex items-start gap-2">
-		<IconInfo class="mt-0.5 size-3.5 shrink-0 text-text-muted" />
-		<p class="max-w-[88ch] text-xs leading-relaxed text-text-muted">
-			Prediksi hidrologi belum mempertimbangkan kebutuhan alokasi air, kesiapan unit pembangkit, dan
-			kebutuhan sistem kelistrikan.
-		</p>
-	</div>
 </div>
 
 {#if canEditData && isMonthlySheetOpen}

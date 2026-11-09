@@ -4,6 +4,7 @@
 	import IconWarning from '~icons/ph/warning';
 	import Badge from '$components/controls/Badge.svelte';
 	import Banner from '$components/ui/Banner.svelte';
+	import InfoTip from '$components/ui/InfoTip.svelte';
 	import ConfirmDialog from '$components/ui/ConfirmDialog.svelte';
 	import {
 		createDeleteElevationCurveMutation,
@@ -112,11 +113,13 @@
 </script>
 
 <section aria-labelledby="elevation-curves-title">
-	<h2 id="elevation-curves-title" class="section-title">Kurva {plantName}</h2>
-	<p class="mt-1 text-xs text-text-muted">
-		Kurva baru berstatus draft. Tekan <span class="font-medium text-text-secondary">Publish</span> agar
-		dipakai menghitung volume waduk.
-	</p>
+	<h2 id="elevation-curves-title" class="section-title flex items-center gap-1.5">
+		Kurva {plantName}
+		<InfoTip
+			label="Keterangan kurva"
+			text="Kurva baru berstatus draft. Tekan Publish agar dipakai menghitung volume waduk."
+		/>
+	</h2>
 
 	{#if curvesQuery.isLoading}
 		<div role="status" class="mt-3 flex flex-col gap-2">

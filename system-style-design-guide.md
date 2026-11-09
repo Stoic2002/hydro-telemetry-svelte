@@ -149,6 +149,11 @@ Warna tetap per zona, dipakai peta bendungan dan penanda sumber data.
 LayerChart menerima nilai CSS, jadi warnanya dirujuk sebagai
 `var(--color-chart-series-1)` atau lewat kelas Tailwind `stroke-chart-series-1`.
 
+Token 1, 2, dan 4 serumpun (cyan/biru). Grafik yang memuat beberapa deret
+**tidak** memakai token berurutan: Tren & Grafik memakai 1 → 5 → 3 → 6 → 2 → 4
+(`TREND_SERIES_COLORS`), supaya deret yang bersebelahan selalu berbeda rona
+(temuan QA T14, 4 Nov 2026).
+
 ---
 
 ## 4. Tipografi
@@ -269,6 +274,12 @@ kesalahan yang sudah pernah diperbaiki.
 - Form buat/ubah/query memakai **dialog sheet**, bukan halaman terpisah.
   Sheet yang berisi isian mengirim `isDirty`: klik di luar panel dan Escape
   lalu meminta konfirmasi "Buang perubahan?" alih-alih membuang isian.
+- **Keterangan penjelas lewat tooltip, bukan kalimat yang selalu tertulis**
+  (keputusan tim 9 Nov 2026, berlaku di halaman dan form): ikon (i)
+  `ui/InfoTip` di samping judul atau label yang dijelaskannya. Yang tetap
+  ditulis langsung: galat validasi, peringatan yang harus dibaca sebelum
+  bertindak (mis. "Langsung tersimpan tanpa pratinjau", akibat Reset Password),
+  keadaan kosong, dan data (periode, cakupan, satuan).
 - Toast muncul di **tengah atas**, bukan kanan bawah: footer sheet (tempat
   tombol Simpan) ada di kanan bawah, dan toast di sana pernah menutupi tombolnya.
 - Toast galat bertahan 8 detik (lainnya 4), dan hitung mundurnya berhenti
@@ -302,27 +313,28 @@ tersedia.
 
 Cek daftar ini sebelum membuat komponen baru.
 
-| Kebutuhan                             | Komponen                                                               |
-| ------------------------------------- | ---------------------------------------------------------------------- |
-| Aksi                                  | `controls/Button`                                                      |
-| Field                                 | `controls/Input`, `controls/Select`, `controls/SegmentedControl`       |
-| Kolom cari daftar                     | `controls/SearchForm`                                                  |
-| Unggah berkas                         | `controls/FileDropzone` + `controls/SelectedFile`                      |
-| Tabel lebar                           | `ui/HorizontalScroll` (bayangan tepi saat masih ada kolom tersembunyi) |
-| Status                                | `controls/Badge`, `controls/StatusToggle`, `controls/SourceMarker`     |
-| Judul halaman                         | `ui/PageHeader`                                                        |
-| Form panel                            | `ui/Sheet`                                                             |
-| Konfirmasi                            | `ui/ConfirmDialog`                                                     |
-| Aksi jarang dipakai di kepala halaman | `ui/OverflowMenu` (menu ⋯ berbingkai)                                  |
-| Tab                                   | `ui/Tabs`                                                              |
-| Pesan tempel                          | `ui/Banner`                                                            |
-| Keadaan kosong                        | `ui/EmptyState`                                                        |
-| Keadaan gagal                         | `ui/ErrorState`                                                        |
-| Kegagalan render                      | `ui/AppErrorBoundary`                                                  |
-| Notifikasi                            | `ui/Toast`                                                             |
-| Paginasi                              | `ui/TablePagination`                                                   |
-| Muat ulang latar                      | `ui/RefetchBar`                                                        |
-| Placeholder muat                      | `controls/Skeleton`, `skeletons/*`                                     |
+| Kebutuhan                             | Komponen                                                                                               |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| Aksi                                  | `controls/Button`                                                                                      |
+| Field                                 | `controls/Input`, `controls/Select`, `controls/SegmentedControl`                                       |
+| Kolom cari daftar                     | `controls/SearchForm`                                                                                  |
+| Unggah berkas                         | `controls/FileDropzone` + `controls/SelectedFile`                                                      |
+| Tabel lebar                           | `ui/HorizontalScroll` (bayangan tepi saat masih ada kolom tersembunyi)                                 |
+| Status                                | `controls/Badge`, `controls/StatusToggle`, `controls/SourceMarker`                                     |
+| Judul halaman                         | `ui/PageHeader`                                                                                        |
+| Form panel                            | `ui/Sheet`                                                                                             |
+| Konfirmasi                            | `ui/ConfirmDialog`                                                                                     |
+| Aksi jarang dipakai di kepala halaman | `ui/OverflowMenu` (menu ⋯ berbingkai)                                                                  |
+| Tab                                   | `ui/Tabs`                                                                                              |
+| Pesan tempel                          | `ui/Banner`                                                                                            |
+| Keterangan penjelas                   | `ui/InfoTip` (ikon (i) + tooltip; `PageHeader` punya `descriptionHint`, `Input`/`Select` punya `hint`) |
+| Keadaan kosong                        | `ui/EmptyState`                                                                                        |
+| Keadaan gagal                         | `ui/ErrorState`                                                                                        |
+| Kegagalan render                      | `ui/AppErrorBoundary`                                                                                  |
+| Notifikasi                            | `ui/Toast`                                                                                             |
+| Paginasi                              | `ui/TablePagination`                                                                                   |
+| Muat ulang latar                      | `ui/RefetchBar`                                                                                        |
+| Placeholder muat                      | `controls/Skeleton`, `skeletons/*`                                                                     |
 
 ---
 

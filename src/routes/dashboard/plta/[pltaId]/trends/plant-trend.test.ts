@@ -227,6 +227,19 @@ describe('garis batas TMA', () => {
 		expect(chart.leftDomain[0]).toBe(base.leftDomain[0]);
 	});
 
+	it('TMA yang datar sepanjang 24 jam tidak menyeret MOL ke grafik (T13)', () => {
+		const flat = item('i-tma', { key: 'tma_waduk', unit: 'mdpl' }, [
+			point('2026-11-04T00:00:00Z', 230.5),
+			point('2026-11-04T01:00:00Z', 230.5),
+			point('2026-11-04T02:00:00Z', 230.5)
+		]);
+		const { chart, references } = withTrendReferences(chartOf(flat), lookup);
+		const mol = references.find((reference) => reference.key === 'batas_tma_mol');
+
+		expect(mol?.isOnChart).toBe(false);
+		expect(chart.leftDomain[0]).toBeGreaterThan(230);
+	});
+
 	it('melewati batas kosong atau bersatuan lain', () => {
 		const { references } = withTrendReferences(chartOf(tma), (key) =>
 			key === 'batas_tma_limpas'

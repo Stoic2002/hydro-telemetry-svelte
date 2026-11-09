@@ -12,6 +12,7 @@ import {
 	parseReportYear,
 	previousReportMonth,
 	formatReportMonthKey,
+	monthlyPeriodLabel,
 	reportFilename,
 	reportPeriodLabel,
 	reportRangeError,
@@ -255,5 +256,26 @@ describe('bulan dari kunci YYYY-MM', () => {
 		expect(formatReportMonthKey(null)).toBeNull();
 		expect(formatReportMonthKey('2026-13')).toBeNull();
 		expect(formatReportMonthKey('Sep 2026')).toBeNull();
+	});
+});
+
+/** Temuan QA T8: baris rata-rata bulanan dulu selalu bernama "Bulan ini". */
+describe('monthlyPeriodLabel', () => {
+	it('satu bulan memakai nama bulannya', () => {
+		expect(monthlyPeriodLabel('2026-09', '2026-09')).toBe('September 2026');
+	});
+
+	it('rentang menyebut bahwa angkanya per bulan', () => {
+		expect(monthlyPeriodLabel('2026-08', '2026-09')).toBe(
+			'Per bulan, Agustus 2026 – September 2026'
+		);
+	});
+
+	it('null bila server tidak menyebut periode', () => {
+		expect(monthlyPeriodLabel(null, null)).toBeNull();
+	});
+
+	it('memakai sisi yang ada bila hanya satu yang dikirim', () => {
+		expect(monthlyPeriodLabel(null, '2026-09')).toBe('September 2026');
 	});
 });

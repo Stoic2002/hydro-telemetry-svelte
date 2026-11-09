@@ -2,6 +2,7 @@
 	import IconRefresh from '~icons/ph/arrow-clockwise';
 	import Badge from '$components/controls/Badge.svelte';
 	import Banner from '$components/ui/Banner.svelte';
+	import InfoTip from '$components/ui/InfoTip.svelte';
 	import {
 		ACCURACY_WINDOW_DAYS,
 		createForecastAccuracyQuery,
@@ -53,11 +54,23 @@
 	class="overflow-hidden rounded-xl border border-border-subtle bg-surface-raised"
 >
 	<div class="border-b border-surface-overlay px-5 py-4">
-		<h2 id="forecast-accuracy-title" class="section-title">Akurasi prediksi yang tersaji</h2>
-		<p class="mt-1 text-xs text-text-muted">
-			Prediksi horizon {horizon} jam yang sudah jatuh tempo dalam {ACCURACY_WINDOW_DAYS} hari terakhir,
-			dibanding realisasi rata-rata per jam.
-		</p>
+		<h2 id="forecast-accuracy-title" class="section-title flex items-center gap-1.5">
+			Akurasi prediksi yang tersaji
+			<InfoTip label="Keterangan akurasi prediksi">
+				<span class="flex flex-col gap-1.5">
+					<span>
+						Prediksi horizon {horizon} jam yang sudah jatuh tempo dalam {ACCURACY_WINDOW_DAYS} hari terakhir,
+						dibanding realisasi rata-rata per jam.
+					</span>
+					{#if parameter === 'inflow'}
+						<span>
+							Saat inflow mendekati nol (musim kering), persentase akurasi bisa menyesatkan —
+							bacalah MAE yang dalam satuan aslinya.
+						</span>
+					{/if}
+				</span>
+			</InfoTip>
+		</h2>
 	</div>
 
 	{#if accuracyQuery.isLoading}
@@ -122,13 +135,6 @@
 				</dd>
 			</div>
 		</dl>
-
-		{#if parameter === 'inflow'}
-			<p class="border-t border-surface-overlay px-5 py-3 text-xs leading-relaxed text-text-muted">
-				Saat inflow mendekati nol (musim kering), persentase akurasi bisa menyesatkan — bacalah MAE
-				yang dalam satuan aslinya.
-			</p>
-		{/if}
 
 		{#if report.byVersion.length > 0}
 			<div class="overflow-x-auto border-t border-surface-overlay">

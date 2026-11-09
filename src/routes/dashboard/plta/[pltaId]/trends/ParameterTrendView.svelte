@@ -71,10 +71,15 @@
 		return Object.values(grouped)
 			.sort((left, right) => left.label.localeCompare(right.label, 'id-ID'))
 			.map((option, index) => {
-				// Curah hujan dan outflow total adalah besaran terakumulasi, jadi
-				// diagregasi dengan jumlah — bukan rata-rata seperti parameter lain.
+				// `aggregation` = `agg` di `/trends`: cara menggabungkan ANTAR-STASIUN,
+				// bukan antar-waktu. Total hujan per jam/hari sudah dihitung server per
+				// stasiun, jadi hujan memakai rata-rata antar-penakar (Swagger 9 Nov
+				// 2026: `avg` = rata-rata total antar-stasiun). Dulu `sum` membuat hujan
+				// Soedirman (4 penakar ARR) terbaca ±4 kali lipat. Outflow total tetap
+				// dijumlahkan: bila seri tingkat-pembangkitnya kosong, yang tersisa
+				// per turbin, dan totalnya memang jumlah seluruh unit.
 				const isRainfall = option.value.includes('rainfall');
-				const isAccumulated = isRainfall || option.value === 'total_outflow';
+				const isSummedAcrossStations = option.value === 'total_outflow';
 
 				return {
 					...option,
@@ -83,7 +88,7 @@
 							? `${option.stations.length} stasiun aktif`
 							: 'Tag aktif PLTA',
 					color: TREND_COLORS[index % TREND_COLORS.length],
-					aggregation: isAccumulated ? ('sum' as const) : ('avg' as const),
+					aggregation: isSummedAcrossStations ? ('sum' as const) : ('avg' as const),
 					chartType: isRainfall ? ('bar' as const) : ('line' as const)
 				};
 			});

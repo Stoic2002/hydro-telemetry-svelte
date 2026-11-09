@@ -33,13 +33,14 @@ describe('form tag baru', () => {
 				minValid: null,
 				maxValid: null,
 				enabled: true,
-				panel: null
+				panel: null,
+				formula: null
 			}
 		});
 	});
 
-	it('tidak menawarkan protokol formulasi', () => {
-		expect(TAG_PROTOCOL_OPTIONS.map((option) => option.value)).not.toContain('derived');
+	it('menawarkan protokol formulasi sejak Swagger 9 Nov 2026', () => {
+		expect(TAG_PROTOCOL_OPTIONS.map((option) => option.value)).toContain('derived');
 	});
 
 	it('mewajibkan parameter', () => {
@@ -126,5 +127,90 @@ describe('pilihan parameter', () => {
 		expect(options.map((option) => option.value)).toContain('water_level');
 		expect(options.map((option) => option.value)).not.toContain('rumus');
 		expect(options.find((option) => option.value === 'water_level')?.label).toBe('water_level');
+	});
+});
+
+describe('formulasi debit unit dari SWC', () => {
+	const swc = (patch: Partial<ReturnType<typeof emptyTagForm>> = {}) =>
+		form({ protocol: 'derived', derivedKind: 'swc', parameter: '', station: 'T1', ...patch });
+
+	it('mengunci parameter, alamat, skala, dan offset sesuai Swagger', () => {
+		const result = parseTagForm(PLTA_ID, swc({ scale: 5, offset: 2, address: 'apa saja' }));
+
+		expect(result.ok && result.input).toMatchObject({
+			parameter: 'total_outflow',
+			station: 'T1',
+			protocol: 'derived',
+			address: 'computed:swc',
+			scale: 1,
+			offset: 0,
+			httpHeaders: null,
+			formula: null
+		});
+	});
+
+	it('mewajibkan unit turbin T<n>', () => {
+		expect(parseTagForm(PLTA_ID, swc({ station: '' }))).toMatchObject({
+			ok: false,
+			errors: { station: 'Isi unit turbin, mis. T1.' }
+		});
+		expect(parseTagForm(PLTA_ID, swc({ station: 'unit 1' }))).toMatchObject({
+			ok: false,
+			errors: { station: 'Unit turbin ditulis T1, T2, …' }
+		});
+	});
+});
+
+describe('formulasi rumus kustom', () => {
+	const FORMULA = {
+		expression: 'a * 2',
+		variables: {
+			a: {
+				kind: 'series' as const,
+				parameter: 'beban',
+				station: '',
+				take: 'terbaru' as const,
+				fallback: null
+			}
+		}
+	};
+	const rumus = (patch: Partial<ReturnType<typeof emptyTagForm>> = {}) =>
+		form({
+			protocol: 'derived',
+			derivedKind: 'rumus',
+			parameter: '',
+			station: 'efisiensi',
+			...patch
+		});
+
+	it('parameter rumus, alamat rumus, kode dibesarkan, rumus ikut terkirim', () => {
+		const result = parseTagForm(PLTA_ID, rumus(), { formula: FORMULA });
+
+		expect(result.ok && result.input).toMatchObject({
+			parameter: 'rumus',
+			station: 'EFISIENSI',
+			protocol: 'derived',
+			address: 'rumus',
+			scale: 1,
+			offset: 0,
+			formula: FORMULA
+		});
+	});
+
+	it('menahan kode kosong atau tak sesuai pola, dan rumus yang belum lengkap', () => {
+		expect(parseTagForm(PLTA_ID, rumus({ station: '' }), { formula: FORMULA })).toMatchObject({
+			ok: false,
+			errors: { station: 'Isi kode rumus, mis. EFISIENSI_TOTAL.' }
+		});
+		expect(
+			parseTagForm(PLTA_ID, rumus({ station: '1 efisiensi' }), { formula: FORMULA })
+		).toMatchObject({
+			ok: false,
+			errors: { station: 'Huruf besar, angka, dan garis bawah; diawali huruf.' }
+		});
+		expect(parseTagForm(PLTA_ID, rumus())).toMatchObject({
+			ok: false,
+			errors: { formula: 'Lengkapi rumus.' }
+		});
 	});
 });

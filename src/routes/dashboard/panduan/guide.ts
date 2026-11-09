@@ -192,7 +192,8 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
 				],
 				notes: [
 					'Bulan dan tahun yang dipilih tetap terbawa saat Anda berpindah PLTA lewat pemilih PLTA.',
-					'Bagian **Akumulasi produksi** di bawah tabel menggambar **target** (batang abu-abu) dan **realisasi** (batang biru) akumulasi per bulan sepanjang tahun yang dipilih, untuk PLTA yang sedang dibuka. Bulan yang belum diisi tidak diberi batang — bukan bernilai nol.'
+					'Tekan **Buka laporan** di sebelah judul **Ringkasan** untuk membuka menu **Laporan** tab **Laporan Hidrologi** yang sudah terisi PLTA dan bulan ini. Di sana rentang dan cakupan PLTA masih bisa diubah sebelum menekan **Unduh Excel**.',
+					'Grafik **Energi** di bawah tabel memuat tahun yang dipilih: **batang** **Target**, **Prediksi**, dan **Realisasi** adalah energi tiap bulan (sumbu kiri), dan **garis** berwarna sama adalah akumulasinya sejak Januari (sumbu kanan). Arahkan kursor ke satu bulan untuk melihat keenam angkanya. Bulan yang belum diisi tidak diberi batang dan memutus garis — bukan bernilai nol.'
 				]
 			},
 			{
@@ -589,10 +590,13 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
 					'Di tab **Tag & Parameter**, pilih PLTA-nya, lalu tekan **Tambah parameter** di kanan atas tabel.',
 					'Pilih **Parameter**. Isi **Station** bila parameter itu punya beberapa sumber (mis. pintu G1–G4); kosongkan bila hanya satu.',
 					'Pilih **Protokol** lalu isi alamatnya: Node ID untuk OPC UA, register untuk Modbus, query SELECT untuk SQL, URL untuk REST, atau biarkan "upload" untuk **Input manual**.',
-					'Bila perlu, isi **Satuan**, **Nama tampilan**, **Panel Hidrologi Harian**, skala/offset, dan batas valid. Tekan **Tambah**.'
+					'Bila perlu, isi **Satuan**, **Nama tampilan**, **Panel Hidrologi Harian**, skala/offset, dan batas valid. Tekan **Tambah**.',
+					'Untuk nilai yang dihitung server, pilih Protokol **Formulasi (dihitung server)** lalu **Jenis formulasi**: **Debit unit dari SWC** (isi **Unit turbin**, mis. T1) atau **Rumus kustom** (isi **Kode rumus**, **Ekspresi**, dan **Variabel**, lalu tekan **Uji rumus** sebelum **Tambah**).'
 				],
 				notes: [
-					'Parameter formulasi dihitung sistem dan tidak bisa ditambahkan di sini.',
+					'Debit unit dari SWC harus dipasang di **semua** unit turbin PLTA itu: begitu ada satu unit bertanda, total debit PLTA dihitung dari jumlah unit yang bertanda.',
+					'**Uji rumus** menghitung rumus dengan data jam berjalan tanpa menyimpan apa pun. Bila masih ada masalah, rumus belum bisa disimpan. Satu PLTA paling banyak punya 50 rumus.',
+					'Formulasi dihitung tiap jam, mulai siklus jam berikutnya setelah disimpan.',
 					'Satu PLTA hanya boleh punya satu parameter dengan station yang sama; yang sudah terdaftar ditolak.',
 					'OPC UA mulai terbaca paling lambat 5 menit setelah disimpan; SQL, REST, dan Modbus pada putaran baca berikutnya; Input manual langsung bisa diisi.'
 				]

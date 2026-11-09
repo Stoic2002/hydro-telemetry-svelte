@@ -1,3 +1,4 @@
+import { getWIBDateParts } from '$shared/lib/date';
 import type { TelemetryUploadPoint } from './model';
 
 export const MAX_TELEMETRY_POINTS = 20_000;
@@ -120,4 +121,65 @@ export function buildDeleteRange(
 	}
 
 	return { ok: true, start, end };
+}
+
+export interface TelemetryRowErrors {
+	date?: string;
+	time?: string;
+	value?: string;
+}
+
+/**
+ * Galat per baris isian manual, untuk ditempel di bidangnya. Dulu satu toast
+ * umum "Lengkapi tanggal, jam, dan nilai…" — menyebut jam juga di form Target
+ * TMA yang tidak punya isian Jam, dan tidak menunjukkan baris mana yang salah
+ * (temuan QA T5, 4 Nov 2026). Array kosong per baris = baris itu sah.
+ */
+export function validateTelemetryRows(
+	rows: readonly TelemetryPointRow[],
+	options: { dailyValue: boolean }
+): TelemetryRowErrors[] {
+	const timestamps = rows.map((row) => (row.date && row.time ? `${row.date}T${row.time}` : ''));
+
+	return rows.map((row, index) => {
+		const errors: TelemetryRowErrors = {};
+		if (!row.date) errors.date = 'Isi tanggal.';
+		if (!options.dailyValue && !row.time) errors.time = 'Isi jam.';
+		if (row.value === null || !Number.isFinite(row.value)) errors.value = 'Isi nilai.';
+
+		const timestamp = timestamps[index];
+		if (timestamp && timestamps.indexOf(timestamp) !== index) {
+			if (options.dailyValue) errors.date = 'Tanggal ini sudah ada di baris lain.';
+			else errors.time = 'Tanggal dan jam ini sudah ada di baris lain.';
+		}
+		return errors;
+	});
+}
+
+export function hasTelemetryRowErrors(errors: readonly TelemetryRowErrors[]): boolean {
+	return errors.some((row) => Object.keys(row).length > 0);
+}
+
+/**
+ * Baris pertama form. "Edit data" diisi nilai yang tampil di panel pada waktu
+ * yang sama, sehingga menyimpan berarti menimpa titik itu (temuan QA T6).
+ * Titik berjam yang waktunya tidak diketahui tidak diisi — menebak jamnya
+ * berarti membuat titik baru, bukan mengedit.
+ */
+export function initialTelemetryRow(
+	current: { value: number; time: string | null } | undefined,
+	defaultDate: string,
+	options: { constant: boolean; dailyValue: boolean }
+): TelemetryPointRow {
+	const empty: TelemetryPointRow = { date: defaultDate, time: '00:00', value: null };
+	if (!current || !Number.isFinite(current.value)) return empty;
+	if (options.constant) return { ...empty, value: current.value };
+
+	const parts = current.time ? getWIBDateParts(current.time) : null;
+	const date = parts
+		? `${parts.year}-${String(parts.month).padStart(2, '0')}-${parts.day}`
+		: defaultDate;
+	if (options.dailyValue) return { date, time: '00:00', value: current.value };
+	if (!parts) return empty;
+	return { date, time: `${parts.hour}:${parts.minute}`, value: current.value };
 }

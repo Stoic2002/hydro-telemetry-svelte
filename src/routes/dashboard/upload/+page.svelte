@@ -33,7 +33,11 @@
 </script>
 
 <div class="flex flex-1 flex-col gap-6">
-	<PageHeader title="Upload" description={activeTabMeta.description}>
+	<PageHeader
+		title="Upload"
+		description={activeTabMeta.description}
+		descriptionHint={activeTabMeta.hint}
+	>
 		{#snippet actions()}
 			{#if activeTab === 'eva'}
 				<Badge tone="slate">Per PLTA</Badge>

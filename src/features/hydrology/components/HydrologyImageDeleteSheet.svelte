@@ -3,6 +3,7 @@
 	import Button from '$components/controls/Button.svelte';
 	import Select from '$components/controls/Select.svelte';
 	import ConfirmDialog from '$components/ui/ConfirmDialog.svelte';
+	import InfoTip from '$components/ui/InfoTip.svelte';
 	import Sheet from '$components/ui/Sheet.svelte';
 	import { ApiError } from '../../../api/http';
 	import { createObjectUrl } from '$shared/lib/object-url.svelte';
@@ -97,8 +98,11 @@
 
 <Sheet {isOpen} title={`Hapus ${imageLabel}`} isDismissible={!isPending} {onClose}>
 	{#snippet description()}
-		Untuk gambar yang salah terunggah sementara penggantinya belum ada. Bila gambar penggantinya
-		sudah ada, cukup unggah ulang — gambar lama otomatis tergantikan.
+		Untuk gambar yang salah terunggah sementara penggantinya belum ada.
+		<InfoTip
+			label="Keterangan hapus gambar"
+			text="Bila gambar penggantinya sudah ada, cukup unggah ulang — gambar lama otomatis tergantikan."
+		/>
 	{/snippet}
 
 	<div class="flex flex-col gap-6">
