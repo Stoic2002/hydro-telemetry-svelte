@@ -255,3 +255,75 @@ describe('logout lintas tab', () => {
 		postMessage.mockRestore();
 	});
 });
+
+/**
+ * Dua "tab" = dua salinan modul. `BroadcastChannel` jsdom tidak mengirim ke
+ * kanal di modul lain, jadi pesan diantar tangan lewat kanal palsu yang
+ * mencatat `postMessage` dan meneruskannya ke pendengar kanal lain.
+ */
+describe('berbagi sesi ke tab baru', () => {
+	class FakeChannel {
+		static all: FakeChannel[] = [];
+		listeners: ((event: MessageEvent) => void)[] = [];
+		constructor() {
+			FakeChannel.all.push(this);
+		}
+		addEventListener(_type: string, listener: (event: MessageEvent) => void) {
+			this.listeners.push(listener);
+		}
+		postMessage(data: unknown) {
+			for (const channel of FakeChannel.all) {
+				if (channel === this) continue;
+				queueMicrotask(() =>
+					channel.listeners.forEach((listener) => listener({ data } as MessageEvent))
+				);
+			}
+		}
+	}
+
+	beforeEach(() => {
+		FakeChannel.all = [];
+		vi.stubGlobal('BroadcastChannel', FakeChannel);
+	});
+
+	/** Satu modul per tab; sessionStorage dikosongkan supaya tab baru benar-benar tanpa sesi. */
+	async function openTab(): Promise<AuthSessionModule> {
+		const tab = await loadModule();
+		tab.getAuthTokens();
+		return tab;
+	}
+
+	it('tab baru mengambil sesi dari tab yang sedang login', async () => {
+		const first = await openTab();
+		first.setAuthTokens(TOKENS);
+		window.sessionStorage.clear();
+
+		const second = await openTab();
+		await expect(second.requestSessionFromOtherTabs()).resolves.toEqual(TOKENS);
+		expect(second.getAuthTokens()).toEqual(TOKENS);
+	});
+
+	it('tanpa tab lain yang login, menyerah sesudah batas waktu', async () => {
+		const tab = await openTab();
+		await expect(tab.requestSessionFromOtherTabs(20)).resolves.toBeNull();
+		expect(tab.getAuthTokens()).toBeNull();
+	});
+
+	it('rotasi refresh token ikut ke tab bersesi sama, tidak ke tab berakun lain', async () => {
+		const rotating = await openTab();
+		rotating.setAuthTokens(TOKENS);
+		window.sessionStorage.clear();
+		const sharing = await openTab();
+		sharing.setAuthTokens(TOKENS);
+		window.sessionStorage.clear();
+		const other = await openTab();
+		other.setAuthTokens({ ...TOKENS, refresh_token: 'refresh-akun-lain' });
+
+		fetchMock.mockResolvedValue(jsonResponse(NEXT_TOKENS));
+		await rotating.refreshAuthSession();
+		await new Promise((resolve) => setTimeout(resolve, 0));
+
+		expect(sharing.getAuthTokens()).toEqual(NEXT_TOKENS);
+		expect(other.getAuthTokens()?.refresh_token).toBe('refresh-akun-lain');
+	});
+});

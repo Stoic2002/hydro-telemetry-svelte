@@ -137,6 +137,14 @@ Hal-hal yang sudah pernah menggigit dan tidak akan terlihat dari membaca kode:
   Keluar). `?sesi=habis` menampilkan "Sesi Anda sudah berakhir". Token yang
   ditolak saat pemulihan **tidak** menyetel `authStore.error`; dulu layar login
   langsung menampilkan "Username atau password salah".
+- **Sesi dibagi ke tab baru (12 Nov 2026, temuan QA T1)**: token tetap di
+  `sessionStorage` (menutup semua tab = keluar), tetapi tab tanpa sesi bertanya
+  lewat `BroadcastChannel` `tele.auth.events` (`session-request` →
+  `session-share`, tunggu ±300 ms di `authStore.initialize`). Refresh yang
+  merotasi token menyiarkan `session-rotated` beserta refresh token lamanya;
+  hanya tab yang memegang token lama yang sama yang ikut berganti — tab yang
+  login dengan akun lain tidak tersentuh. Tanpa siaran itu tab kembar memegang
+  refresh token basi, refresh-nya ditolak, dan logout menyebar ke semua tab.
 - Realtime: `wss://<host>/api/v1/ws/monitoring?token=${accessToken}&plta_id=${pltaId}`.
 - Upload Excel: kirim file mentah ke server. **Jangan parsing Excel di frontend** —
   ini perubahan dari implementasi awal yang parsing di klien.
@@ -258,7 +266,9 @@ null` untuk keduanya. Banner **"N sensor bermasalah"** (merah bila ada yang
   maks. 366 hari) bila daftar trennya sudah diatur; selain itu cadangan
   `GET /dashboard/plta/{id}/timeseries.xlsx?start=&end=` (**deprecated**, 13
   kolom mockup PBS, maks. 62 hari inklusif). Rentang yang pasti ditolak tidak
-  dikirim — `features/reports/timeseries-range.ts`. Hanya periode bulanan dan hanya parameter time series. Daftar laporan
+  dikirim — `features/reports/timeseries-range.ts`. Hanya periode bulanan dan hanya parameter time series:
+  konstanta (`const_*`, kelompok `konstanta`) **tidak ditawarkan** di Buat
+  Laporan karena tak berdimensi waktu (T15, 12 Nov 2026). Daftar laporan
   pakai paginasi + search, tanpa tombol "Perbarui"; polling berhenti sendiri
   begitu tidak ada baris `pending`/`processing`.
 - **Forecasting**: khusus PLTA Soedirman, tanpa pemilih PLTA. PLTA-nya
@@ -269,7 +279,11 @@ null` untuk keduanya. Banner **"N sensor bermasalah"** (merah bila ada yang
   mengalihkan ke Soedirman. `points[].value` boleh `null` walau Swagger
   menyebutnya wajib: run 1 Okt 2026 00.30 WIB mengirim 24 titik kosong semua,
   dan halaman menampilkan "Prediksi terbaru belum berisi nilai", bukan galat
-  kontrak. **Akurasi prediksi yang tersaji** (`GET /forecasts/accuracy`, 9 Okt 2026) di dasar halaman: prediksi jatuh tempo 30 hari terakhir vs realisasi —
+  kontrak. Badge **Kelayakan Prediksi** mengikuti `layak_disajikan`: **Layak**
+  (hijau) / **Belum layak** (merah) / **Belum dinilai** — dulu `false` ditulis
+  "Layak dengan catatan" (T27, 12 Nov 2026). Nama model teknis
+  `plta-<uuid>-<parameter>-h<jam>` ditampilkan ramah (`formatForecastModelName`),
+  nama aslinya di tooltip. **Akurasi prediksi yang tersaji** (`GET /forecasts/accuracy`, 9 Okt 2026) di dasar halaman: prediksi jatuh tempo 30 hari terakhir vs realisasi —
   MAE, RMSE, galat relatif, akurasi %, dan pecahan `per_versi` (kunci
   `fallback` = tanpa model). Responsnya objek bebas di Swagger, jadi schema
   Zod-nya toleran (metrik boleh hilang; `{n: 0, per_versi: {}}` = belum ada

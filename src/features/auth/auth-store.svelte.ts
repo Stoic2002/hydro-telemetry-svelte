@@ -3,6 +3,7 @@ import { ApiError } from '../../api/http/api-error';
 import {
 	clearAuthTokens,
 	getAuthTokens,
+	requestSessionFromOtherTabs,
 	setAuthTokens,
 	subscribeToAuthSession
 } from '../../api/http/auth-session';
@@ -64,6 +65,8 @@ class AuthStore {
 		if (initializationPromise) return initializationPromise;
 
 		initializationPromise = (async () => {
+			// Tab baru tanpa sesi: ambil dari tab lain yang sedang login (T1).
+			if (!getAuthTokens()) await requestSessionFromOtherTabs();
 			if (!getAuthTokens()) {
 				this.isInitialized = true;
 				this.isLoading = false;

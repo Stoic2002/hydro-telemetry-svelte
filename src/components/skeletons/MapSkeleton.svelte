@@ -1,17 +1,16 @@
 <script lang="ts">
-	import Skeleton from '../controls/Skeleton.svelte';
+	/**
+	 * Shimmer selebar dan setinggi peta aslinya (`JavaMap`: `clamp(280px, 55vw,
+	 * 560px)`), tanpa bingkai sendiri. Dulu kartu berbingkai dengan padding 20px
+	 * dan shimmer di dalamnya, sehingga terbaca sebagai kotak di dalam kotak dan
+	 * tidak memenuhi tempat peta (permintaan tim 12 Nov 2026).
+	 */
 </script>
 
 <div
 	role="status"
 	aria-label="Memuat peta"
-	class="relative h-[clamp(280px,55vw,560px)] w-full overflow-hidden rounded-xl border border-surface-overlay bg-surface-raised p-5"
+	class="skeleton-shimmer h-[clamp(280px,55vw,560px)] w-full rounded-xl"
 >
-	<Skeleton class="h-full w-full rounded-xl" />
-	<div class="absolute bottom-8 left-8 flex gap-3">
-		<Skeleton class="size-5 rounded-full" />
-		<Skeleton class="size-5 rounded-full" />
-		<Skeleton class="size-5 rounded-full" />
-	</div>
 	<span class="sr-only">Memuat peta...</span>
 </div>

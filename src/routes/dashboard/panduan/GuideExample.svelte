@@ -160,7 +160,7 @@
 			<div class="flex w-full flex-col gap-3">
 				<div class="flex flex-wrap items-center gap-2">
 					<Badge tone="green">Layak</Badge>
-					<Badge tone="amber">Layak dengan catatan</Badge>
+					<Badge tone="red">Belum layak</Badge>
 				</div>
 				<Banner tone="warning" title="Akurasi model belum layak jadi acuan tunggal">
 					Gunakan bersama data aktual dan pertimbangan operator.

@@ -1,58 +1,61 @@
 <script lang="ts">
+	import type { Component } from 'svelte';
+	import { fly } from 'svelte/transition';
+	import IconSuccess from '~icons/ph/check-circle-fill';
+	import IconInfo from '~icons/ph/info-fill';
+	import IconWarning from '~icons/ph/warning-fill';
 	import IconX from '~icons/ph/x';
+	import IconError from '~icons/ph/x-circle-fill';
 	import type { ToastMessage } from '$shared/lib/notification.svelte';
-	import { formatTimeWIB } from '../../shared/lib/date';
-	import { DEFAULT_TOAST_DURATION, notificationStore } from '$shared/lib/notification.svelte';
+	import { notificationStore } from '$shared/lib/notification.svelte';
 
 	type ToastType = ToastMessage['type'];
 
 	/**
-	 * Penanda tipe memakai kosakata yang sama dengan `Banner` dan `ErrorState`:
-	 * lingkaran bertint dengan glif mono di dalamnya. Warna tipe muncul dua kali —
-	 * di glif dan di garis hitung mundur — dan tidak pernah sebagai pita hias.
+	 * Kartu gelap ringkas — permukaan yang sama dengan tooltip grafik dan
+	 * `InfoTip`: ikon status berwarna, pesan, tombol tutup. Desain ulang 12 Nov
+	 * 2026 atas permintaan tim ("terlalu ramai"): lingkaran berhuruf, jam, dan
+	 * garis hitung mundur dibuang. Warna status hanya di ikon.
 	 */
-	const TYPE_STYLES: Record<ToastType, { marker: string; glyph: string; countdown: string }> = {
-		success: {
-			marker: 'bg-status-success-soft text-status-success-strong',
-			glyph: '✓',
-			countdown: 'bg-status-success-strong'
-		},
-		error: {
-			marker: 'bg-status-danger-soft text-status-danger-strong',
-			glyph: '!',
-			countdown: 'bg-status-danger-strong'
-		},
-		warning: {
-			marker: 'bg-status-warning-soft text-status-warning-strong',
-			glyph: '!',
-			countdown: 'bg-status-warning-strong'
-		},
-		info: {
-			marker: 'bg-brand-tint text-brand-primary-pressed',
-			glyph: 'i',
-			countdown: 'bg-status-info'
-		}
+	const TYPE_ICONS: Record<
+		ToastType,
+		{ icon: Component<{ class?: string; 'aria-hidden'?: 'true' }>; color: string }
+	> = {
+		// Varian terang token status: varian `-strong` dibuat untuk latar terang
+		// dan tenggelam di atas `surface-inverse`.
+		success: { icon: IconSuccess, color: 'text-status-success' },
+		error: { icon: IconError, color: 'text-status-danger' },
+		warning: { icon: IconWarning, color: 'text-status-warning' },
+		info: { icon: IconInfo, color: 'text-brand-primary' }
 	};
+
+	/** Gerak masuk/keluar dimatikan untuk `prefers-reduced-motion`, seperti transisi lain. */
+	const reducedMotion =
+		typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+			? window.matchMedia('(prefers-reduced-motion: reduce)').matches
+			: false;
+	const motion = { y: -8, duration: reducedMotion ? 0 : 150 };
 </script>
 
 {#if notificationStore.toasts.length > 0}
 	<!--
 		Tengah atas, bukan kanan bawah. Sheet masuk dari kanan dan tombol Simpan
-		ada di footer kanan bawahnya: toast di pojok itu menutupi tombolnya, dan
-		karena hitung mundur berhenti selama kursor di atas toast, klik ulang
-		operator mengenai toast, bukan tombol (temuan QA T4, 4 Nov 2026). Di layar
-		laptop posisi ini jatuh di kiri sheet (lebar 480px), jadi tidak menutupi
-		tombol tutup di kepala sheet juga.
+		ada di footer kanan bawahnya: toast di pojok itu menutupi tombolnya
+		(temuan QA T4, 4 Nov 2026). Di layar laptop posisi ini jatuh di kiri sheet
+		(lebar 480px), jadi tidak menutupi tombol tutup di kepala sheet juga.
 	-->
-	<div class="pointer-events-none fixed top-4 left-1/2 z-300 flex -translate-x-1/2 flex-col gap-2">
+	<div
+		class="pointer-events-none fixed top-4 left-1/2 z-300 flex w-max max-w-[calc(100vw-2rem)] -translate-x-1/2 flex-col items-center gap-2"
+	>
 		{#each notificationStore.toasts as toast (toast.id)}
-			{@const styles = TYPE_STYLES[toast.type]}
-			{@const isPaused = notificationStore.pausedIds.includes(toast.id)}
+			{@const type = TYPE_ICONS[toast.type]}
 			<!--
 				Hitung mundur berhenti selama kursor atau fokus berada di toast,
-				supaya pesannya bisa dibaca sampai habis.
+				supaya pesannya bisa dibaca sampai habis (WCAG 2.2.1).
 			-->
 			<div
+				in:fly={motion}
+				out:fly={motion}
 				onpointerenter={() => notificationStore.pauseToast(toast.id)}
 				onpointerleave={() => notificationStore.resumeToast(toast.id)}
 				onfocusin={() => notificationStore.pauseToast(toast.id)}
@@ -62,49 +65,25 @@
 				}}
 				role={toast.type === 'error' ? 'alert' : 'status'}
 				aria-live={toast.type === 'error' ? 'assertive' : 'polite'}
-				class="pointer-events-auto relative w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-xl border border-border-subtle bg-surface-raised pt-3 pr-3 pb-3.5 pl-3.5 shadow-panel"
+				class="pointer-events-auto flex max-w-[420px] min-w-[260px] items-start gap-2.5 rounded-xl bg-surface-inverse py-2.5 pr-2 pl-3.5 shadow-panel"
 			>
-				<div class="flex items-start gap-2.5">
-					<span
-						aria-hidden="true"
-						class={`mt-px flex size-[18px] shrink-0 items-center justify-center rounded-full font-mono text-[11px] leading-none font-medium ${styles.marker}`}
-					>
-						{styles.glyph}
-					</span>
+				<type.icon class={`mt-px size-[18px] shrink-0 ${type.color}`} aria-hidden="true" />
 
-					<div class="min-w-0 flex-1">
-						<div class="flex items-baseline gap-2">
-							<p class="min-w-0 flex-1 text-sm leading-tight font-medium text-text-primary">
-								{toast.message}
-							</p>
-							<time
-								datetime={toast.createdAt}
-								class="shrink-0 font-mono text-xs text-text-muted tabular-nums"
-							>
-								{formatTimeWIB(toast.createdAt)}
-							</time>
-						</div>
-						{#if toast.description}
-							<p class="mt-1 text-xs leading-relaxed text-text-muted">{toast.description}</p>
-						{/if}
-					</div>
-
-					<button
-						type="button"
-						aria-label="Tutup notifikasi"
-						onclick={() => notificationStore.removeToast(toast.id)}
-						class="-mt-1 -mr-1.5 flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-sm text-text-muted transition-colors hover:bg-surface-overlay hover:text-text-secondary"
-					>
-						<IconX class="size-3" />
-					</button>
+				<div class="min-w-0 flex-1 py-px">
+					<p class="text-[13px] leading-5 font-medium text-white">{toast.message}</p>
+					{#if toast.description}
+						<p class="mt-0.5 text-xs leading-5 text-text-on-inverse-muted">{toast.description}</p>
+					{/if}
 				</div>
 
-				<span
-					aria-hidden="true"
-					style:--toast-duration={`${toast.duration ?? DEFAULT_TOAST_DURATION}ms`}
-					style:animation-play-state={isPaused ? 'paused' : 'running'}
-					class={`toast-countdown absolute inset-x-0 bottom-0 h-0.5 ${styles.countdown}`}
-				></span>
+				<button
+					type="button"
+					aria-label="Tutup notifikasi"
+					onclick={() => notificationStore.removeToast(toast.id)}
+					class="flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-md text-text-on-inverse-muted transition-colors hover:bg-white/10 hover:text-white"
+				>
+					<IconX class="size-3.5" />
+				</button>
 			</div>
 		{/each}
 	</div>

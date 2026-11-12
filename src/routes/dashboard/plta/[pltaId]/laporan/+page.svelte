@@ -175,6 +175,18 @@
 	const downloadMutation = createDownloadReportMutation();
 
 	/**
+	 * Konstanta PLTA (`const_*`, kelompok `konstanta` di `GET /parameter`) tidak
+	 * berdimensi waktu, jadi di laporan time series kolomnya kosong atau datar
+	 * (temuan QA T15, disetujui 12 Nov 2026). Tidak ditawarkan.
+	 */
+	function isConstantParameter(parameter: string): boolean {
+		if (parameter.startsWith('const_')) return true;
+		return (
+			parameterCatalogQuery.data?.find((item) => item.key === parameter)?.group === 'konstanta'
+		);
+	}
+
+	/**
 	 * Satu parameter bisa muncul di banyak tag (beberapa stasiun, satuan berbeda),
 	 * jadi daftarnya diringkas per nama parameter — bukan per tag.
 	 */
@@ -190,7 +202,7 @@
 
 		for (const tag of tagsQuery.data?.items ?? []) {
 			const value = tag.parameter.trim();
-			if (!value) continue;
+			if (!value || isConstantParameter(value)) continue;
 
 			const existing = (grouped[value] ??= {
 				value,

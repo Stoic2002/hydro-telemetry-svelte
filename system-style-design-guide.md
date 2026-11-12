@@ -282,8 +282,16 @@ kesalahan yang sudah pernah diperbaiki.
   keadaan kosong, dan data (periode, cakupan, satuan).
 - Toast muncul di **tengah atas**, bukan kanan bawah: footer sheet (tempat
   tombol Simpan) ada di kanan bawah, dan toast di sana pernah menutupi tombolnya.
+- Toast berupa **kartu gelap ringkas** (`surface-inverse`, sama dengan tooltip
+  grafik dan `InfoTip`): ikon status berwarna, pesan, tombol tutup. Tanpa jam,
+  tanpa garis hitung mundur, tanpa border (desain ulang 12 Nov 2026 — versi
+  lama dinilai terlalu ramai). Warna status hanya di ikon, memakai varian
+  terang token (`status-success`/`-warning`/`-danger`, `brand-primary`);
+  varian `-strong` tenggelam di latar gelap.
 - Toast galat bertahan 8 detik (lainnya 4), dan hitung mundurnya berhenti
   selama kursor atau fokus berada di atasnya.
+- Skeleton peta memenuhi seluruh tempat peta (`clamp(280px, 55vw, 560px)`),
+  tanpa bingkai sendiri.
 - Tombol ikon tanpa teks wajib `aria-label`; `title` saja tidak dibacakan dan
   tidak terlihat di layar sentuh.
 - Aksi destruktif (hapus, keluar) lewat `ConfirmDialog`.

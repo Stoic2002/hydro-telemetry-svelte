@@ -188,21 +188,6 @@
 }
 
 /* Sisa waktu sebelum toast menutup sendiri — garis rambut yang menyusut. */
-@keyframes toast-countdown {
-	from {
-		transform: scaleX(1);
-	}
-
-	to {
-		transform: scaleX(0);
-	}
-}
-
-.toast-countdown {
-	transform-origin: left;
-	animation: toast-countdown linear forwards;
-	animation-duration: var(--toast-duration, 4000ms);
-}
 
 @layer base {
 	body {
@@ -250,9 +235,6 @@
 	}
 
 	/* Garisnya tetap ada sebagai penanda tipe, hanya tidak menyusut. */
-	.toast-countdown {
-		animation: none !important;
-	}
 }
 
 @layer components {

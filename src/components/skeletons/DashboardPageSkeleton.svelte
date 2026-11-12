@@ -120,7 +120,10 @@
 	{@render pageHeading()}
 
 	{#if variant === 'overview'}
-		<Skeleton class="h-[560px] rounded-xl" />
+		<!-- Sama dengan wadah peta Overview, supaya tidak melompat saat peta termuat. -->
+		<div class="mx-auto w-full max-w-[1480px]">
+			<Skeleton class="h-[clamp(280px,55vw,560px)] w-full rounded-xl" />
+		</div>
 	{:else if variant === 'telemetering'}
 		{@render telemeteringVariant()}
 	{:else if variant === 'trends'}

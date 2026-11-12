@@ -17,7 +17,9 @@
 		findForecastingPlant,
 		type ForecastHorizon,
 		type ForecastParameter,
-		type ForecastPoint
+		type ForecastPoint,
+		forecastFeasibility,
+		formatForecastModelName
 	} from '$features/forecasting';
 	import {
 		createPlantCatalogQuery,
@@ -96,6 +98,7 @@
 	}));
 
 	const series = $derived(forecastQuery.data);
+	const feasibility = $derived(forecastFeasibility(series?.accuracy));
 	const points = $derived(series?.points ?? []);
 	/**
 	 * Titik yang benar-benar berisi prediksi. Statistik dan garis P50 dihitung
@@ -368,7 +371,12 @@
 					</h2>
 				</div>
 				<div class="text-left text-xs text-text-muted sm:text-right">
-					<p class="font-medium">{series?.modelName}</p>
+					<p class="flex items-center gap-1.5 font-medium sm:justify-end">
+						{formatForecastModelName(series?.modelName)}
+						{#if series?.modelName && formatForecastModelName(series.modelName) !== series.modelName}
+							<InfoTip label="Nama teknis model" text={series.modelName} />
+						{/if}
+					</p>
 					<p class="mt-1">Dibuat {formatDateTime(series?.generatedAt)}</p>
 				</div>
 			</div>
@@ -481,12 +489,16 @@
 				<div class="mt-2.5 divide-y divide-surface-overlay border-t border-border-subtle text-sm">
 					<div class="flex items-center justify-between gap-4 py-2.5">
 						<span class="text-sm text-text-secondary">Status</span>
-						<Badge tone={series?.accuracy?.isPresentable ? 'green' : 'amber'}>
-							{series?.accuracy?.isPresentable ? 'Layak' : 'Layak dengan catatan'}
-						</Badge>
+						<Badge tone={feasibility.tone}>{feasibility.label}</Badge>
 					</div>
 					<div class="flex items-center justify-between gap-4 py-2.5">
-						<span class="text-sm text-text-secondary">Skill score</span>
+						<span class="flex items-center gap-1.5 text-sm text-text-secondary">
+							Skill score
+							<InfoTip
+								label="Keterangan skill score"
+								text="Seberapa jauh model lebih baik dari tebakan “sama dengan kemarin”. Positif = lebih baik, 0 = sama saja, negatif = lebih buruk. Status Layak/Belum layak dinilai server."
+							/>
+						</span>
 						<span class="metric-value text-sm">
 							{series?.accuracy?.skill === null || series?.accuracy?.skill === undefined
 								? 'N/A'

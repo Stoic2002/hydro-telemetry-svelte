@@ -23,6 +23,16 @@ let sessionRevision = 0;
 let authChannel: BroadcastChannel | null | undefined;
 const listeners = new Set<SessionListener>();
 
+/**
+ * Berbagi sesi ke tab baru (temuan QA T1, disetujui 12 Nov 2026). Sesi tetap di
+ * `sessionStorage` — menutup semua tab tetap berarti keluar — tetapi tab yang
+ * dibuka lewat tautan tidak lagi meminta login ulang: ia bertanya ke tab lain
+ * yang sedang login, dan tab itu membalas dengan tokennya.
+ */
+const SESSION_REQUEST_TIMEOUT_MS = 300;
+let pendingSessionRequest: { id: string; resolve: (tokens: AuthTokens | null) => void } | null =
+	null;
+
 function notifySessionListeners(tokens: AuthTokens | null) {
 	listeners.forEach((listener) => listener(tokens));
 }
@@ -51,16 +61,74 @@ function getAuthChannel(): BroadcastChannel | null {
 
 	authChannel = new BroadcastChannel(AUTH_CHANNEL_NAME);
 	authChannel.addEventListener('message', (event: MessageEvent<unknown>) => {
-		if (
-			typeof event.data === 'object' &&
-			event.data !== null &&
-			Reflect.get(event.data, 'type') === 'logout'
-		) {
-			resetLocalSession();
-		}
+		handleChannelMessage(event.data);
 	});
 
 	return authChannel;
+}
+
+function handleChannelMessage(data: unknown): void {
+	if (typeof data !== 'object' || data === null) return;
+	const type = Reflect.get(data, 'type');
+
+	if (type === 'logout') {
+		resetLocalSession();
+		return;
+	}
+
+	// Tab baru meminta sesi: hanya tab yang sedang login yang membalas.
+	if (type === 'session-request') {
+		const tokens = getAuthTokens();
+		if (tokens) {
+			authChannel?.postMessage({ type: 'session-share', id: Reflect.get(data, 'id'), tokens });
+		}
+		return;
+	}
+
+	if (type === 'session-share') {
+		if (!pendingSessionRequest || Reflect.get(data, 'id') !== pendingSessionRequest.id) return;
+		const parsed = authTokensSchema.safeParse(Reflect.get(data, 'tokens'));
+		if (!parsed.success) return;
+		const { resolve } = pendingSessionRequest;
+		pendingSessionRequest = null;
+		storeTokens(parsed.data);
+		resolve(parsed.data);
+		return;
+	}
+
+	// Tab lain merotasi refresh token sesi yang sama. Tanpa ini tab ini memegang
+	// refresh token lama, refresh berikutnya ditolak, dan semua tab ikut keluar.
+	// Tab yang login dengan akun lain (refresh token berbeda) tidak tersentuh.
+	if (type === 'session-rotated') {
+		const previous = Reflect.get(data, 'previousRefreshToken');
+		const parsed = authTokensSchema.safeParse(Reflect.get(data, 'tokens'));
+		if (parsed.success && previous && getAuthTokens()?.refresh_token === previous) {
+			storeTokens(parsed.data);
+		}
+	}
+}
+
+/**
+ * Meminta sesi dari tab lain yang sedang login. `null` bila tidak ada yang
+ * membalas dalam ±300 ms — layar login tampil seperti biasa.
+ */
+export function requestSessionFromOtherTabs(
+	timeoutMs = SESSION_REQUEST_TIMEOUT_MS
+): Promise<AuthTokens | null> {
+	const channel = getAuthChannel();
+	if (!channel || getAuthTokens()) return Promise.resolve(getAuthTokens());
+
+	pendingSessionRequest?.resolve(null);
+	const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+	return new Promise((resolve) => {
+		pendingSessionRequest = { id, resolve };
+		channel.postMessage({ type: 'session-request', id });
+		setTimeout(() => {
+			if (pendingSessionRequest?.id !== id) return;
+			pendingSessionRequest = null;
+			resolve(null);
+		}, timeoutMs);
+	});
 }
 
 function readStoredTokens(): AuthTokens | null {
@@ -95,6 +163,11 @@ export function getAccessToken(): string | null {
 }
 
 export function setAuthTokens(tokens: AuthTokens): void {
+	storeTokens(tokens);
+}
+
+/** Menyimpan sesi di tab ini saja, tanpa siaran. */
+function storeTokens(tokens: AuthTokens): void {
 	const validatedTokens = authTokensSchema.parse(tokens);
 	sessionRevision += 1;
 	cachedTokens = validatedTokens;
@@ -185,6 +258,11 @@ async function performTokenRefresh(): Promise<AuthTokens | null> {
 	}
 
 	setAuthTokens(parsedTokens.data);
+	getAuthChannel()?.postMessage({
+		type: 'session-rotated',
+		previousRefreshToken: currentRefreshToken,
+		tokens: parsedTokens.data
+	});
 	return parsedTokens.data;
 }
 
