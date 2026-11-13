@@ -509,7 +509,7 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
 				title: 'Gambar Hujan',
 				steps: [
 					'Buka **Upload**, tab **Gambar Hujan**.',
-					'Tekan **Unggah** pada salah satu dari empat gambar: **Prakiraan Curah Hujan**, **Prakiraan Sifat Hujan**, **Realisasi Curah Hujan**, atau **Realisasi Sifat Hujan**.',
+					'Tekan **Unggah** pada salah satu dari empat gambar: **Prediksi Curah Hujan**, **Prediksi Sifat Hujan**, **Realisasi Curah Hujan**, atau **Realisasi Sifat Hujan**.',
 					'Pilih **Bulan**, **Tahun**, dan berkas gambarnya.',
 					'Tekan **Unggah Gambar**.'
 				],
@@ -580,6 +580,7 @@ export const GUIDE_CHAPTERS: GuideChapter[] = [
 				notes: [
 					'**Kode** ditulis huruf besar, angka, dan tanda hubung (mis. **PLTA-KTG1**); kode Wilayah Sungai diawali **WS-** (mis. **WS-SERAYU**). Kode tidak bisa diubah setelah dibuat, karena dipakai sebagai kunci di template Excel.',
 					'Wilayah Sungai yang belum membawahi PLTA bisa dihapus dengan tombol **Hapus** di barisnya — misalnya untuk membuat ulang yang salah ketik kodenya. PLTA tidak bisa dihapus; untuk menghentikannya, ubah **Status PLTA** menjadi **Nonaktif**.',
+					'**Urutan** menentukan posisi PLTA di semua daftar dan unduhan (1 = teratas). Kosongkan untuk menaruhnya paling akhir. Mengubah urutan satu PLTA tidak menggeser PLTA lain, jadi periksa kolom **Urutan** di tabel supaya tidak ada yang sama.',
 					'Konstanta PLTA (batas TMA, SWC, formula inflow) belum bisa diubah dari sini dan tidak ikut berubah saat PLTA disimpan.'
 				]
 			},

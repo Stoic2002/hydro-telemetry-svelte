@@ -23,6 +23,7 @@ const SAVED: Plant = {
 	isActive: true,
 	bebanToOutflowNum: 204,
 	bebanToOutflowDen: 180,
+	order: 1,
 	constants: { tma_limpas: 231.5 }
 };
 
@@ -46,7 +47,8 @@ describe('form PLTA', () => {
 				description: null,
 				isActive: true,
 				bebanToOutflowNum: 204,
-				bebanToOutflowDen: 180
+				bebanToOutflowDen: 180,
+				order: null
 			}
 		});
 	});
@@ -93,6 +95,34 @@ describe('form PLTA', () => {
 		expect(parsePlantEdit(SAVED, form)).toStrictEqual({
 			ok: true,
 			input: { name: 'PLTA Soedirman', isActive: false }
+		});
+	});
+
+	it('urutan: bilangan bulat mulai 1, atau kosong (PLTA tampil paling akhir)', () => {
+		expect(parsePlantForm({ ...validForm(), order: 3 })).toMatchObject({
+			ok: true,
+			input: { order: 3 }
+		});
+		expect(parsePlantForm({ ...validForm(), order: undefined })).toMatchObject({
+			ok: true,
+			input: { order: null }
+		});
+		for (const order of [0, -1, 1.5]) {
+			expect(parsePlantForm({ ...validForm(), order })).toMatchObject({
+				ok: false,
+				errors: { order: 'Isi bilangan bulat mulai 1, atau kosongkan.' }
+			});
+		}
+	});
+
+	it('ubah: urutan ikut dikirim hanya bila berubah, kosong = null', () => {
+		expect(parsePlantEdit(SAVED, { ...plantFormFromPlant(SAVED), order: 4 })).toStrictEqual({
+			ok: true,
+			input: { order: 4 }
+		});
+		expect(parsePlantEdit(SAVED, { ...plantFormFromPlant(SAVED), order: null })).toStrictEqual({
+			ok: true,
+			input: { order: null }
 		});
 	});
 

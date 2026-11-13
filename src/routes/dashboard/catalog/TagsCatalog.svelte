@@ -13,6 +13,7 @@
 		createPlantCatalogQuery,
 		describeTagBounds,
 		getPLTAErrorMessage,
+		getPlantDisplayName,
 		type PlantTag,
 		type PlantTagProtocol
 	} from '$features/plta';
@@ -78,7 +79,12 @@
 	);
 
 	const selectedPlantName = $derived(
-		plants.find((plant) => plant.id === selectedPlantId)?.name ?? ''
+		// Tanpa awalan "PLTA": kalimat di sheet sudah menulisnya ("untuk PLTA …").
+		// Dulu nama mentah "PLTA PB Soedirman" terbaca "PLTA PLTA" (temuan QA T25).
+		(() => {
+			const plant = plants.find((item) => item.id === selectedPlantId);
+			return plant ? getPlantDisplayName(plant) : '';
+		})()
 	);
 
 	function applySearch(event: SubmitEvent) {
@@ -97,16 +103,15 @@
 <CatalogTable
 	columns={[
 		{ key: 'parameter', label: 'Parameter', class: 'min-w-48' },
-		{ key: 'station', label: 'Stasiun', class: 'min-w-40' },
+		{ key: 'station', label: 'Stasiun', class: 'w-24' },
 		{ key: 'protocol', label: 'Protokol', class: 'w-28' },
-		{ key: 'address', label: 'Alamat', class: 'min-w-60' },
-		{ key: 'calibration', label: 'Scale / Offset', class: 'w-36' },
-		{ key: 'bounds', label: 'Batas valid', class: 'w-36' },
-		{ key: 'unit', label: 'Satuan', class: 'w-28' },
-		{ key: 'status', label: 'Status', class: 'w-28' },
+		{ key: 'address', label: 'Alamat', class: 'w-52' },
+		{ key: 'calibration', label: 'Kalibrasi', class: 'w-40' },
+		{ key: 'unit', label: 'Satuan', class: 'w-20' },
+		{ key: 'status', label: 'Status', class: 'w-24' },
 		...(canEdit ? [{ key: 'actions', label: 'Aksi', class: 'w-28' }] : [])
 	]}
-	minWidthClass={canEdit ? 'min-w-[1380px]' : 'min-w-[1260px]'}
+	minWidthClass={canEdit ? 'min-w-[1060px]' : 'min-w-[960px]'}
 	{searchInput}
 	searchPlaceholder="Cari parameter, stasiun, protokol, atau alamat..."
 	onSearchInputChange={(value) => (searchInput = value)}
@@ -220,16 +225,23 @@
 				<td class="px-3.5 py-2.5">
 					<Badge tone="slate" mono>{tag.protocol}</Badge>
 				</td>
-				<td class="max-w-72 px-3.5 py-2.5">
+				<td class="max-w-52 px-3.5 py-2.5">
 					<span title={tag.address} class="block truncate font-mono text-xs text-text-muted">
 						{tag.address || '—'}
 					</span>
 				</td>
-				<td class="px-3.5 py-2.5 font-mono text-xs text-text-secondary tabular-nums">
-					{tag.scale} / {tag.offset}
-				</td>
-				<td class="px-3.5 py-2.5 font-mono text-xs text-text-secondary tabular-nums">
-					{describeTagBounds(tag) ?? '—'}
+				<!--
+					Skala/offset dan batas valid satu kolom, dua baris (temuan QA T25):
+					sebagai dua kolom tabel ini melebihi layar laptop 1366 px dan kolom
+					Aksi harus digulir.
+				-->
+				<td class="px-3.5 py-2.5 font-mono text-xs tabular-nums">
+					<span class="block text-text-secondary" title="Skala / offset">
+						× {tag.scale} + {tag.offset}
+					</span>
+					<span class="mt-0.5 block text-text-muted" title="Batas valid">
+						{describeTagBounds(tag) ?? 'tanpa batas'}
+					</span>
 				</td>
 				<td class="px-3.5 py-2.5 text-sm text-text-secondary">{tag.unit || '—'}</td>
 				<td class="px-3.5 py-2.5">

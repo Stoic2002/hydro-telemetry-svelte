@@ -97,6 +97,48 @@ describe('getMonthlyImage', () => {
 		expect(init?.cache).toBeUndefined();
 		expect(init?.query).toEqual({ tahun: 2026, bulan: 9, jenis: 'prediksi_curah_hujan' });
 	});
+
+	it('menyerah sesudah 20 detik supaya kartu jatuh ke "Gambar gagal dimuat" (T11)', async () => {
+		vi.useFakeTimers();
+		try {
+			apiRequestMock.mockImplementation(
+				(_endpoint: string, init?: { signal?: AbortSignal | null }) =>
+					new Promise((_resolve, reject) => {
+						init?.signal?.addEventListener('abort', () =>
+							reject(new DOMException('Aborted', 'AbortError'))
+						);
+					})
+			);
+
+			const request = httpHydrologyRepository.getMonthlyImage(2026, 9, 'prediksi_curah_hujan');
+			const outcome = expect(request).rejects.toMatchObject({
+				message: 'Gambar tidak termuat dalam 20 detik'
+			});
+			await vi.advanceTimersByTimeAsync(20_000);
+			await outcome;
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+
+	it('pembatalan dari query diteruskan apa adanya, bukan dilaporkan sebagai timeout', async () => {
+		apiRequestMock.mockImplementation(
+			(_endpoint: string, init?: { signal?: AbortSignal | null }) =>
+				new Promise((_resolve, reject) => {
+					init?.signal?.addEventListener('abort', () =>
+						reject(new DOMException('Aborted', 'AbortError'))
+					);
+				})
+		);
+		const controller = new AbortController();
+
+		const request = httpHydrologyRepository.getMonthlyImage(2026, 9, 'prediksi_curah_hujan', {
+			signal: controller.signal
+		});
+		controller.abort();
+
+		await expect(request).rejects.toMatchObject({ name: 'AbortError' });
+	});
 });
 
 describe('getMonthlyConditions', () => {

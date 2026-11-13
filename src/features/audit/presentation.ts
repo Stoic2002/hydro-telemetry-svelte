@@ -1,4 +1,4 @@
-import type { UploadAuditAction, UploadAuditKind } from './model';
+import type { UploadAuditAction, UploadAuditEntry, UploadAuditKind } from './model';
 
 /**
  * Label non-teknis untuk operator. Nama enum backend seperti `telemetry_json`
@@ -8,7 +8,7 @@ const KIND_LABEL: Record<UploadAuditKind, string> = {
 	telemetry_json: 'Input manual',
 	telemetry_excel: 'Excel telemetri',
 	monthly_excel: 'Excel bulanan',
-	monthly_image: 'Prakiraan hujan',
+	monthly_image: 'Gambar hujan',
 	monthly_form: 'Form bulanan',
 	elevation_curve: 'Kurva elevasi'
 };
@@ -42,4 +42,41 @@ export function uploadAuditActionLabel(action: string): string {
 
 	const words = action.replaceAll('_', ' ').trim();
 	return words ? words.charAt(0).toUpperCase() + words.slice(1) : action;
+}
+
+/**
+ * Nama keempat gambar BMKG — sama dengan `MONTHLY_IMAGE_KIND_LABEL` di fitur
+ * hidrologi; disalin di sini supaya fitur audit tidak bergantung pada fitur
+ * lain demi satu tabel nama.
+ */
+const IMAGE_KIND_LABEL: Record<string, string> = {
+	prediksi_curah_hujan: 'Prediksi Curah Hujan',
+	prediksi_sifat_hujan: 'Prediksi Sifat Hujan',
+	realisasi_curah_hujan: 'Realisasi Curah Hujan',
+	realisasi_sifat_hujan: 'Realisasi Sifat Hujan'
+};
+
+/**
+ * Isi kolom "Berkas / parameter". Riwayat gambar hujan dulu hanya menulis nama
+ * berkas, jadi tidak ketahuan gambar mana yang diunggah atau dihapus (temuan QA
+ * T18). Jenisnya dicari di `parameter` lalu di `rincian`; bila tidak ada,
+ * tampilannya tetap seperti sebelumnya.
+ */
+export function uploadAuditSubject(entry: UploadAuditEntry): string {
+	const base = entry.fileName ?? entry.parameter ?? '—';
+	if (entry.kind !== 'monthly_image') return base;
+
+	const candidates = [
+		entry.parameter,
+		entry.details?.jenis,
+		entry.details?.jenis_gambar,
+		entry.details?.kind
+	];
+	const imageKind = candidates.find(
+		(value): value is string => typeof value === 'string' && value in IMAGE_KIND_LABEL
+	);
+	if (!imageKind) return base;
+
+	const label = IMAGE_KIND_LABEL[imageKind];
+	return entry.fileName ? `${label} · ${entry.fileName}` : label;
 }

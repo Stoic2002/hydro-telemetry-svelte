@@ -15,6 +15,7 @@
 	import { formatTimeWIB } from '$shared/lib/date';
 	import { formatMetric } from '$shared/utils/number';
 	import { getLabelCoordinate } from './label-placement';
+	import { placeMarkerLabels } from './marker-label-placement';
 	import { spreadMarkers, type SpreadMarker } from './marker-spread';
 	import { fitAboveOverlay, horizontalShiftForWidth, pixelShiftToLongitude } from './projection';
 	import InfoTip from '$components/ui/InfoTip.svelte';
@@ -92,17 +93,16 @@
 	const measuredRainByPlant = $derived(
 		new Map<string, MeasuredRain>((measuredRainQuery.data ?? []).map((rain) => [rain.pltaId, rain]))
 	);
-	/** Urut nama; PLTA tanpa koordinat tetap masuk daftar walau tidak ada di peta. */
+	/**
+	 * Mengikuti urutan daftar PLTA dari server (`urutan`, Swagger 12 Nov 2026:
+	 * jangan diurutkan ulang di FE) — dulu urut abjad nama. PLTA tanpa koordinat
+	 * tetap masuk daftar walau tidak ada di peta.
+	 */
 	const measuredRainList = $derived(
-		(measuredRainQuery.data ?? [])
-			.map((rain) => {
-				const plant = plantList.find((candidate) => candidate.id === rain.pltaId);
-				return plant ? { plant, rain, description: describeMeasuredRain(rain) } : null;
-			})
-			.filter((entry) => entry !== null)
-			.sort((first, second) =>
-				getPlantDisplayName(first.plant).localeCompare(getPlantDisplayName(second.plant))
-			)
+		plantList.flatMap((plant) => {
+			const rain = (measuredRainQuery.data ?? []).find((entry) => entry.pltaId === plant.id);
+			return rain ? [{ plant, rain, description: describeMeasuredRain(rain) }] : [];
+		})
 	);
 	/**
 	 * Yang kering diringkas jadi satu baris; hanya yang hujan atau penakarnya
@@ -275,6 +275,18 @@
 			spreadMarkers(points).map((marker) => [marker.id, marker])
 		);
 	});
+
+	/** Sisi nama tiap penanda supaya nama tidak saling tindih (temuan QA T10). */
+	const labelPlacements = $derived(
+		placeMarkerLabels(
+			plantList.flatMap((plant) => {
+				const marker = markerPositions.get(plant.id);
+				return marker
+					? [{ id: plant.id, x: marker.x, y: marker.y, text: getPlantDisplayName(plant) }]
+					: [];
+			})
+		)
+	);
 
 	const hoveredPlant = $derived(
 		hoveredId ? (plantList.find((plant) => plant.id === hoveredId) ?? null) : null
@@ -527,6 +539,7 @@
 						{@const plantName = getPlantDisplayName(plant)}
 						{@const rain = measuredRainByPlant.get(plant.id)}
 						{@const isRaining = rain?.status === 'raining'}
+						{@const label = labelPlacements.get(plant.id)}
 						<g
 							transform={`translate(${position[0]} ${position[1]})`}
 							role="button"
@@ -597,9 +610,23 @@
 								halo putih: dulu keduanya setara dan nama PLTA tenggelam di klaster
 								Wonosobo–Banjarnegara. Kontrasnya penuh, tanpa opacity.
 							-->
+							<!--
+								Sisi nama dipilih per penanda (`marker-label-placement.ts`); saat
+								disorot, nama hanya bergeser menjauh dari titik yang membesar.
+							-->
 							<text
-								text-anchor="middle"
-								y={isHighlighted ? -26 : -16}
+								text-anchor={label?.anchor ?? 'middle'}
+								x={(label?.x ?? 0) * (isHighlighted ? 1.5 : 1)}
+								y={label
+									? label.y +
+										(isHighlighted && label.side === 'top'
+											? -8
+											: isHighlighted && label.side === 'bottom'
+												? 6
+												: 0)
+									: isHighlighted
+										? -26
+										: -16}
 								aria-hidden="true"
 								stroke="#ffffff"
 								stroke-width={3}

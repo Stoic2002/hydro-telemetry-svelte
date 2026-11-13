@@ -2,6 +2,7 @@ import { ApiError } from './api-error';
 import { getAccessToken, refreshAuthSession } from './auth-session';
 import { buildApiUrl, type QueryValue } from './url';
 import { reportError } from '../../shared/lib/report-error';
+import { localizeServerMessage, statusFallbackMessage } from './server-message';
 
 /**
  * Yang dilaporkan hanya kegagalan sisi server dan backend tak terjangkau.
@@ -69,6 +70,10 @@ function getPayloadField(payload: unknown, field: string): unknown {
 }
 
 function getErrorMessage(payload: unknown, response: Response): string {
+	return localizeServerMessage(readErrorMessage(payload, response));
+}
+
+function readErrorMessage(payload: unknown, response: Response): string {
 	const message = getPayloadField(payload, 'message');
 	if (typeof message === 'string' && message.trim()) return message;
 
@@ -86,7 +91,9 @@ function getErrorMessage(payload: unknown, response: Response): string {
 	if (response.status === 401) return 'Sesi tidak valid atau telah berakhir';
 	if (response.status === 403) return 'Anda tidak memiliki akses untuk aksi ini';
 
-	return response.statusText || 'Permintaan ke server gagal';
+	return (
+		statusFallbackMessage(response.status) ?? (response.statusText || 'Permintaan ke server gagal')
+	);
 }
 
 export async function apiRequest<TResponse>(

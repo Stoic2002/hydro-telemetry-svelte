@@ -1,4 +1,4 @@
-import { error, redirect } from '@sveltejs/kit';
+import { error } from '@sveltejs/kit';
 import {
 	ensurePlantDetail,
 	getPLTAErrorMessage,
@@ -6,6 +6,8 @@ import {
 	isValidPLTAId,
 	type ActivePLTA
 } from '../../../../features/plta';
+import { ApiError } from '$api/http';
+import { UNKNOWN_PLANT_NOTICE, redirectWithNotice } from '$core/guards';
 import { queryClient } from '$core/query-client';
 
 /**
@@ -26,13 +28,17 @@ export const load = async ({ params, parent }): Promise<{ activePLTA: ActivePLTA
 
 	// Bentuk id tidak valid berarti tautan rusak, bukan kegagalan server.
 	if (!isValidPLTAId(pltaId)) {
-		redirect(307, '/dashboard/overview');
+		redirectWithNotice('/dashboard/overview', UNKNOWN_PLANT_NOTICE);
 	}
 
 	let plant;
 	try {
 		plant = await ensurePlantDetail(queryClient, pltaId);
 	} catch (cause) {
+		// PLTA yang tidak ada (dihapus, salah salin) bukan gangguan server.
+		if (ApiError.isApiError(cause) && cause.status === 404) {
+			redirectWithNotice('/dashboard/overview', UNKNOWN_PLANT_NOTICE);
+		}
 		error(503, getPLTAErrorMessage(cause));
 	}
 

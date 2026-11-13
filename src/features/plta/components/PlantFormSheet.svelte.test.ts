@@ -36,6 +36,7 @@ const SAVED: Plant = {
 	isActive: true,
 	bebanToOutflowNum: 204,
 	bebanToOutflowDen: 180,
+	order: 1,
 	constants: { tma_limpas: 231.5 }
 };
 

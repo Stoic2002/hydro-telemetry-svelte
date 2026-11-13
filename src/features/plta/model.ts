@@ -31,6 +31,13 @@ export interface Plant {
 	isActive: boolean;
 	bebanToOutflowNum: number;
 	bebanToOutflowDen: number;
+	/**
+	 * Posisi di SEMUA daftar dan unduhan PLTA (1 = teratas; urutan daftar
+	 * client). `null` = belum diberi posisi: server menaruhnya sesudah yang
+	 * berurutan, menurut kode. Server sudah mengurutkan; FE tidak mengurutkan
+	 * ulang (Swagger 12 Nov 2026).
+	 */
+	order: number | null;
 	constants: Record<string, unknown>;
 }
 
@@ -60,6 +67,8 @@ export interface PlantInput {
 	isActive: boolean;
 	bebanToOutflowNum: number;
 	bebanToOutflowDen: number;
+	/** `null` = tanpa posisi (PLTA baru tampil paling akhir). */
+	order: number | null;
 }
 
 /** Hanya bidang yang berubah; kode PLTA tidak bisa diubah setelah dibuat. */

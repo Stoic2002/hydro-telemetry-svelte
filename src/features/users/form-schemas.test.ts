@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { resetPasswordSchema } from './form-schemas';
+import { editUserSchema, resetPasswordSchema } from './form-schemas';
 
 describe('reset password oleh admin', () => {
 	it('menerima password 8–128 karakter yang diulang sama', () => {
@@ -24,5 +24,19 @@ describe('reset password oleh admin', () => {
 
 		expect(result.success).toBe(false);
 		expect(result.error?.issues[0]?.path).toEqual(['confirmPassword']);
+	});
+});
+
+describe('email pengguna', () => {
+	const base = { fullName: 'Operator Uji', role: 'operator' as const, isActive: true };
+	const firstMessage = (email: string) =>
+		editUserSchema.safeParse({ ...base, email }).error?.issues[0]?.message;
+
+	it('kosong: "wajib diisi", bukan "format tidak valid" (temuan QA T26)', () => {
+		expect(firstMessage('   ')).toBe('Email wajib diisi');
+	});
+
+	it('terisi tetapi salah format: "format tidak valid"', () => {
+		expect(firstMessage('operator@')).toBe('Format email tidak valid');
 	});
 });

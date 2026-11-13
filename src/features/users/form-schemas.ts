@@ -2,7 +2,8 @@ import { z } from 'zod';
 
 export const createUserSchema = z.object({
 	fullName: z.string().trim().min(3, 'Nama minimal 3 karakter'),
-	email: z.string().trim().email('Format email tidak valid'),
+	// Kosong punya pesan sendiri; dulu "Format email tidak valid" (temuan QA T26).
+	email: z.string().trim().min(1, 'Email wajib diisi').email('Format email tidak valid'),
 	username: z
 		.string()
 		.trim()
@@ -19,7 +20,8 @@ export const createUserSchema = z.object({
 
 export const editUserSchema = z.object({
 	fullName: z.string().trim().min(3, 'Nama minimal 3 karakter'),
-	email: z.string().trim().email('Format email tidak valid'),
+	// Kosong punya pesan sendiri; dulu "Format email tidak valid" (temuan QA T26).
+	email: z.string().trim().min(1, 'Email wajib diisi').email('Format email tidak valid'),
 	role: z.enum(['admin', 'operator', 'viewer']),
 	isActive: z.boolean()
 });

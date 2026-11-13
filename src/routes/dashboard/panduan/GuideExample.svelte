@@ -169,12 +169,12 @@
 		{:else if id === 'trend-period'}
 			<SegmentedControl
 				ariaLabel="Periode tren"
-				value="24 Jam Terakhir"
+				value="24-jam"
 				onChange={noop}
 				options={[
-					{ value: '24 Jam Terakhir', label: '24 jam' },
-					{ value: '7 Hari Terakhir', label: '7 hari' },
-					{ value: '30 Hari Terakhir', label: '30 hari' }
+					{ value: '24-jam', label: '24 jam' },
+					{ value: '7-hari', label: '7 hari' },
+					{ value: '30-hari', label: '30 hari' }
 				]}
 			/>
 		{:else if id === 'report-create'}

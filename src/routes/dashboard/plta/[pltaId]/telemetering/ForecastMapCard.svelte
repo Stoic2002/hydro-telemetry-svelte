@@ -11,6 +11,8 @@
 		imageUrl: string | null;
 		isLoading: boolean;
 		isError: boolean;
+		/** Dipasang bila gambar bisa diminta ulang; tombol Coba lagi tampil saat gagal. */
+		onRetry?: () => void;
 	}
 
 	/**
@@ -23,7 +25,7 @@
 	 * kedua gambar berdampingan dengan tabel prakiraan, dan memperbesarnya di
 	 * tempat akan mendorong tabel itu ke bawah lipatan layar.
 	 */
-	let { title, subtitle, imageUrl, isLoading, isError }: Props = $props();
+	let { title, subtitle, imageUrl, isLoading, isError, onRetry }: Props = $props();
 
 	let isZoomOpen = $state(false);
 
@@ -60,6 +62,15 @@
 				<span class={`text-xs ${isError ? 'text-status-danger-strong' : 'text-text-muted'}`}>
 					{isError ? 'Gambar gagal dimuat' : 'Gambar belum tersedia'}
 				</span>
+				{#if isError && onRetry}
+					<button
+						type="button"
+						onclick={onRetry}
+						class="cursor-pointer text-xs font-medium text-brand-primary-strong underline underline-offset-2 hover:text-brand-primary-pressed"
+					>
+						Coba lagi
+					</button>
+				{/if}
 			</div>
 		{/if}
 	</div>

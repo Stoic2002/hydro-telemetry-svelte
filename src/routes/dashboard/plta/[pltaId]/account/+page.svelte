@@ -24,7 +24,9 @@
 
 	const profileSchema = z.object({
 		fullName: z.string().trim().min(3, 'Nama minimal 3 karakter'),
-		email: z.string().trim().email('Format email tidak valid')
+		// `novalidate` di form: pesan Zod berbahasa Indonesia, bukan gelembung
+		// bawaan browser berbahasa Inggris (temuan QA T3).
+		email: z.string().trim().min(1, 'Email wajib diisi').email('Format email tidak valid')
 	});
 
 	const passwordSchema = z
@@ -161,7 +163,11 @@
 					<span class="card-title">Informasi Profil</span>
 				</div>
 
-				<form onsubmit={(event) => profileForm.submit(event)} class="flex flex-1 flex-col">
+				<form
+					novalidate
+					onsubmit={(event) => profileForm.submit(event)}
+					class="flex flex-1 flex-col"
+				>
 					<div class="flex flex-col gap-4 p-[18px]">
 						<div class="flex flex-col gap-2.5 rounded-lg bg-surface-overlay p-3.5">
 							<div class="flex items-center justify-between gap-3">
@@ -223,7 +229,11 @@
 					<span class="card-title">Ganti Password</span>
 				</div>
 
-				<form onsubmit={(event) => passwordForm.submit(event)} class="flex flex-1 flex-col">
+				<form
+					novalidate
+					onsubmit={(event) => passwordForm.submit(event)}
+					class="flex flex-1 flex-col"
+				>
 					<div class="flex flex-col gap-4 p-[18px]">
 						<p class="text-xs leading-relaxed text-text-muted">
 							Setelah password berubah, Anda akan keluar dari aplikasi dan perlu masuk kembali.

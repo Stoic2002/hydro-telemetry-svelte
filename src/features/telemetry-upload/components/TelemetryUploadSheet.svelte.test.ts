@@ -54,8 +54,7 @@ function submitButton() {
 }
 
 async function openDeleteTab(user: ReturnType<typeof userEvent.setup>) {
-	const [tab] = screen.getAllByRole('button', { name: 'Hapus Data' });
-	await user.click(tab);
+	await user.click(screen.getByRole('tab', { name: 'Hapus Data' }));
 }
 
 beforeEach(() => {
@@ -145,7 +144,7 @@ describe('template upload satu parameter', () => {
 		repository.downloadTemplate.mockResolvedValue(blob);
 		renderSheet();
 
-		await user.click(screen.getByRole('button', { name: 'Upload Excel' }));
+		await user.click(screen.getByRole('tab', { name: 'Upload Excel' }));
 		await user.click(screen.getByRole('button', { name: 'Unduh Template' }));
 
 		await waitFor(() =>
@@ -183,8 +182,8 @@ describe('parameter konstanta', () => {
 		const { onClose } = renderSheet(TMA_LIMPAS);
 
 		expect(screen.queryByLabelText('Tanggal')).not.toBeInTheDocument();
-		expect(screen.queryByRole('button', { name: 'Upload Excel' })).not.toBeInTheDocument();
-		expect(screen.queryByRole('button', { name: 'Hapus Data' })).not.toBeInTheDocument();
+		expect(screen.queryByRole('tab', { name: 'Upload Excel' })).not.toBeInTheDocument();
+		expect(screen.queryByRole('tab', { name: 'Hapus Data' })).not.toBeInTheDocument();
 
 		// Diisi lewat event input: jsdom membaca "231." di tengah ketikan sebagai
 		// tidak sah dan mengosongkannya, sesuatu yang tidak terjadi di browser.
@@ -265,7 +264,7 @@ describe('Target TMA', () => {
 		repository.downloadTemplate.mockResolvedValue(new Blob(['x']));
 		renderSheet(TARGET_TMA);
 
-		await user.click(screen.getByRole('button', { name: 'Upload Excel' }));
+		await user.click(screen.getByRole('tab', { name: 'Upload Excel' }));
 		expect(screen.queryByText('Isi template')).not.toBeInTheDocument();
 		await user.click(screen.getByRole('button', { name: 'Unduh Template' }));
 

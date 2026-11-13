@@ -59,6 +59,8 @@
 
 	let selectedFile = $state<File | null>(null);
 	let selectionError = $state<string | null>(null);
+	/** Galat server untuk berkas terpilih; kartunya merah, bukan tetap hijau (QA T18). */
+	let rejection = $state<string | null>(null);
 	let year = $state(String(CURRENT_YEAR));
 	let publish = $state(false);
 
@@ -111,11 +113,13 @@
 	function selectFile(file: File) {
 		selectedFile = file;
 		selectionError = validateWorkbook(file);
+		rejection = null;
 	}
 
 	function clearSelection() {
 		selectedFile = null;
 		selectionError = null;
+		rejection = null;
 	}
 
 	async function uploadElevation() {
@@ -137,7 +141,8 @@
 			});
 			clearSelection();
 		} catch (error) {
-			notificationStore.addToast({ type: 'error', message: errorMessage(error) });
+			rejection = errorMessage(error);
+			notificationStore.addToast({ type: 'error', message: rejection });
 		}
 	}
 </script>
@@ -166,7 +171,7 @@
 						<div>
 							<SelectedFile
 								file={selectedFile}
-								error={selectionError}
+								error={selectionError ?? rejection}
 								detail={`Tahun ${year}`}
 								disabled={isUploading}
 								onClear={clearSelection}

@@ -15,7 +15,22 @@ import {
 	type PLTADashboardPage
 } from '../features/plta';
 import { findForecastingPlant } from '../features/forecasting';
+import { notificationStore } from '../shared/lib/notification.svelte';
 import { queryClient } from './query-client';
+
+export const ROLE_DENIED_NOTICE = 'Halaman itu tidak tersedia untuk peran Anda.';
+export const UNKNOWN_PLANT_NOTICE = 'PLTA di alamat itu tidak ditemukan. Anda dibawa ke Overview.';
+
+/**
+ * Mengalihkan sambil menjelaskan alasannya lewat toast (temuan QA T2). Dulu
+ * PLTA tak dikenal dan halaman terlarang dialihkan ke Overview tanpa pesan,
+ * sehingga terbaca sebagai tautan yang rusak. Mode SPA: `load` berjalan di
+ * browser, jadi toast-nya masih tampil di halaman tujuan.
+ */
+export function redirectWithNotice(path: string, message: string): never {
+	notificationStore.addToast({ type: 'warning', message });
+	redirect(307, path);
+}
 
 /**
  * Guard rute. Padanan `ProtectedRoute`, `AdminOnlyRoute`, `DataToolsRoute`, dan
@@ -62,21 +77,21 @@ export async function requireGuest(url?: URL): Promise<void> {
 export async function requireDataTools(url?: URL): Promise<void> {
 	await requireAuthenticated(url);
 	if (!canAccessDataTools(authStore.user)) {
-		redirect(307, '/dashboard/overview');
+		redirectWithNotice('/dashboard/overview', ROLE_DENIED_NOTICE);
 	}
 }
 
 export async function requireUserManagement(url?: URL): Promise<void> {
 	await requireAuthenticated(url);
 	if (!canManageUsers(authStore.user)) {
-		redirect(307, '/dashboard/overview');
+		redirectWithNotice('/dashboard/overview', ROLE_DENIED_NOTICE);
 	}
 }
 
 export async function requireMonthlyUpload(url?: URL): Promise<void> {
 	await requireAuthenticated(url);
 	if (!canUploadMonthlyHydrology(authStore.user)) {
-		redirect(307, '/dashboard/overview');
+		redirectWithNotice('/dashboard/overview', ROLE_DENIED_NOTICE);
 	}
 }
 

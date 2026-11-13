@@ -8,6 +8,7 @@
 	import { notificationStore } from '$shared/lib/notification.svelte';
 	import { createCreatePlantMutation, createUpdatePlantMutation } from '../api/queries';
 	import { getPLTASaveErrorMessage } from '../error';
+	import { getPlantDisplayName } from '../presentation';
 	import type { Plant, RiverBasin } from '../model';
 	import {
 		CODE_MAX_LENGTH,
@@ -90,7 +91,11 @@
 			}
 			notificationStore.addToast({
 				type: 'success',
-				message: `PLTA ${values.name.trim() || plant?.name} ${isEdit ? 'diperbarui' : 'ditambahkan'}`
+				// Nama tanpa awalan "PLTA" — dulu "PLTA PLTA Garung diperbarui" (temuan QA T25).
+				message: `PLTA ${getPlantDisplayName({
+					code: values.code || plant?.code || '',
+					name: values.name.trim() || plant?.name || ''
+				})} ${isEdit ? 'diperbarui' : 'ditambahkan'}`
 			});
 			onClose();
 		} catch (error) {
@@ -141,7 +146,20 @@
 				disabled={isPending}
 				error={errors.riverBasinId}
 			/>
-			<Input label="Deskripsi (opsional)" bind:value={values.description} disabled={isPending} />
+			<div class="grid gap-4 sm:grid-cols-[1fr_2fr]">
+				<Input
+					label="Urutan (opsional)"
+					type="number"
+					step="1"
+					min="1"
+					placeholder="Paling akhir"
+					bind:value={values.order}
+					disabled={isPending}
+					error={errors.order}
+					hint="Posisi PLTA di semua daftar dan unduhan, 1 = teratas. Kosong = tampil paling akhir. PLTA lain tidak ikut bergeser, jadi dua PLTA bisa berurutan sama."
+				/>
+				<Input label="Deskripsi (opsional)" bind:value={values.description} disabled={isPending} />
+			</div>
 		</section>
 
 		<section class="flex flex-col gap-4 border-t border-surface-overlay pt-5">

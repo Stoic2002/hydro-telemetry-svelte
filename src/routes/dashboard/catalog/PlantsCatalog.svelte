@@ -79,6 +79,7 @@
 
 <CatalogTable
 	columns={[
+		{ key: 'order', label: 'Urutan', class: 'w-20' },
 		{ key: 'plant', label: 'PLTA', class: 'min-w-52' },
 		{ key: 'river-basin', label: 'Wilayah Sungai', class: 'min-w-44' },
 		{ key: 'capacity', label: 'Kapasitas', class: 'w-32' },
@@ -86,7 +87,7 @@
 		{ key: 'status', label: 'Status', class: 'w-28' },
 		{ key: 'action', label: 'Aksi', class: canManage ? 'w-56' : 'w-36' }
 	]}
-	minWidthClass="min-w-[1040px]"
+	minWidthClass="min-w-[1120px]"
 	{searchInput}
 	searchPlaceholder="Cari kode, nama, atau deskripsi PLTA..."
 	onSearchInputChange={(value) => (searchInput = value)}
@@ -126,6 +127,10 @@
 			<tr
 				class="border-b border-surface-overlay transition-colors last:border-b-0 hover:bg-surface-base/60"
 			>
+				<!-- Urutan server (Swagger 12 Nov 2026); tabel tidak mengurutkan ulang. -->
+				<td class="px-3.5 py-2.5 font-mono text-xs font-medium text-text-secondary tabular-nums">
+					{plant.order ?? '—'}
+				</td>
 				<td class="px-3.5 py-2.5">
 					<div class="flex min-w-0 flex-col gap-0.5">
 						<span class="truncate text-sm font-medium text-text-primary">{plant.name}</span>

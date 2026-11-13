@@ -65,6 +65,7 @@
 	{/snippet}
 
 	<form
+		novalidate
 		id="create-user-sheet-form"
 		onsubmit={(event) => form.submit(event)}
 		class="flex flex-col gap-5"

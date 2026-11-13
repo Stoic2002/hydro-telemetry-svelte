@@ -38,7 +38,7 @@ export const UPLOAD_TABS: {
 		value: 'prakiraan',
 		label: 'Gambar Hujan',
 		description:
-			'Unggah gambar prakiraan dan realisasi curah hujan serta sifat hujan bulanan untuk seluruh PLTA',
+			'Unggah gambar prediksi dan realisasi curah hujan serta sifat hujan bulanan untuk seluruh PLTA',
 		hint: 'Mengunggah ulang periode dan jenis yang sama menggantikan gambar sebelumnya. Hapus hanya bila gambar salah terunggah dan penggantinya belum ada.'
 	},
 	{

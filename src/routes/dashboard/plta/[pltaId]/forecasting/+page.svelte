@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
+	import { page } from '$app/state';
 	import { scaleTime } from 'd3-scale';
 	import { Area, Axis, Chart, Highlight, Spline, Svg, Tooltip } from 'layerchart';
 	import IconCalendar from '~icons/ph/calendar-blank';
@@ -63,8 +65,26 @@
 		forecastingPlant ? getPlantDisplayName(forecastingPlant) : 'PB Soedirman (Mrica)'
 	);
 
-	let parameter = $state<ForecastParameter>('inflow');
-	let horizon = $state<ForecastHorizon>(24);
+	/**
+	 * Pilihan di URL (`?parameter=water_level&horizon=168`), bukan state
+	 * komponen, supaya tautan ke prediksi tertentu bisa dibagikan dan tombol
+	 * Kembali mengembalikannya (temuan QA T16). Nilai tak dikenal = bawaan.
+	 */
+	const parameter = $derived<ForecastParameter>(
+		page.url.searchParams.get('parameter') === 'water_level' ? 'water_level' : 'inflow'
+	);
+	const horizon = $derived<ForecastHorizon>(
+		page.url.searchParams.get('horizon') === '168' ? 168 : 24
+	);
+
+	async function setChoice(key: 'parameter' | 'horizon', value: string) {
+		// Salinan sekali pakai untuk menyusun URL berikutnya; dibuang setelah
+		// `goto`, jadi tidak perlu `SvelteURLSearchParams`.
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity
+		const params = new URLSearchParams(page.url.searchParams);
+		params.set(key, value);
+		await goto(`?${params.toString()}`, { replaceState: true, keepFocus: true, noScroll: true });
+	}
 
 	const forecastQuery = createForecastQuery(() => ({ pltaId, parameter, horizon }));
 
@@ -250,7 +270,7 @@
 			<SegmentedControl
 				ariaLabel="Parameter forecasting"
 				value={parameter}
-				onChange={(next) => (parameter = next)}
+				onChange={(next) => void setChoice('parameter', next)}
 				options={PARAMETER_OPTIONS}
 			/>
 		</div>
@@ -260,7 +280,7 @@
 			<SegmentedControl
 				ariaLabel="Horizon forecasting"
 				value={horizon}
-				onChange={(next) => (horizon = next)}
+				onChange={(next) => void setChoice('horizon', String(next))}
 				options={HORIZON_OPTIONS}
 			/>
 		</div>

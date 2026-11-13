@@ -52,6 +52,7 @@ function mapPlant(plant: ApiPlant): Plant {
 		isActive: plant.is_active,
 		bebanToOutflowNum: plant.beban_to_outflow_num,
 		bebanToOutflowDen: plant.beban_to_outflow_den,
+		order: plant.urutan,
 		constants: plant.constants
 	};
 }
@@ -103,7 +104,8 @@ const PLANT_FIELD: Record<keyof PlantChanges, string> = {
 	description: 'description',
 	isActive: 'is_active',
 	bebanToOutflowNum: 'beban_to_outflow_num',
-	bebanToOutflowDen: 'beban_to_outflow_den'
+	bebanToOutflowDen: 'beban_to_outflow_den',
+	order: 'urutan'
 };
 
 /**

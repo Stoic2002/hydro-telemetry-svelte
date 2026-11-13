@@ -305,7 +305,7 @@
 				type="submit"
 				form="trend-list-form"
 				isLoading={isPending}
-				disabled={!isDraftReady || problems.length > 0}
+				disabled={!isDraftReady || !isDirty || problems.length > 0}
 				class="w-full sm:w-auto"
 			>
 				{#snippet leftIcon()}<IconSave class="size-4" />{/snippet}

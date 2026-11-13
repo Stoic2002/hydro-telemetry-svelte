@@ -55,6 +55,8 @@ export interface PlantFormValues {
 	isActive: boolean;
 	bebanToOutflowNum: number | null | undefined;
 	bebanToOutflowDen: number | null | undefined;
+	/** Posisi di daftar PLTA; kosong = tanpa posisi. */
+	order: number | null | undefined;
 }
 
 export type PlantFormField = keyof PlantFormValues;
@@ -88,7 +90,8 @@ export function emptyPlantForm(riverBasinId = ''): PlantFormValues {
 		description: '',
 		isActive: true,
 		bebanToOutflowNum: DEFAULT_BEBAN_TO_OUTFLOW.num,
-		bebanToOutflowDen: DEFAULT_BEBAN_TO_OUTFLOW.den
+		bebanToOutflowDen: DEFAULT_BEBAN_TO_OUTFLOW.den,
+		order: null
 	};
 }
 
@@ -103,7 +106,8 @@ export function plantFormFromPlant(plant: Plant): PlantFormValues {
 		description: plant.description ?? '',
 		isActive: plant.isActive,
 		bebanToOutflowNum: plant.bebanToOutflowNum,
-		bebanToOutflowDen: plant.bebanToOutflowDen
+		bebanToOutflowDen: plant.bebanToOutflowDen,
+		order: plant.order
 	};
 }
 
@@ -149,6 +153,12 @@ export function parsePlantForm(values: PlantFormValues): ParsedForm<PlantInput, 
 		errors.bebanToOutflowDen = 'Isi angka lebih dari 0.';
 	}
 
+	// Swagger 12 Nov 2026: bilangan bulat ≥ 1, atau kosong.
+	const order = numberOrNull(values.order);
+	if (order !== null && (!Number.isInteger(order) || order < 1)) {
+		errors.order = 'Isi bilangan bulat mulai 1, atau kosongkan.';
+	}
+
 	if (Object.keys(errors).length > 0) return { ok: false, errors };
 
 	return {
@@ -163,7 +173,8 @@ export function parsePlantForm(values: PlantFormValues): ParsedForm<PlantInput, 
 			description: optionalText(values.description),
 			isActive: values.isActive,
 			bebanToOutflowNum: bebanToOutflowNum as number,
-			bebanToOutflowDen: bebanToOutflowDen as number
+			bebanToOutflowDen: bebanToOutflowDen as number,
+			order
 		}
 	};
 }
@@ -181,7 +192,8 @@ function normalizePlantForm(values: PlantFormValues): Record<EditableField, unkn
 		description: optionalText(values.description),
 		isActive: values.isActive,
 		bebanToOutflowNum: numberOrNull(values.bebanToOutflowNum),
-		bebanToOutflowDen: numberOrNull(values.bebanToOutflowDen)
+		bebanToOutflowDen: numberOrNull(values.bebanToOutflowDen),
+		order: numberOrNull(values.order)
 	};
 }
 

@@ -376,10 +376,19 @@
 				{/if}
 			</section>
 		{:else}
-			<div class="grid grid-cols-3 border-b border-border-subtle">
+			<!-- Peran tab (temuan aksesibilitas QA): dulu tiga tombol polos. -->
+			<div
+				role="tablist"
+				aria-label="Cara mengisi"
+				class="grid grid-cols-3 border-b border-border-subtle"
+			>
 				{#each MODE_TABS as tab (tab.value)}
 					<button
+						id={`telemetry-mode-tab-${tab.value}`}
 						type="button"
+						role="tab"
+						aria-selected={mode === tab.value}
+						aria-controls={`telemetry-mode-panel-${tab.value}`}
 						disabled={isPending}
 						onclick={() => (mode = tab.value)}
 						class={`cursor-pointer border-b-2 px-3 py-3 text-xs font-medium transition-colors ${
@@ -394,7 +403,12 @@
 			</div>
 
 			{#if mode === 'manual'}
-				<section class="flex flex-col gap-4">
+				<div
+					id="telemetry-mode-panel-manual"
+					role="tabpanel"
+					aria-labelledby="telemetry-mode-tab-manual"
+					class="flex flex-col gap-4"
+				>
 					<div class="flex items-start gap-1.5">
 						<p class="text-xs text-text-muted">
 							{isDailyValue ? 'Satu nilai per tanggal, pukul 00.00 WIB.' : 'Waktu dalam WIB.'}
@@ -496,9 +510,14 @@
 						<IconPlus class="size-4" />
 						{isDailyValue ? 'Tambah tanggal' : 'Tambah titik data'}
 					</button>
-				</section>
+				</div>
 			{:else if mode === 'excel'}
-				<section class="flex flex-col gap-4">
+				<div
+					id="telemetry-mode-panel-excel"
+					role="tabpanel"
+					aria-labelledby="telemetry-mode-tab-excel"
+					class="flex flex-col gap-4"
+				>
 					<div class="flex flex-col gap-3 rounded-xl border border-border-subtle p-4">
 						<div class="flex items-center gap-1.5">
 							<h4 class="text-xs font-semibold text-text-strong">Template</h4>
@@ -561,9 +580,14 @@
 							class="sr-only"
 						/>
 					</label>
-				</section>
+				</div>
 			{:else}
-				<section class="flex flex-col gap-4">
+				<div
+					id="telemetry-mode-panel-delete"
+					role="tabpanel"
+					aria-labelledby="telemetry-mode-tab-delete"
+					class="flex flex-col gap-4"
+				>
 					<!-- Nilai salah cukup diunggah ulang di waktu yang sama; tab ini untuk jam/station keliru. -->
 					<div class="flex items-start gap-1.5">
 						<p class="text-xs text-text-muted">Waktu awal dan akhir ikut terhapus.</p>
@@ -600,7 +624,7 @@
 					{#if !deleteRange.ok}
 						<p class="text-xs font-medium text-status-danger-strong">{deleteRange.error}</p>
 					{/if}
-				</section>
+				</div>
 			{/if}
 		{/if}
 	</form>

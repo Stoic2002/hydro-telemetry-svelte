@@ -89,15 +89,20 @@
 					{#each status.plants as plant (plant.pltaId)}
 						{@const readiness = READINESS[plant.readiness]}
 						{@const isSelected = plant.pltaId === selectedPltaId}
+						<!--
+							Seluruh baris bisa diklik (temuan QA T19): area klik tombol nama
+							diperluas ke baris lewat `after:inset-0`, jadi keyboard tetap
+							hanya punya satu tombol per baris dan tidak ada handler di <tr>.
+						-->
 						<tr
-							class={`border-b border-surface-overlay last:border-b-0 ${isSelected ? 'bg-brand-tint' : ''}`}
+							class={`relative cursor-pointer border-b border-surface-overlay transition-colors last:border-b-0 ${isSelected ? 'bg-brand-tint' : 'hover:bg-surface-base/60'}`}
 						>
 							<td class="px-3.5 py-2">
 								<button
 									type="button"
 									onclick={() => onSelect(plant.pltaId)}
 									aria-current={isSelected ? 'true' : undefined}
-									class="cursor-pointer text-left text-sm font-medium text-text-primary hover:text-brand-primary-strong"
+									class="cursor-pointer text-left text-sm font-medium text-text-primary after:absolute after:inset-0 after:content-[''] hover:text-brand-primary-strong"
 								>
 									{plant.plantName}
 									<span class="ml-1 font-mono text-xs font-normal text-text-muted"

@@ -294,6 +294,7 @@
 									imageUrl={slot.url.current}
 									isLoading={panelQuery.isLoading || slot.query.isLoading}
 									isError={slot.query.isError}
+									onRetry={() => void slot.query.refetch()}
 								/>
 							{/each}
 						</div>

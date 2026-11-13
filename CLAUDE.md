@@ -145,6 +145,14 @@ Hal-hal yang sudah pernah menggigit dan tidak akan terlihat dari membaca kode:
   hanya tab yang memegang token lama yang sama yang ikut berganti — tab yang
   login dengan akun lain tidak tersentuh. Tanpa siaran itu tab kembar memegang
   refresh token basi, refresh-nya ditolak, dan logout menyebar ke semua tab.
+- **Pengalihan selalu dijelaskan (13 Nov 2026, QA T2)**: PLTA tak dikenal di
+  URL (bentuk rusak atau `404`) dan halaman yang tidak tersedia untuk role
+  dialihkan ke Overview lewat `redirectWithNotice` (`core/guards.ts`), yang
+  memasang toast lebih dulu — dulu pengalihannya diam-diam.
+- **Pesan galat server** melewati `localizeServerMessage`
+  (`api/http/server-message.ts`): potongan bahasa Inggris dari pustaka Python
+  ("File is not a zip file") diganti kalimat Indonesia, dan teks status HTTP
+  ("Bad Request", "Conflict") hanya cadangan terakhir (QA T18).
 - Realtime: `wss://<host>/api/v1/ws/monitoring?token=${accessToken}&plta_id=${pltaId}`.
 - Upload Excel: kirim file mentah ke server. **Jangan parsing Excel di frontend** —
   ini perubahan dari implementasi awal yang parsing di klien.
@@ -249,7 +257,10 @@ null` untuk keduanya. Banner **"N sensor bermasalah"** (merah bila ada yang
   karena rentangnya dibulatkan ke akhir jam berjalan. **PLTA yang `diatur: false` jatuh ke tampilan lama** di
   bawah ini (`ParameterTrendView`), supaya halamannya tidak kosong.
 - **Tren & Grafik (cadangan, daftar belum diatur)**: hanya **satu** grafik dengan pemilih parameter (bukan 4
-  grafik). Rentang default 24 jam. Daftar parameter diambil dari API tags. Garis
+  grafik). Rentang default 24 jam; `?period=` berisi **kunci** (`24-jam`,
+  `7-hari`, `30-hari`), bukan kalimat label — tautan lama
+  `?period=7+Hari+Terakhir` tetap dikenali (QA T16, 13 Nov 2026), berlaku juga
+  untuk daftar tren. Daftar parameter diambil dari API tags. Garis
   grafik menampilkan nilai saat di-hover. `agg` = penggabungan **antar-stasiun**, bukan antar-waktu: hanya
   `total_outflow` yang `sum`; curah hujan `avg` (rata-rata total antar-penakar —
   server sudah menjumlah per jam/hari per stasiun; `sum` dulu membuat hujan
@@ -276,7 +287,8 @@ null` untuk keduanya. Banner **"N sensor bermasalah"** (merah bila ada yang
   `mrica`), bukan UUID tertulis — id Soedirman berbeda per environment (staging
   `4b4747da…`, backend lain `727c0a7e…`), dan dulu Forecasting di staging
   meminta prediksi untuk PLTA yang tidak ada. `/dashboard/forecasting` selalu
-  mengalihkan ke Soedirman. `points[].value` boleh `null` walau Swagger
+  mengalihkan ke Soedirman. Pilihan parameter dan horizon ada di URL
+  (`?parameter=water_level&horizon=168`, QA T16). `points[].value` boleh `null` walau Swagger
   menyebutnya wajib: run 1 Okt 2026 00.30 WIB mengirim 24 titik kosong semua,
   dan halaman menampilkan "Prediksi terbaru belum berisi nilai", bukan galat
   kontrak. Badge **Kelayakan Prediksi** mengikuti `layak_disajikan`: **Layak**
@@ -301,6 +313,12 @@ null` untuk keduanya. Banner **"N sensor bermasalah"** (merah bila ada yang
   tidak bisa diubah (`PATCH` tidak menerimanya) dan harus sesuai pola Swagger
   6 Nov 2026 — PLTA `^[A-Z][A-Z0-9]*(-[A-Z0-9]+)*$`, WS `^WS-[A-Z0-9]+(-[A-Z0-9]+)*$`,
   huruf dibesarkan otomatis (`PLANT_CODE_PATTERN`/`RIVER_BASIN_CODE_PATTERN`).
+  **Urutan PLTA (Swagger 12 Nov 2026)**: `urutan` (1 = teratas, `null` =
+  paling akhir menurut kode) menentukan urutan SEMUA daftar dan unduhan PLTA;
+  server sudah mengurutkan dan **FE tidak mengurutkan ulang** (daftar hujan
+  terukur di peta dulu urut abjad, kini mengikuti katalog). Diisi lewat
+  **Urutan (opsional)** di form PLTA, tampil sebagai kolom pertama tabel PLTA;
+  PLTA lain tidak digeser otomatis, jadi dua PLTA bisa berurutan sama.
   PLTA tidak bisa dihapus — menonaktifkan lewat status. **Wilayah Sungai tanpa
   PLTA bisa dihapus** (`DELETE /wilayah-sungai/{id}`, 6 Nov 2026) untuk
   membereskan salah ketik kode; tombolnya hanya dirender bila jumlah PLTA-nya
@@ -342,7 +360,10 @@ variabel}`; editor `FormulaEditor`, logika murni `formula-form.ts`; kamus
   menggambar awan ≤ -32 °C. Ini perkiraan, bukan hujan terukur.
   Penanda PLTA yang jaraknya < 26 px **di layar** disebar melingkar dengan
   garis ke koordinat aslinya (`components/map/marker-spread.ts`, 13 Okt 2026);
-  dihitung ulang saat ukuran peta berubah.
+  dihitung ulang saat ukuran peta berubah. Nama PLTA memilih sisi atas,
+  bawah, kanan, atau kiri penandanya supaya tidak saling tindih
+  (`components/map/marker-label-placement.ts`, QA T10, 13 Nov 2026) — beda
+  dengan `label-placement.ts`, yang menempatkan nama **kabupaten**.
   **Hujan terukur** (penakar ARR milik PLTA, `features/monitoring/rainfall.ts`)
   melengkapinya: cincin biru di penanda PLTA + daftar di panel (PLTA tanpa
   koordinat tetap masuk daftar). Per 25 Sep 2026 hanya Soedirman (4 stasiun
@@ -408,7 +429,11 @@ variabel}`; editor `FormulaEditor`, logika murni `formula-form.ts`; kamus
   sebagai opsi nonaktif dan **tidak dikirim ulang** bila tidak disentuh, supaya
   simpan bidang lain tidak ikut ditolak. Gambar hujan disajikan WebP (±7x lebih
   kecil, `?asli=true` = berkas unggahan) dengan `ETag`; jangan pakai
-  `cache: 'no-store'` di `getMonthlyImage`.
+  `cache: 'no-store'` di `getMonthlyImage`. Permintaan gambar menyerah sesudah
+  **20 detik** (QA T11) dan kartunya menawarkan **Coba lagi**; dulu permintaan
+  yang menggantung membuat "Memuat…" selamanya. Gambar BMKG disebut
+  **Prediksi**/Realisasi di semua layar, termasuk Upload (dulu "Prakiraan",
+  QA T18); kunci tab `?tab=prakiraan` tidak berubah.
   Metrik harian `hidden: true` (disembunyikan operator lewat
   `PUT /dashboard/plta/{id}/daily/visibility`) tetap dikirim server tetapi
   **tidak dirender** — disaring di `dashboardMetricRows`, jadi ikut hilang dari

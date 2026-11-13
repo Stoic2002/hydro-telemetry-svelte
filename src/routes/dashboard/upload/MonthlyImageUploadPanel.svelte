@@ -19,11 +19,11 @@
 	const IMAGE_KINDS: { kind: MonthlyHydrologyImageKind; description: string }[] = [
 		{
 			kind: 'prediksi_curah_hujan',
-			description: 'Peta prakiraan jumlah hujan bulanan.'
+			description: 'Peta prediksi jumlah hujan bulanan.'
 		},
 		{
 			kind: 'prediksi_sifat_hujan',
-			description: 'Peta prakiraan sifat hujan terhadap normalnya.'
+			description: 'Peta prediksi sifat hujan terhadap normalnya.'
 		},
 		{
 			kind: 'realisasi_curah_hujan',

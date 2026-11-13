@@ -13,7 +13,11 @@
 	 * operator sering membagikan tautan ke tab tertentu, dan tombol Kembali harus
 	 * mengembalikan tab sebelumnya.
 	 */
-	const activeView = $derived(parseCatalogView(page.url.searchParams.get('view')));
+	// `?tab=` = nama parameter lama sebelum `?view=`; tautan lama tetap membuka
+	// tab yang benar (temuan QA T25).
+	const activeView = $derived(
+		parseCatalogView(page.url.searchParams.get('view') ?? page.url.searchParams.get('tab'))
+	);
 	const requestedPlantId = $derived(page.url.searchParams.get('plta') ?? '');
 
 	async function updateParams(mutate: (params: URLSearchParams) => void) {
@@ -27,6 +31,7 @@
 	function setView(view: CatalogView) {
 		void updateParams((params) => {
 			params.set('view', view);
+			params.delete('tab');
 			// `plta` hanya bermakna di tab tag; membawanya ke tab lain akan
 			// meninggalkan parameter yatim di URL.
 			if (view !== 'tags') params.delete('plta');
@@ -43,13 +48,13 @@
 
 <div class="flex flex-1 flex-col gap-6">
 	<PageHeader
-		title="Katalog Monitoring"
+		title="Katalog Data"
 		description="Lihat struktur Wilayah Sungai, PLTA, serta tag dan parameter yang tersedia di server."
 	>
 		{#snippet actions()}
 			<Tabs
 				idPrefix="catalog"
-				ariaLabel="Jenis katalog monitoring"
+				ariaLabel="Jenis katalog data"
 				activeValue={activeView}
 				onChange={setView}
 				items={[

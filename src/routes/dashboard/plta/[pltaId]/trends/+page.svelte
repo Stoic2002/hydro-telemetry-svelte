@@ -20,21 +20,30 @@
 	import PlantTrendBoard from './PlantTrendBoard.svelte';
 	import { selectTrendChart, trendChartOptions } from './plant-trend';
 
-	const TREND_PERIODS = ['24 Jam Terakhir', '7 Hari Terakhir', '30 Hari Terakhir'] as const;
+	/**
+	 * Kunci periode di URL (`?period=7-hari`). Dulu nilainya kalimat label
+	 * (`?period=7+Hari+Terakhir`), yang ikut berubah bila labelnya diubah
+	 * (temuan QA T16). Tautan lama tetap dikenali lewat `LEGACY_PERIOD`.
+	 */
+	const TREND_PERIODS = ['24-jam', '7-hari', '30-hari'] as const;
 	type TrendPeriod = (typeof TREND_PERIODS)[number];
 
-	function isTrendPeriod(value: string | null): value is TrendPeriod {
-		return TREND_PERIODS.some((period) => period === value);
+	const LEGACY_PERIOD: Record<string, TrendPeriod> = {
+		'24 Jam Terakhir': '24-jam',
+		'7 Hari Terakhir': '7-hari',
+		'30 Hari Terakhir': '30-hari'
+	};
+
+	function parseTrendPeriod(value: string | null): TrendPeriod {
+		if (!value) return TREND_PERIODS[0];
+		if (TREND_PERIODS.some((period) => period === value)) return value as TrendPeriod;
+		return LEGACY_PERIOD[value] ?? TREND_PERIODS[0];
 	}
 
-	/**
-	 * Label tampilan pendek. Nilai URL tetap kalimat lengkap supaya tautan lama
-	 * berlaku; "Terakhir" di setiap tombol dulu membuat tab terpotong di ponsel.
-	 */
 	const PERIOD_LABEL: Record<TrendPeriod, string> = {
-		'24 Jam Terakhir': '24 jam',
-		'7 Hari Terakhir': '7 hari',
-		'30 Hari Terakhir': '30 hari'
+		'24-jam': '24 jam',
+		'7-hari': '7 hari',
+		'30-hari': '30 hari'
 	};
 
 	/**
@@ -44,10 +53,8 @@
 	const REFRESH_MS = 5 * 60 * 1_000;
 
 	function periodConfig(period: TrendPeriod): { durationMs: number; resolution: TrendResolution } {
-		if (period === '24 Jam Terakhir') return { durationMs: 24 * 60 * 60 * 1_000, resolution: '1h' };
-		if (period === '7 Hari Terakhir') {
-			return { durationMs: 7 * 24 * 60 * 60 * 1_000, resolution: '1h' };
-		}
+		if (period === '24-jam') return { durationMs: 24 * 60 * 60 * 1_000, resolution: '1h' };
+		if (period === '7-hari') return { durationMs: 7 * 24 * 60 * 60 * 1_000, resolution: '1h' };
 		return { durationMs: 30 * 24 * 60 * 60 * 1_000, resolution: '1d' };
 	}
 
@@ -64,10 +71,7 @@
 	let isListSheetOpen = $state(false);
 
 	/** Filter disimpan di URL supaya tautan ke grafik tertentu bisa dibagikan. */
-	const period = $derived.by(() => {
-		const value = page.url.searchParams.get('period');
-		return isTrendPeriod(value) ? value : TREND_PERIODS[0];
-	});
+	const period = $derived(parseTrendPeriod(page.url.searchParams.get('period')));
 	const parameterParam = $derived(page.url.searchParams.get('parameter'));
 	const chartParam = $derived(page.url.searchParams.get('grafik'));
 

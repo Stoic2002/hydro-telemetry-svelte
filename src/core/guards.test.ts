@@ -28,6 +28,9 @@ vi.mock('../features/auth', async () => ({
 vi.mock('../features/plta', () => ({}));
 vi.mock('./query-client', () => ({ queryClient: {} }));
 
+const notifications = vi.hoisted(() => ({ addToast: vi.fn() }));
+vi.mock('../shared/lib/notification.svelte', () => ({ notificationStore: notifications }));
+
 const { requireAuthenticated, requireDataTools, requireGuest } = await import('./guards');
 
 function restoreSessionLater(role: string) {
@@ -53,6 +56,7 @@ beforeEach(() => {
 	session.sessionExpired = false;
 	session.user = null;
 	session.initialize.mockReset();
+	notifications.addToast.mockReset();
 });
 
 describe('guard saat sesi masih dipulihkan', () => {
@@ -72,6 +76,11 @@ describe('guard saat sesi masih dipulihkan', () => {
 		restoreSessionLater('Viewer');
 
 		expect(await redirectLocation(requireDataTools)).toBe('/dashboard/overview');
+		// Pengalihan dijelaskan, bukan diam-diam (temuan QA T2).
+		expect(notifications.addToast).toHaveBeenCalledWith({
+			type: 'warning',
+			message: 'Halaman itu tidak tersedia untuk peran Anda.'
+		});
 	});
 
 	it('mengalihkan ke /login bila sesi memang tidak ada', async () => {

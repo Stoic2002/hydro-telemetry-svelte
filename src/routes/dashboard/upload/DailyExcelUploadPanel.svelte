@@ -153,7 +153,7 @@
 				<div>
 					<SelectedFile
 						file={selectedFile}
-						error={selectionError}
+						error={selectionError ?? errorMessage}
 						disabled={isUploading}
 						onClear={clearSelection}
 					/>

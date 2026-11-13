@@ -23,6 +23,8 @@ export const apiPlantSchema = z.object({
 	is_active: z.boolean(),
 	beban_to_outflow_num: z.number(),
 	beban_to_outflow_den: z.number(),
+	/** Swagger 12 Nov 2026: posisi di semua daftar PLTA; `null` = belum diberi. */
+	urutan: z.number().int().nullable().optional().default(null),
 	constants: z
 		.record(z.string(), z.unknown())
 		.nullable()

@@ -69,6 +69,11 @@
 					class="inline-flex shrink-0 cursor-pointer items-center gap-1 text-xs font-medium text-brand-primary-strong transition-colors hover:text-brand-primary-pressed"
 				>
 					{row.hasData ? 'Edit data' : 'Input data'}
+					<!--
+						Nama metrik untuk pembaca layar: tanpa ini satu panel berisi
+						beberapa tombol bernama sama "Input data" (temuan aksesibilitas QA).
+					-->
+					<span class="sr-only">{row.label}</span>
 				</button>
 			{/if}
 		</div>

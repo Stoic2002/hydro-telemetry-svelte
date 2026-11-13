@@ -65,6 +65,7 @@
 	{/snippet}
 
 	<form
+		novalidate
 		id="edit-user-sheet-form"
 		onsubmit={(event) => form.submit(event)}
 		class="flex flex-col gap-5"
@@ -116,6 +117,7 @@
 				type="submit"
 				form="edit-user-sheet-form"
 				isLoading={isPending}
+				disabled={!form.isDirty}
 				class="w-full sm:w-auto"
 			>
 				{#snippet leftIcon()}<IconSave class="size-4" />{/snippet}

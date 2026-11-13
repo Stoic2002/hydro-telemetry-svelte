@@ -12,7 +12,8 @@
 	import {
 		UPLOAD_AUDIT_KIND_OPTIONS,
 		uploadAuditActionLabel,
-		uploadAuditKindLabel
+		uploadAuditKindLabel,
+		uploadAuditSubject
 	} from '../presentation';
 
 	interface Props {
@@ -167,7 +168,9 @@
 								</Badge>
 							</td>
 							<td class="max-w-[220px] px-3 py-2.5 text-xs text-text-secondary">
-								<span class="block truncate">{entry.fileName ?? entry.parameter ?? '—'}</span>
+								<span class="block truncate" title={uploadAuditSubject(entry)}>
+									{uploadAuditSubject(entry)}
+								</span>
 							</td>
 							{#if !isScopedToPlta}
 								<td class="px-3 py-2.5 whitespace-nowrap">

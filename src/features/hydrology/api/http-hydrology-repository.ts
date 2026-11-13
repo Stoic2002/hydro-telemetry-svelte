@@ -237,6 +237,9 @@ async function downloadXlsx(
 	return payload;
 }
 
+/** Batas tunggu satu gambar hujan; sesudahnya kartu menampilkan "Gambar gagal dimuat". */
+const MONTHLY_IMAGE_TIMEOUT_MS = 20_000;
+
 export const httpHydrologyRepository: HydrologyRepository = {
 	async getDaily(pltaId, params, options) {
 		const endpoint = `/api/v1/dashboard/plta/${encodeURIComponent(pltaId)}/daily`;
@@ -353,21 +356,50 @@ export const httpHydrologyRepository: HydrologyRepository = {
 
 	async getMonthlyImage(year, month, kind, options) {
 		const endpoint = '/api/v1/hydrology/monthly/image';
-		// Tanpa `cache: 'no-store'`: server menyajikan WebP dengan `ETag` +
-		// `Cache-Control: no-cache`, jadi browser menyimpan gambarnya dan hanya
-		// bertanya ulang (`If-None-Match` → `304`). `no-store` memaksa unduh
-		// ulang penuh setiap kali — itu yang dulu membuat empat gambar di
-		// Hidrologi Bulanan lama tampil.
-		const payload = await apiRequest<Blob>(endpoint, {
-			method: 'GET',
-			signal: options?.signal,
-			headers: { Accept: 'image/*' },
-			query: {
-				tahun: year,
-				bulan: month,
-				jenis: kind
+		// Batas tunggu sendiri (temuan QA T11): tanpa itu permintaan yang
+		// menggantung membuat kartu "Memuat…" selamanya dan tidak pernah jatuh ke
+		// "Gambar gagal dimuat". Pembatalan dari query (berpindah bulan) tetap
+		// diteruskan.
+		const controller = new AbortController();
+		let timedOut = false;
+		const timer = setTimeout(() => {
+			timedOut = true;
+			controller.abort();
+		}, MONTHLY_IMAGE_TIMEOUT_MS);
+		const forwardAbort = () => controller.abort();
+		options?.signal?.addEventListener('abort', forwardAbort, { once: true });
+
+		let payload: Blob;
+		try {
+			// Tanpa `cache: 'no-store'`: server menyajikan WebP dengan `ETag` +
+			// `Cache-Control: no-cache`, jadi browser menyimpan gambarnya dan hanya
+			// bertanya ulang (`If-None-Match` → `304`). `no-store` memaksa unduh
+			// ulang penuh setiap kali — itu yang dulu membuat empat gambar di
+			// Hidrologi Bulanan lama tampil.
+			payload = await apiRequest<Blob>(endpoint, {
+				method: 'GET',
+				signal: controller.signal,
+				headers: { Accept: 'image/*' },
+				query: {
+					tahun: year,
+					bulan: month,
+					jenis: kind
+				}
+			});
+		} catch (error) {
+			if (timedOut) {
+				throw new ApiError('Gambar tidak termuat dalam 20 detik', {
+					status: 0,
+					statusText: 'Timeout',
+					url: endpoint,
+					cause: error
+				});
 			}
-		});
+			throw error;
+		} finally {
+			clearTimeout(timer);
+			options?.signal?.removeEventListener('abort', forwardAbort);
+		}
 
 		if (!(payload instanceof Blob)) {
 			throw new ApiError('Respons gambar hidrologi tidak valid', {

@@ -31,7 +31,7 @@ describe('tombol isian data harian', () => {
 		const onUpload = vi.fn();
 		render(MetricRowItem, { props: { row: ROW, onUpload } });
 
-		await userEvent.setup().click(screen.getByRole('button', { name: 'Edit data' }));
+		await userEvent.setup().click(screen.getByRole('button', { name: /^Edit data/ }));
 
 		expect(onUpload).toHaveBeenCalledWith(ROW.uploadTarget);
 	});

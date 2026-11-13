@@ -117,6 +117,34 @@ function plant(patch: Record<string, unknown> = {}) {
 	};
 }
 
+describe('urutan PLTA (Swagger 12 Nov 2026)', () => {
+	it('membaca urutan; backend lama tanpa bidang itu = null', async () => {
+		apiRequestMock.mockResolvedValueOnce(plant({ urutan: 3 }));
+		await expect(
+			httpPltaRepository.createPlant({
+				code: 'PBS',
+				name: 'Soedirman',
+				riverBasinId: WS_ID,
+				latitude: null,
+				longitude: null,
+				capacityMw: null,
+				description: null,
+				isActive: true,
+				bebanToOutflowNum: 204,
+				bebanToOutflowDen: 180,
+				order: 3
+			})
+		).resolves.toMatchObject({ order: 3 });
+
+		apiRequestMock.mockResolvedValueOnce(plant());
+		await expect(
+			httpPltaRepository.updatePlant(PLTA_ID, { isActive: true })
+		).resolves.toMatchObject({
+			order: null
+		});
+	});
+});
+
 describe('PLTA dan Wilayah Sungai: tambah dan ubah', () => {
 	it('tambah PLTA mengirim nama bidang API dan tidak pernah mengirim constants', async () => {
 		apiRequestMock.mockResolvedValue(plant());
@@ -131,7 +159,8 @@ describe('PLTA dan Wilayah Sungai: tambah dan ubah', () => {
 			description: null,
 			isActive: true,
 			bebanToOutflowNum: 204,
-			bebanToOutflowDen: 180
+			bebanToOutflowDen: 180,
+			order: 2
 		});
 
 		const [endpoint, options] = apiRequestMock.mock.calls[0];
@@ -147,7 +176,8 @@ describe('PLTA dan Wilayah Sungai: tambah dan ubah', () => {
 			description: null,
 			is_active: true,
 			beban_to_outflow_num: 204,
-			beban_to_outflow_den: 180
+			beban_to_outflow_den: 180,
+			urutan: 2
 		});
 	});
 
